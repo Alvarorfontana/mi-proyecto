@@ -26,6 +26,14 @@ Corregís un `.md`, volvés a armar, y el libro se recompone entero en unos segu
 
 Sin instalar nada: si subís el repo a GitHub, cada cambio arma los PDF solo (pestaña **Actions** → última corrida → **Artifacts**).
 
+## Usarlo online, sin instalar nada (GitHub Codespaces)
+
+En la página del repo en GitHub: **Code → Codespaces → Create codespace on main**. La primera vez tarda un par de minutos porque instala Typst y pandoc. Después se abre solo el **panel** en una pestaña nueva; si no se abre, entrá a la pestaña **Ports** y abrí el puerto 8000.
+
+Lo que cambiás en el panel queda en el Codespace. Para guardarlo en GitHub: en la barra izquierda, **Source Control → escribir un mensaje → Commit → Sync**. Al subirlo, GitHub Actions arma solo el PDF, la tapa y el EPUB (pestaña **Actions → Artifacts**).
+
+Gratis: 60 horas por mes. Cerrá el Codespace cuando no lo uses (se apaga solo a los 30 minutos sin actividad).
+
 ## El panel (lo más cómodo)
 
 ```bash
