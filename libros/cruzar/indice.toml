@@ -1,0 +1,208 @@
+# Índice analítico de CRUZAR
+# Cada término lista las formas en que aparece en el texto (expresiones regulares).
+# Las páginas se calculan solas en cada armado: si cambiás el formato, el índice se actualiza.
+# \w* = "cualquier terminación"  ·  [Aa] = mayúscula o minúscula
+
+[[termino]]
+entrada = "ACNUR"
+buscar  = ["ACNUR", "Alto Comisionado de las Naciones Unidas para los Refugiados"]
+
+[[termino]]
+entrada = "Afganistán"
+buscar  = ["Afganistán", "afgan\\w*"]
+
+[[termino]]
+entrada = "Argentina, Ley de Migraciones 25.871"
+buscar  = ["Ley 25\\.871", "Ley de Migraciones"]
+
+[[termino]]
+entrada = "Asilo"
+buscar  = ["[Aa]silo"]
+
+[[termino]]
+entrada = "Azraq"
+buscar  = ["Azraq"]
+
+[[termino]]
+entrada = "Bangladesh"
+buscar  = ["Bangladesh"]
+
+[[termino]]
+entrada = "Biden, Joe"
+buscar  = ["Biden"]
+
+[[termino]]
+entrada = "Brasil"
+buscar  = ["Brasil"]
+
+[[termino]]
+entrada = "Cambio climático"
+buscar  = ["[Cc]ambio climático"]
+
+[[termino]]
+entrada = "Centroamérica"
+buscar  = ["Centroamérica", "centroamerican\\w*"]
+
+[[termino]]
+entrada = "Chile"
+buscar  = ["Chile"]
+
+[[termino]]
+entrada = "China, migración interna"
+buscar  = ["China"]
+
+[[termino]]
+entrada = "Colombia, Estatuto Temporal de Protección"
+buscar  = ["Estatuto Temporal de Protección"]
+
+[[termino]]
+entrada = "Congo"
+buscar  = ["Congo"]
+
+[[termino]]
+entrada = "Darfur"
+buscar  = ["Darfur"]
+
+[[termino]]
+entrada = "Darién"
+buscar  = ["Darién"]
+
+[[termino]]
+entrada = "Deportación"
+buscar  = ["[Dd]eportaci\\w+", "[Dd]eportad\\w+"]
+
+[[termino]]
+entrada = "El Salvador"
+buscar  = ["El Salvador"]
+
+[[termino]]
+entrada = "Externalización de fronteras"
+buscar  = ["[Ee]xternalizaci\\w+"]
+
+[[termino]]
+entrada = "Familias, separación de"
+buscar  = ["separación de familias", "separación familiar"]
+
+[[termino]]
+entrada = "Ginebra, Convención de 1951"
+buscar  = ["Convención de Ginebra", "Convención sobre el Estatuto de los Refugiados", "Convención de 1951"]
+
+[[termino]]
+entrada = "Guatemala"
+buscar  = ["Guatemala"]
+
+[[termino]]
+entrada = "Haití"
+buscar  = ["Haití", "haitian\\w*"]
+
+[[termino]]
+entrada = "Honduras"
+buscar  = ["Honduras"]
+
+[[termino]]
+entrada = "Hukou"
+buscar  = ["hukou"]
+
+[[termino]]
+entrada = "ICE"
+buscar  = ["ICE"]
+
+[[termino]]
+entrada = "INADI"
+buscar  = ["INADI"]
+
+[[termino]]
+entrada = "Jordania"
+buscar  = ["Jordania"]
+
+[[termino]]
+entrada = "Libia"
+buscar  = ["Libia"]
+
+[[termino]]
+entrada = "Líbano"
+buscar  = ["Líbano"]
+
+[[termino]]
+entrada = "López Obrador, Andrés Manuel"
+buscar  = ["López Obrador"]
+
+[[termino]]
+entrada = "Mediterráneo"
+buscar  = ["Mediterráneo"]
+
+[[termino]]
+entrada = "Mercosur"
+buscar  = ["Mercosur", "MERCOSUR"]
+
+[[termino]]
+entrada = "México"
+buscar  = ["México"]
+
+[[termino]]
+entrada = "Myanmar"
+buscar  = ["Myanmar"]
+
+[[termino]]
+entrada = "No devolución, principio de"
+buscar  = ["no devolución", "non-refoulement"]
+
+[[termino]]
+entrada = "Patria Grande, Plan"
+buscar  = ["Patria Grande"]
+
+[[termino]]
+entrada = "Remesas"
+buscar  = ["[Rr]emesas"]
+
+[[termino]]
+entrada = "Rohinyás"
+buscar  = ["[Rr]ohiny\\w+"]
+
+[[termino]]
+entrada = "Ruanda"
+buscar  = ["Ruanda"]
+
+[[termino]]
+entrada = "Sahel"
+buscar  = ["Sahel"]
+
+[[termino]]
+entrada = "Sassen, Saskia"
+buscar  = ["Sassen"]
+
+[[termino]]
+entrada = "Sheinbaum, Claudia"
+buscar  = ["Sheinbaum"]
+
+[[termino]]
+entrada = "Siria"
+buscar  = ["Siria", "siri[oa]s?"]
+
+[[termino]]
+entrada = "Sudán"
+buscar  = ["Sudán"]
+
+[[termino]]
+entrada = "Tijuana"
+buscar  = ["Tijuana"]
+
+[[termino]]
+entrada = "Trump, Donald"
+buscar  = ["Trump"]
+
+[[termino]]
+entrada = "Turquía"
+buscar  = ["Turquía"]
+
+[[termino]]
+entrada = "Unión Europea"
+buscar  = ["Unión Europea"]
+
+[[termino]]
+entrada = "Venezuela"
+buscar  = ["Venezuela", "venezolan\\w*"]
+
+[[termino]]
+entrada = "Zaatari"
+buscar  = ["Zaatari"]

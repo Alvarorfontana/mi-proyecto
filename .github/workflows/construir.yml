@@ -1,0 +1,35 @@
+# Arma los PDF en GitHub cada vez que subís cambios (sin instalar nada en tu compu).
+# Los PDF quedan para descargar en la pestaña "Actions" → la última corrida → "Artifacts".
+name: Construir libro
+
+on:
+  push:
+    paths: ["libros/**", "plantilla/**", "herramientas/**"]
+  workflow_dispatch:
+    inputs:
+      libro:
+        description: "Carpeta del libro"
+        default: "cruzar"
+
+jobs:
+  construir:
+    runs-on: ubuntu-latest
+    env:
+      LIBRO: ${{ github.event.inputs.libro || 'cruzar' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: typst-community/setup-typst@v4
+        with:
+          typst-version: "0.13.1"
+      - name: Instalar pandoc
+        run: |
+          wget -q https://github.com/jgm/pandoc/releases/download/3.6.4/pandoc-3.6.4-1-amd64.deb
+          sudo dpkg -i pandoc-3.6.4-1-amd64.deb
+      - name: Armar interior, tapa y EPUB
+        run: |
+          pip install pypdf
+          python herramientas/construir.py "$LIBRO" --epub
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.LIBRO }}-pdf
+          path: libros/${{ env.LIBRO }}/salida/

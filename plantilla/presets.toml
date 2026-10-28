@@ -1,0 +1,22 @@
+# Medidas de página habituales (ancho x alto)
+[formatos]
+"11x17"   = { ancho = "110mm", alto = "170mm" }   # bolsillo
+"13x20"   = { ancho = "130mm", alto = "200mm" }
+"14x21"   = { ancho = "140mm", alto = "210mm" }   # ensayo / narrativa (A5 aprox.)
+"15x23"   = { ancho = "150mm", alto = "230mm" }   # ensayo / no ficción
+"16x23"   = { ancho = "160mm", alto = "230mm" }
+"17x24"   = { ancho = "170mm", alto = "240mm" }   # académico / ilustrado
+"A5"      = { ancho = "148mm", alto = "210mm" }
+"6x9in"   = { ancho = "152.4mm", alto = "228.6mm" } # Amazon KDP estándar
+
+# Espesor de UNA hoja (2 páginas) en mm. Confirmalo con tu imprenta:
+# cada papel y cada imprenta varía unas centésimas.
+[papeles]
+"obra-70"      = 0.090
+"obra-80"      = 0.100
+"obra-90"      = 0.115
+"bookcel-65"   = 0.105   # ahuesado esponjoso, típico de narrativa
+"bookcel-80"   = 0.125
+"ilustracion-115" = 0.095 # papel ilustración mate (fotos/mapas color)
+"kdp-blanco"   = 0.1144  # Amazon KDP: 0.002252 in por página
+"kdp-crema"    = 0.1270  # Amazon KDP: 0.0025 in por página

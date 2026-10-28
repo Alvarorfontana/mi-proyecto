@@ -1,0 +1,169 @@
+# ─────────────────────────────────────────────────────────────
+#  CRUZAR — configuración del libro
+#  Todo lo que cambia el aspecto del libro se toca acá.
+#  Después: python herramientas/construir.py cruzar
+# ─────────────────────────────────────────────────────────────
+
+[libro]
+titulo     = "CRUZAR"
+subtitulo  = "Fronteras, poder y dignidad en un mundo que expulsa"
+autor      = "Álvaro Fontana"
+editorial  = "Editorial Umbral"
+ciudad     = "Buenos Aires"
+anio       = 2026
+isbn       = ""          # ej. "978-987-00-0000-0" → genera el código de barras en la contratapa
+edicion    = "Primera edición"
+creditos_extra = "ISBN, ficha catalográfica, depósito legal y datos de imprenta: por asignar."
+
+# ── Formato de página ────────────────────────────────────────
+# Usá un preset (ver plantilla/presets.toml) o poné ancho/alto a mano.
+[formato]
+preset = "17x24"
+# ancho = "170mm"
+# alto  = "240mm"
+margen_interior = "22mm"   # lomo
+margen_exterior = "18mm"
+margen_superior = "20mm"
+margen_inferior = "24mm"
+
+# ── Tipografía ───────────────────────────────────────────────
+[tipografia]
+fuente          = "EB Garamond"   # texto
+fuente_titulos  = "EB Garamond"   # capítulos y secciones
+fuente_apoyo    = "Inter"         # cornisas, epígrafes de figuras, tablas (opcional)
+cuerpo          = "12pt"
+interlineado    = "16pt"          # distancia entre líneas de base (como en InDesign)
+notas           = "10pt"
+sangria         = "1.2em"         # primera línea de cada párrafo
+justificado     = true
+guiones         = true            # partición silábica en castellano
+idioma          = "es"
+
+# ── Estilo ───────────────────────────────────────────────────
+[estilo]
+capitulo_en_impar        = true    # cada capítulo arranca en página derecha
+parte_en_impar           = true
+numerar_secciones        = true    # 1.1, 1.2… (se renumera solo si movés o fusionás capítulos)
+notas_por_capitulo       = false   # true = las notas vuelven a 1 en cada capítulo
+cornisa_par              = "autor"     # autor | titulo | capitulo | nada
+cornisa_impar            = "capitulo"
+folio                    = "abajo-afuera"  # abajo-afuera | abajo-centro | arriba-afuera
+color_acento             = "#000000"
+indice_analitico         = true
+colofon                  = true
+
+# ── Estructura: el orden en que entra cada archivo ──────────
+# tipo: preliminar | parte | capitulo | final
+[[contenido]]
+tipo = "preliminar"
+archivo = "texto/00-prologo.md"
+
+[[contenido]]
+tipo = "parte"
+titulo = "América"
+
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/01-america-latina.md"
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/02-haiti-chile-y-el-darien.md"
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/03-venezuela.md"
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/04-mexico.md"
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/05-estados-unidos.md"
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/06-argentina.md"
+
+[[contenido]]
+tipo = "parte"
+titulo = "Otras rutas y crisis del mundo"
+
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/07-china.md"
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/08-europa.md"
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/09-africa.md"
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/10-guerras-y-desplazamiento.md"
+
+[[contenido]]
+tipo = "parte"
+titulo = "La experiencia de migrar"
+
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/11-por-que-se-va-la-gente.md"
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/12-el-momento-de-la-decision.md"
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/13-el-viaje.md"
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/14-la-llegada.md"
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/15-los-papeles.md"
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/16-el-trabajo.md"
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/17-la-familia-partida.md"
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/18-la-identidad-en-transito.md"
+
+[[contenido]]
+tipo = "final"
+archivo = "texto/90-epilogo.md"
+[[contenido]]
+tipo = "final"
+archivo = "texto/91-agradecimientos.md"
+[[contenido]]
+tipo = "final"
+archivo = "texto/92-anexos.md"
+[[contenido]]
+tipo = "final"
+archivo = "texto/93-bibliografia.md"
+indice  = false   # no cuenta para el índice analítico
+[[contenido]]
+tipo = "final"
+archivo = "texto/94-articulos-del-autor.md"
+indice  = false
+
+# ── Preliminares ─────────────────────────────────────────────
+[preliminares]
+portadilla  = true
+dedicatoria = "texto/dedicatoria.md"
+indice      = "inicio"   # inicio | final | no
+
+# ── Tapa ─────────────────────────────────────────────────────
+[tapa]
+papel          = "obra-80"   # ver plantilla/presets.toml → [papeles]
+cartulina_mm   = 0.6         # suma de las dos tapas al lomo
+solapa         = "80mm"      # "0mm" = sin solapas
+sangrado       = "3mm"
+pliegue_solapa = "3mm"       # margen extra que piden algunas imprentas en el doblez
+fondo          = "#1d2a33"
+color_texto    = "#f4efe6"
+color_acento   = "#d9a441"
+imagen         = ""          # ej. "tapa/foto-tapa.jpg" (ocupa toda la tapa)
+imagen_contratapa = ""
+contratapa     = "tapa/contratapa.md"
+solapa_delantera = "tapa/solapa-delantera.md"
+solapa_trasera   = "tapa/solapa-trasera.md"
+foto_autor     = ""          # ej. "tapa/autor.jpg" (va en la solapa delantera)
