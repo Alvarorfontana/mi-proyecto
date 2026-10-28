@@ -2,12 +2,26 @@
   "name": "Taller editorial",
   "image": "mcr.microsoft.com/devcontainers/python:3.12",
   "postCreateCommand": "bash .devcontainer/instalar.sh",
-  "postAttachCommand": "SIN_NAVEGADOR=1 nohup python panel/servidor.py > /tmp/panel.log 2>&1 &",
-  "forwardPorts": [8000],
+  "postAttachCommand": {
+    "panel": "python panel/servidor.py"
+  },
+  "forwardPorts": [
+    8000
+  ],
   "portsAttributes": {
-    "8000": { "label": "Panel del taller", "onAutoForward": "openBrowser" }
+    "8000": {
+      "label": "Panel del taller",
+      "onAutoForward": "openBrowser"
+    }
   },
   "customizations": {
-    "vscode": { "extensions": ["myriad-dreamin.tinymist"] }
+    "vscode": {
+      "extensions": [
+        "myriad-dreamin.tinymist"
+      ]
+    }
+  },
+  "containerEnv": {
+    "SIN_NAVEGADOR": "1"
   }
 }
