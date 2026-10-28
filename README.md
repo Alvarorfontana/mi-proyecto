@@ -26,7 +26,20 @@ Corregís un `.md`, volvés a armar, y el libro se recompone entero en unos segu
 
 Sin instalar nada: si subís el repo a GitHub, cada cambio arma los PDF solo (pestaña **Actions** → última corrida → **Artifacts**).
 
-## Armar el libro
+## El panel (lo más cómodo)
+
+```bash
+python panel/servidor.py
+```
+
+O doble clic en `abrir-panel.command` (Mac) o `abrir-panel.bat` (Windows). Se abre en el navegador, en `http://localhost:8000`, y todo queda en tu compu.
+
+- **Texto**: la lista de capítulos y partes (subir, bajar, quitar, agregar), un editor con botones para cursiva, notas, secciones, citas, epígrafes, leyendas, fotos, mapas y tablas, y la **vista previa con las páginas reales** al lado. Se actualiza sola mientras escribís. `Ctrl+S` guarda.
+- **Estilos**: datos del libro, medida, márgenes, tipografías, cuerpo, interlineado, cornisas, folio, color. «Guardar y ver páginas» muestra el capítulo abierto con los cambios.
+- **Tapa**: papel, solapas, sangrado, colores, imagen y textos, con la tapa completa a la vista (corte, pliegues y zona segura).
+- **Producción**: arma el PDF de imprenta, la tapa y el EPUB; avisa lo que falta antes de imprenta (notas sin texto, imágenes que no están, ISBN); y el simulador de páginas, con un botón para aplicar la combinación elegida.
+
+## Armar el libro (desde la terminal)
 
 ```bash
 python herramientas/construir.py cruzar            # interior + tapa

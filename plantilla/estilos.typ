@@ -447,7 +447,7 @@
   // Índice analítico: cada término del indice.toml deja una marca invisible donde aparece.
   show: cuerpo => {
     let res = cuerpo
-    for t in _terminos {
+    for t in (if sys.inputs.at("vista", default: "no") == "si" { () } else { _terminos }) {
       let patron = "\\b(?:" + t.buscar.join("|") + ")\\b"
       res = {
         show regex(patron): it => it + [#metadata(t.entrada)<idx>]

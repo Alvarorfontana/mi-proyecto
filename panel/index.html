@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Taller editorial</title>
+<style>
+:root{
+  --papel:#f6f3ec; --panel:#fffdf8; --tinta:#1f1d1a; --gris:#6f6a61; --linea:#e2ddd1;
+  --acento:#9b3d1f; --acento-suave:#f3e3da; --ok:#2f6b3a; --aviso:#9a6a00; --error:#a12a2a;
+  --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--papel);color:var(--tinta);font:14px/1.45 var(--sans)}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--linea);background:var(--panel);border-radius:6px;padding:6px 10px}
+button:hover{border-color:#cfc7b6}
+button.principal{background:var(--acento);border-color:var(--acento);color:#fff}
+button.principal:hover{filter:brightness(1.08)}
+button:disabled{opacity:.5;cursor:default}
+input,select{border:1px solid var(--linea);background:#fff;border-radius:6px;padding:5px 8px}
+input[type=color]{padding:1px;width:44px;height:30px}
+label{display:block}
+
+header{height:52px;display:flex;align-items:center;gap:16px;padding:0 16px;border-bottom:1px solid var(--linea);background:var(--panel)}
+.marca{font:600 17px/1 var(--serif);letter-spacing:.01em;white-space:nowrap}
+.marca span{color:var(--acento)}
+nav{display:flex;gap:2px;margin-left:8px}
+nav button{border:none;background:none;padding:8px 12px;border-radius:6px;color:var(--gris)}
+nav button.activo{background:var(--acento-suave);color:var(--acento);font-weight:600}
+.estado{margin-left:auto;color:var(--gris);font-size:12.5px;white-space:nowrap}
+.estado.sucio{color:var(--aviso)}
+
+main{height:calc(100% - 52px)}
+.vista{display:none;height:100%}
+.vista.activa{display:grid}
+
+/* TEXTO */
+#v-texto{grid-template-columns:270px minmax(320px,1fr) minmax(340px,1fr)}
+aside{border-right:1px solid var(--linea);overflow:auto;background:var(--panel);display:flex;flex-direction:column}
+.lista{padding:8px 6px;flex:1;overflow:auto}
+.it{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;cursor:pointer}
+.it:hover{background:#f2eee4}
+.it.sel{background:var(--acento-suave)}
+.it .num{font:600 11px var(--mono);color:var(--acento);min-width:22px}
+.it .tit{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.it .pal{font:11px var(--mono);color:var(--gris)}
+.it .acc{display:none;gap:2px}
+.it:hover .acc,.it.sel .acc{display:flex}
+.it .acc button{padding:0 5px;font-size:11px;line-height:18px}
+.parte{margin:12px 8px 4px;font:600 10.5px/1.2 var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--gris);display:flex;gap:6px;align-items:center}
+.parte .acc{display:none}.parte:hover .acc{display:flex}
+.parte .acc button{padding:0 5px;font-size:11px;line-height:16px}
+.it.falta .tit{color:var(--error)}
+.pie-lista{border-top:1px solid var(--linea);padding:8px;display:flex;flex-wrap:wrap;gap:6px}
+.pie-lista button{font-size:12.5px}
+.resumen{padding:8px 12px;font-size:12px;color:var(--gris);border-top:1px solid var(--linea)}
+
+.editor{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--linea)}
+.barra{display:flex;flex-wrap:wrap;gap:4px;padding:6px 8px;border-bottom:1px solid var(--linea);background:var(--panel)}
+.barra button{padding:3px 8px;font-size:12.5px}
+.barra .sep{width:1px;background:var(--linea);margin:2px 4px}
+.ruta{font:12px var(--mono);color:var(--gris);padding:6px 12px;border-bottom:1px solid var(--linea);display:flex;gap:8px;align-items:center}
+.ruta b{color:var(--tinta);font-weight:500}
+textarea#md{flex:1;border:0;resize:none;padding:18px 22px;font:14.5px/1.65 var(--mono);background:#fff;outline:none;tab-size:2}
+
+.previa{display:flex;flex-direction:column;min-width:0;background:#e9e5db}
+.previa .barra{justify-content:space-between;align-items:center}
+.paginas{flex:1;overflow:auto;padding:18px;display:flex;flex-wrap:wrap;gap:16px;justify-content:center;align-content:flex-start}
+.paginas img{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.15),0 6px 18px rgba(0,0,0,.08)}
+.vacia{color:var(--gris);text-align:center;margin-top:60px;max-width:320px}
+.err{white-space:pre-wrap;font:12px var(--mono);color:var(--error);background:#fff;padding:12px;border-radius:6px;max-width:100%}
+
+/* FORMULARIOS */
+#v-estilos,#v-tapa{grid-template-columns:minmax(360px,520px) 1fr}
+.form{overflow:auto;padding:20px 24px;background:var(--panel);border-right:1px solid var(--linea)}
+.form h2{font:600 19px var(--serif);margin:0 0 4px}
+.form h3{font:600 11px var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--gris);margin:22px 0 8px;padding-top:14px;border-top:1px solid var(--linea)}
+.form p.ayuda{color:var(--gris);margin:0 0 12px;font-size:13px}
+.campos{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+.campos label span{display:block;font-size:12px;color:var(--gris);margin-bottom:3px}
+.campos input,.campos select{width:100%}
+.check{display:flex;align-items:center;gap:8px;grid-column:span 2}
+.check input{width:auto}
+.acciones{display:flex;gap:8px;margin-top:20px;position:sticky;bottom:0;background:var(--panel);padding:12px 0}
+
+/* PRODUCCIÓN */
+#v-produccion{grid-template-columns:1fr;overflow:auto}
+.prod{max-width:1080px;margin:0 auto;padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.tarjeta{background:var(--panel);border:1px solid var(--linea);border-radius:10px;padding:18px 20px}
+.tarjeta h2{font:600 18px var(--serif);margin:0 0 6px}
+.tarjeta p{color:var(--gris);margin:0 0 12px}
+.ancha{grid-column:span 2}
+.cifras{display:flex;gap:28px;margin:14px 0}
+.cifra b{display:block;font:600 26px var(--serif)}
+.cifra span{color:var(--gris);font-size:12px}
+.descargas{display:flex;flex-wrap:wrap;gap:8px}
+.descargas a{display:inline-flex;gap:6px;align-items:center;padding:7px 12px;border:1px solid var(--linea);border-radius:6px;text-decoration:none;color:var(--tinta);background:#fff}
+.descargas a:hover{border-color:var(--acento)}
+pre.log{background:#1f1d1a;color:#e8e2d4;font:12px/1.5 var(--mono);padding:12px;border-radius:8px;max-height:220px;overflow:auto;white-space:pre-wrap;margin:12px 0 0}
+ul.avisos{margin:0;padding-left:18px}
+ul.avisos li{margin:4px 0}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--linea)}
+th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gris);font-weight:600}
+td.n{font-family:var(--mono);text-align:right}
+tr.cerca td{background:#f1f6ee}
+.fila-sim{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:12px}
+.fila-sim label span{display:block;font-size:12px;color:var(--gris);margin-bottom:3px}
+.ok{color:var(--ok)}.mal{color:var(--error)}
+
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--tinta);color:#fff;padding:9px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
+.toast.ver{opacity:1}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:g .7s linear infinite;vertical-align:-1px}
+@keyframes g{to{transform:rotate(360deg)}}
+
+@media (max-width:1100px){
+  #v-texto{grid-template-columns:220px 1fr}
+  #v-texto .previa{display:none}
+  #v-texto.con-previa .editor{display:none}
+  #v-texto.con-previa .previa{display:flex}
+  .prod{grid-template-columns:1fr}.ancha{grid-column:auto}
+  #v-estilos,#v-tapa{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="marca">Taller <span>editorial</span></div>
+  <select id="libro" title="Libro"></select>
+  <nav>
+    <button data-v="texto" class="activo">Texto</button>
+    <button data-v="estilos">Estilos</button>
+    <button data-v="tapa">Tapa</button>
+    <button data-v="produccion">Producción</button>
+  </nav>
+  <div class="estado" id="estado"></div>
+</header>
+
+<main>
+<!-- ═══════════ TEXTO ═══════════ -->
+<section class="vista activa" id="v-texto">
+  <aside>
+    <div class="lista" id="lista"></div>
+    <div class="pie-lista">
+      <button id="b-nuevo">+ Capítulo</button>
+      <button id="b-parte">+ Parte</button>
+      <button id="b-extra" title="Dedicatoria y textos de tapa">Otros textos ▾</button>
+    </div>
+    <div class="resumen" id="resumen"></div>
+  </aside>
+
+  <div class="editor">
+    <div class="ruta"><b id="r-titulo">—</b><span id="r-archivo"></span></div>
+    <div class="barra" id="herr">
+      <button data-ins="cursiva" title="Cursiva (Ctrl+I)"><i>cursiva</i></button>
+      <button data-ins="negrita" title="Negrita (Ctrl+B)"><b>negrita</b></button>
+      <span class="sep"></span>
+      <button data-ins="seccion" title="Sección numerada">§ Sección</button>
+      <button data-ins="subseccion">Subsección</button>
+      <button data-ins="nota" title="Nota al pie">Nota¹</button>
+      <span class="sep"></span>
+      <button data-ins="cita">Cita</button>
+      <button data-ins="epigrafe">Epígrafe</button>
+      <button data-ins="recuadro">Recuadro</button>
+      <button data-ins="leyenda">Leyenda</button>
+      <span class="sep"></span>
+      <button data-ins="foto">Foto</button>
+      <button data-ins="mapa">Mapa</button>
+      <button data-ins="tabla">Tabla</button>
+      <button data-ins="separador">* * *</button>
+    </div>
+    <textarea id="md" spellcheck="true" lang="es" placeholder="Elegí un capítulo a la izquierda"></textarea>
+  </div>
+
+  <div class="previa">
+    <div class="barra">
+      <span><button id="b-previa" class="principal">Ver páginas</button>
+        <label style="display:inline-flex;gap:5px;align-items:center;margin-left:8px;font-size:12.5px;color:var(--gris)"><input type="checkbox" id="auto" checked> automática</label></span>
+      <span style="display:flex;gap:6px;align-items:center;font-size:12.5px;color:var(--gris)">
+        <span id="p-info"></span>
+        <input type="range" id="zoom" min="220" max="900" value="420" title="Tamaño">
+        <button id="b-volver" style="display:none">← Editor</button>
+      </span>
+    </div>
+    <div class="paginas" id="paginas"><div class="vacia">La vista previa muestra las páginas tal como salen en el PDF, con los estilos del libro.</div></div>
+  </div>
+</section>
+
+<!-- ═══════════ ESTILOS ═══════════ -->
+<section class="vista" id="v-estilos">
+  <div class="form">
+    <h2>Estilos del libro</h2>
+    <p class="ayuda">Los cambios se guardan en <code>libro.toml</code>. Después tocá «Ver páginas» para comprobarlos en el capítulo abierto.</p>
+
+    <h3>Datos</h3>
+    <div class="campos">
+      <label style="grid-column:span 2"><span>Título</span><input data-c="libro.titulo"></label>
+      <label style="grid-column:span 2"><span>Subtítulo</span><input data-c="libro.subtitulo"></label>
+      <label><span>Autor</span><input data-c="libro.autor"></label>
+      <label><span>Editorial</span><input data-c="libro.editorial"></label>
+      <label><span>Ciudad</span><input data-c="libro.ciudad"></label>
+      <label><span>Año</span><input data-c="libro.anio" type="number"></label>
+      <label><span>ISBN</span><input data-c="libro.isbn" placeholder="978-…"></label>
+      <label><span>Edición</span><input data-c="libro.edicion"></label>
+    </div>
+
+    <h3>Formato y márgenes</h3>
+    <div class="campos">
+      <label><span>Medida</span><select data-c="formato.preset" id="sel-formato"></select></label>
+      <label><span>&nbsp;</span><small style="color:var(--gris)" id="medida-txt"></small></label>
+      <label><span>Margen interior (lomo)</span><input data-c="formato.margen_interior"></label>
+      <label><span>Margen exterior</span><input data-c="formato.margen_exterior"></label>
+      <label><span>Margen superior</span><input data-c="formato.margen_superior"></label>
+      <label><span>Margen inferior</span><input data-c="formato.margen_inferior"></label>
+    </div>
+
+    <h3>Tipografía</h3>
+    <div class="campos">
+      <label><span>Fuente del texto</span><select data-c="tipografia.fuente" class="sel-fuente"></select></label>
+      <label><span>Fuente de títulos</span><select data-c="tipografia.fuente_titulos" class="sel-fuente"></select></label>
+      <label><span>Fuente de apoyo (cornisas, pies)</span><select data-c="tipografia.fuente_apoyo" class="sel-fuente"></select></label>
+      <label><span>Sangría</span><input data-c="tipografia.sangria"></label>
+      <label><span>Cuerpo</span><input data-c="tipografia.cuerpo"></label>
+      <label><span>Interlineado</span><input data-c="tipografia.interlineado"></label>
+      <label><span>Notas al pie</span><input data-c="tipografia.notas"></label>
+      <label class="check"><input type="checkbox" data-c="tipografia.justificado"> Texto justificado</label>
+      <label class="check"><input type="checkbox" data-c="tipografia.guiones"> Partición silábica en castellano</label>
+    </div>
+
+    <h3>Estilo</h3>
+    <div class="campos">
+      <label><span>Cornisa en página par</span><select data-c="estilo.cornisa_par"><option>autor</option><option>titulo</option><option>capitulo</option><option>nada</option></select></label>
+      <label><span>Cornisa en página impar</span><select data-c="estilo.cornisa_impar"><option>capitulo</option><option>titulo</option><option>autor</option><option>nada</option></select></label>
+      <label><span>Número de página</span><select data-c="estilo.folio"><option>abajo-afuera</option><option>abajo-centro</option></select></label>
+      <label><span>Color de acento</span><input type="color" data-c="estilo.color_acento"></label>
+      <label class="check"><input type="checkbox" data-c="estilo.capitulo_en_impar"> Cada capítulo empieza en página impar</label>
+      <label class="check"><input type="checkbox" data-c="estilo.numerar_secciones"> Numerar secciones (1.1, 1.2…)</label>
+      <label class="check"><input type="checkbox" data-c="estilo.notas_por_capitulo"> Las notas vuelven a 1 en cada capítulo</label>
+      <label class="check"><input type="checkbox" data-c="estilo.indice_analitico"> Índice analítico al final</label>
+      <label class="check"><input type="checkbox" data-c="estilo.colofon"> Colofón</label>
+    </div>
+    <div class="acciones"><button class="principal" data-guardar="estilos">Guardar estilos</button><button data-guardar-ver="estilos">Guardar y ver páginas</button></div>
+  </div>
+  <div class="previa" id="previa-estilos"><div class="paginas"><div class="vacia">Guardá y tocá «Guardar y ver páginas» para ver el capítulo abierto con los estilos nuevos.</div></div></div>
+</section>
+
+<!-- ═══════════ TAPA ═══════════ -->
+<section class="vista" id="v-tapa">
+  <div class="form">
+    <h2>Tapa</h2>
+    <p class="ayuda">El lomo se calcula solo con las páginas del último armado y el papel elegido. Confirmá el espesor del papel con la imprenta.</p>
+    <h3>Papel y medidas</h3>
+    <div class="campos">
+      <label><span>Papel</span><select data-c="tapa.papel" id="sel-papel"></select></label>
+      <label><span>Cartulina (mm al lomo)</span><input data-c="tapa.cartulina_mm" type="number" step="0.1"></label>
+      <label><span>Solapas («0mm» = sin solapas)</span><input data-c="tapa.solapa"></label>
+      <label><span>Sangrado</span><input data-c="tapa.sangrado"></label>
+    </div>
+    <h3>Colores e imagen</h3>
+    <div class="campos">
+      <label><span>Fondo</span><input type="color" data-c="tapa.fondo"></label>
+      <label><span>Texto</span><input type="color" data-c="tapa.color_texto"></label>
+      <label><span>Acento (línea)</span><input type="color" data-c="tapa.color_acento"></label>
+      <label><span>Imagen de tapa (ruta)</span><input data-c="tapa.imagen" placeholder="tapa/foto.jpg"></label>
+      <label style="grid-column:span 2"><span>Foto del autor (solapa)</span><input data-c="tapa.foto_autor" placeholder="tapa/autor.jpg"></label>
+    </div>
+    <h3>Textos</h3>
+    <p class="ayuda">Se editan como cualquier capítulo:</p>
+    <div class="descargas" id="tapa-textos"></div>
+    <div class="acciones"><button class="principal" data-guardar="tapa">Guardar tapa</button></div>
+  </div>
+  <div class="previa"><div class="paginas" id="tapa-previa"><div class="vacia">Armá el libro en «Producción» para ver la tapa con las guías de corte y pliegue.</div></div></div>
+</section>
+
+<!-- ═══════════ PRODUCCIÓN ═══════════ -->
+<section class="vista" id="v-produccion">
+  <div class="prod">
+    <div class="tarjeta">
+      <h2>Armar el libro</h2>
+      <p>Compone el interior completo, la tapa con el lomo calculado y, si querés, el EPUB.</p>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="principal" id="b-armar">Armar PDF y tapa</button>
+        <label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="c-epub"> también EPUB</label>
+      </div>
+      <div class="cifras" id="cifras"></div>
+      <div class="descargas" id="descargas"></div>
+      <pre class="log" id="log" style="display:none"></pre>
+    </div>
+    <div class="tarjeta">
+      <h2>Antes de imprenta</h2>
+      <p>Lo que conviene resolver antes de mandar los archivos.</p>
+      <ul class="avisos" id="avisos"><li>Revisando…</li></ul>
+    </div>
+    <div class="tarjeta ancha">
+      <h2>Simulador de páginas</h2>
+      <p>Compone el libro con varias medidas y cuerpos y te dice cuántas páginas da cada combinación. Tarda unos minutos.</p>
+      <div class="fila-sim">
+        <label><span>Medidas</span><input id="s-formatos" value="14x21 15x23 17x24" size="22"></label>
+        <label><span>Cuerpo/interlineado</span><input id="s-cuerpos" value="11/14.5 11.5/15.5 12/17" size="24"></label>
+        <label><span>Páginas buscadas</span><input id="s-objetivo" type="number" value="500" style="width:90px"></label>
+        <button id="b-simular">Simular</button>
+      </div>
+      <div id="sim"></div>
+    </div>
+  </div>
+</section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const api = async (url, datos) => {
+  const r = await fetch(url, datos === undefined ? {} : {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(datos)});
+  const j = await r.json();
+  if (!r.ok || j.error) throw new Error(j.error || "Error");
+  return j;
+};
+const toast = t => { const e=$("#toast"); e.textContent=t; e.classList.add("ver"); clearTimeout(e._t); e._t=setTimeout(()=>e.classList.remove("ver"),2200); };
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+let L = null, slug = null, actual = null, sucio = false, opciones = null, seqVista = 0, tVista = null;
+
+/* ── pestañas ── */
+$$("nav button").forEach(b => b.onclick = () => verPestaña(b.dataset.v));
+function verPestaña(v){
+  $$("nav button").forEach(x => x.classList.toggle("activo", x.dataset.v===v));
+  $$(".vista").forEach(x => x.classList.toggle("activa", x.id==="v-"+v));
+  if (v==="produccion") cargarAvisos();
+  if (v==="tapa") mostrarTapa();
+}
+
+/* ── libro ── */
+async function iniciar(){
+  opciones = await api("/api/opciones");
+  $("#sel-formato").innerHTML = opciones.formatos.map(f=>`<option>${esc(f)}</option>`).join("");
+  $("#sel-papel").innerHTML = opciones.papeles.map(f=>`<option>${esc(f)}</option>`).join("");
+  $$(".sel-fuente").forEach(s => s.innerHTML = opciones.fuentes.map(f=>`<option>${esc(f)}</option>`).join(""));
+  const libros = await api("/api/libros");
+  $("#libro").innerHTML = libros.map(l=>`<option value="${esc(l.slug)}">${esc(l.titulo)}</option>`).join("");
+  let pref = null; try { pref = localStorage.getItem("taller.libro"); } catch(e){}
+  if (pref && libros.some(l=>l.slug===pref)) $("#libro").value = pref;
+  $("#libro").onchange = () => cambiarLibro($("#libro").value);
+  await cambiarLibro($("#libro").value);
+}
+async function cambiarLibro(s){
+  if (sucio && !confirm("Hay cambios sin guardar. ¿Cambiar de libro igual?")) { $("#libro").value = slug; return; }
+  slug = s; try { localStorage.setItem("taller.libro", s); } catch(e){}
+  actual = null; sucio = false;
+  await recargar();
+  const primero = L.contenido.find(c => c.archivo);
+  if (primero) abrir(primero.archivo);
+}
+async function recargar(){
+  L = await api("/api/libro?libro="+encodeURIComponent(slug));
+  pintarLista(); llenarForm(); pintarProduccion();
+}
+
+/* ── lista de capítulos ── */
+function pintarLista(){
+  const tot = L.contenido.reduce((a,c)=>a+(c.palabras||0),0);
+  let nParte = 0;
+  $("#lista").innerHTML = L.contenido.map((c,i) => {
+    const acc = `<span class="acc"><button data-mov="${i}:-1" title="Subir">↑</button><button data-mov="${i}:1" title="Bajar">↓</button><button data-del="${i}" title="Quitar del libro (no borra el archivo)">✕</button></span>`;
+    if (c.tipo==="parte"){ nParte++; return `<div class="parte"><span style="flex:1">Parte ${nParte} · ${esc(c.titulo)}</span>${acc}</div>`; }
+    const num = c.tipo==="capitulo" ? c.numero : c.tipo==="interludio" ? "◆" : c.tipo==="preliminar" ? "·" : "◦";
+    return `<div class="it ${c.archivo===actual?"sel":""} ${c.existe===false?"falta":""}" data-a="${esc(c.archivo)}" title="${esc(c.archivo)} · ${c.tipo}">
+      <span class="num">${num}</span><span class="tit">${esc(c.titulo)}</span><span class="pal">${(c.palabras/1000).toFixed(1)}k</span>${acc}</div>`;
+  }).join("");
+  $("#resumen").textContent = `${L.contenido.filter(c=>c.tipo==="capitulo").length} capítulos · ${tot.toLocaleString("es-AR")} palabras` + (L.ultimo ? ` · ${L.ultimo.paginas} págs.` : "");
+  $$("#lista .it").forEach(e => e.onclick = ev => { if (!ev.target.closest(".acc")) abrir(e.dataset.a); });
+  $$("[data-mov]").forEach(b => b.onclick = () => { const [i,d] = b.dataset.mov.split(":").map(Number); mover(i,d); });
+  $$("[data-del]").forEach(b => b.onclick = () => quitar(Number(b.dataset.del)));
+}
+async function guardarContenido(lista){
+  await api("/api/contenido", {libro:slug, contenido:lista.map(c => c.tipo==="parte" ? {tipo:"parte", titulo:c.titulo} : {tipo:c.tipo, archivo:c.archivo, indice:c.indice})});
+  await recargar();
+}
+function mover(i,d){ const l=[...L.contenido]; const j=i+d; if (j<0||j>=l.length) return; [l[i],l[j]]=[l[j],l[i]]; guardarContenido(l); }
+function quitar(i){
+  const c = L.contenido[i];
+  if (!confirm(`¿Quitar «${c.titulo}» del libro? El archivo no se borra; podés volver a sumarlo.`)) return;
+  const l=[...L.contenido]; l.splice(i,1); guardarContenido(l);
+}
+$("#b-nuevo").onclick = async () => {
+  const t = prompt("Título del capítulo nuevo (podés usar «Título — Bajada»):"); if (!t) return;
+  const r = await api("/api/nuevo-capitulo", {libro:slug, titulo:t});
+  const l = [...L.contenido];
+  let pos = l.length; for (let k=l.length-1;k>=0;k--) if (l[k].tipo==="capitulo"||l[k].tipo==="interludio"){ pos=k+1; break; }
+  l.splice(pos,0,{tipo:"capitulo", archivo:r.archivo});
+  await guardarContenido(l); abrir(r.archivo); toast("Capítulo creado");
+};
+$("#b-parte").onclick = async () => {
+  const t = prompt("Título de la parte nueva:"); if (!t) return;
+  const l=[...L.contenido]; const i = actual ? l.findIndex(c=>c.archivo===actual) : l.length;
+  l.splice(i<0?l.length:i,0,{tipo:"parte", titulo:t}); await guardarContenido(l); toast("Parte agregada antes del capítulo abierto");
+};
+$("#b-extra").onclick = () => {
+  const ops = [L.dedicatoria, ...L.tapa_textos].filter(Boolean);
+  const r = prompt("Escribí el número del texto a abrir:\n" + ops.map((o,i)=>`${i+1}. ${o}`).join("\n"));
+  const o = ops[Number(r)-1]; if (o) abrir(o);
+};
+
+/* ── editor ── */
+async function abrir(ruta){
+  if (sucio && actual && !confirm("Hay cambios sin guardar en este capítulo. ¿Descartarlos?")) return;
+  const r = await api(`/api/archivo?libro=${encodeURIComponent(slug)}&ruta=${encodeURIComponent(ruta)}`);
+  actual = ruta; sucio = false;
+  $("#md").value = r.texto;
+  const c = L.contenido.find(x=>x.archivo===ruta);
+  $("#r-titulo").textContent = c ? c.titulo : ruta;
+  $("#r-archivo").textContent = ruta;
+  marcarEstado(); pintarLista();
+  verPestaña("texto");
+  previa();
+}
+function marcarEstado(txt){
+  const e = $("#estado");
+  e.classList.toggle("sucio", sucio);
+  e.textContent = txt || (sucio ? "Sin guardar · Ctrl+S" : actual ? "Guardado" : "");
+}
+async function guardar(){
+  if (!actual) return;
+  const r = await api("/api/archivo", {libro:slug, ruta:actual, texto:$("#md").value});
+  sucio = false; marcarEstado(); toast(`Guardado · ${r.palabras.toLocaleString("es-AR")} palabras`);
+  const c = L.contenido.find(x=>x.archivo===actual); if (c){ c.palabras=r.palabras; const m=$("#md").value.match(/^# (.+)$/m); if(m) c.titulo=m[1].replace(/\\/g,""); pintarLista(); }
+}
+$("#md").addEventListener("input", () => { sucio = true; marcarEstado(); if ($("#auto").checked){ clearTimeout(tVista); tVista = setTimeout(previa, 1800); } });
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==="s"){ e.preventDefault(); guardar(); }
+  if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==="i" && document.activeElement===$("#md")){ e.preventDefault(); insertar("cursiva"); }
+  if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==="b" && document.activeElement===$("#md")){ e.preventDefault(); insertar("negrita"); }
+});
+window.addEventListener("beforeunload", e => { if (sucio){ e.preventDefault(); e.returnValue=""; } });
+
+function siguienteNota(t){ const ns=[...t.matchAll(/\[\^(\d+)\]/g)].map(m=>+m[1]); return ns.length?Math.max(...ns)+1:1; }
+function insertar(tipo){
+  const ta = $("#md"), a = ta.selectionStart, b = ta.selectionEnd, sel = ta.value.slice(a,b);
+  let antes = "", medio = sel, despues = "", alFinal = null;
+  const bloque = (t) => { antes = (a>0 && ta.value[a-1]!=="\n" ? "\n\n" : "") ; medio = t; despues = "\n\n"; };
+  switch(tipo){
+    case "cursiva": antes="*"; despues="*"; medio = sel||"texto"; break;
+    case "negrita": antes="**"; despues="**"; medio = sel||"texto"; break;
+    case "seccion": bloque("## " + (sel||"Título de la sección")); break;
+    case "subseccion": bloque("### " + (sel||"Título de la subsección")); break;
+    case "nota": { const n = siguienteNota(ta.value); medio = sel; despues = `[^${n}]`; alFinal = `\n[^${n}]: Fuente o aclaración de la nota.\n`; break; }
+    case "cita": bloque("::: cita\n\n" + (sel||"Texto citado.") + "\n\n:::"); break;
+    case "epigrafe": bloque("::: epigrafe\n\n" + (sel||"Primer verso\\\nsegundo verso\\\nAutor") + "\n\n:::"); break;
+    case "recuadro": bloque("::: recuadro\n\n" + (sel||"Texto del recuadro.") + "\n\n:::"); break;
+    case "leyenda": bloque("::: leyenda\n\n" + (sel||"Fuente: …") + "\n\n:::"); break;
+    case "foto": bloque(`![${sel||"Pie de foto"}](imagenes/archivo.jpg){ancho=80%}`); break;
+    case "mapa": bloque(`![${sel||"Título del mapa"}](mapas/archivo.svg){.mapa fuente="Elaboración propia"}`); break;
+    case "tabla": bloque("::: tabla\n\n| Columna | Columna |\n|---|---|\n| dato | dato |\n\n:::"); break;
+    case "separador": bloque("---"); break;
+  }
+  let v = ta.value.slice(0,a) + antes + medio + despues + ta.value.slice(b);
+  if (alFinal) v = v.replace(/\s*$/, "\n") + alFinal;
+  ta.value = v; ta.focus();
+  const p = a + antes.length; ta.setSelectionRange(p, p + medio.length);
+  ta.dispatchEvent(new Event("input"));
+}
+$$("#herr [data-ins]").forEach(b => b.onclick = () => insertar(b.dataset.ins));
+
+/* ── vista previa ── */
+async function previa(destino){
+  if (!actual) return;
+  const caja = destino || $("#paginas");
+  const n = ++seqVista;
+  $("#p-info").innerHTML = `<span class="spin"></span> componiendo…`;
+  try{
+    const r = await api("/api/vista", {libro:slug, ruta:actual, texto:$("#md").value});
+    if (n !== seqVista) return;
+    if (!r.ok){ caja.innerHTML = `<div class="err">${esc(r.error)}</div>`; $("#p-info").textContent = "error"; return; }
+    const z = $("#zoom").value;
+    caja.innerHTML = r.paginas.map(p => `<img src="${p}" style="width:${z}px" loading="lazy" alt="página">`).join("");
+    $("#p-info").textContent = `${r.paginas.length} págs. · ${r.segundos} s`;
+  }catch(e){ if (n===seqVista){ caja.innerHTML = `<div class="err">${esc(e.message)}</div>`; $("#p-info").textContent=""; } }
+}
+$("#b-previa").onclick = () => previa();
+$("#zoom").oninput = () => $$(".paginas img").forEach(i => i.style.width = $("#zoom").value + "px");
+
+/* ── formularios (estilos y tapa) ── */
+function valor(ruta){ const [s,k] = ruta.split("."); return (L[s]||{})[k]; }
+function llenarForm(){
+  $$("[data-c]").forEach(el => {
+    const v = valor(el.dataset.c);
+    if (el.type==="checkbox") el.checked = v!==undefined ? !!v : true;
+    else if (el.type==="color") el.value = (v && /^#[0-9a-f]{6}$/i.test(v)) ? v : "#000000";
+    else el.value = v ?? "";
+  });
+  const tt = $("#tapa-textos");
+  tt.innerHTML = L.tapa_textos.map(t => `<a href="#" data-abrir="${esc(t)}">✎ ${esc(t.replace("tapa/",""))}</a>`).join("");
+  $$("[data-abrir]").forEach(a => a.onclick = ev => { ev.preventDefault(); abrir(a.dataset.abrir); });
+}
+async function guardarForm(grupo){
+  const secciones = grupo==="tapa" ? ["tapa"] : ["libro","formato","tipografia","estilo"];
+  const cambios = {};
+  $$(`#v-${grupo} [data-c]`).forEach(el => {
+    const [s,k] = el.dataset.c.split("."); if (!secciones.includes(s)) return;
+    let v = el.type==="checkbox" ? el.checked : el.value;
+    if (el.type==="number") v = v==="" ? 0 : Number(v);
+    if (typeof v === "string") v = v.trim();
+    (cambios[s] ||= {})[k] = v;
+  });
+  await api("/api/config", {libro:slug, cambios});
+  await recargar(); toast("Guardado en libro.toml");
+}
+$$("[data-guardar]").forEach(b => b.onclick = () => guardarForm(b.dataset.guardar).then(()=>{ if (b.dataset.guardar==="tapa") mostrarTapa(); }).catch(e=>toast(e.message)));
+$$("[data-guardar-ver]").forEach(b => b.onclick = async () => {
+  try{ await guardarForm(b.dataset.guardarVer); const c=$("#previa-estilos .paginas"); c.innerHTML='<div class="vacia"><span class="spin"></span> componiendo…</div>'; await previa(c);}catch(e){toast(e.message)}
+});
+$("#sel-formato").addEventListener("change", () => $("#medida-txt").textContent = "");
+
+async function mostrarTapa(){
+  const c = $("#tapa-previa");
+  c.innerHTML = `<div class="vacia"><span class="spin"></span> componiendo la tapa…</div>`;
+  try{
+    const r = await api("/api/tapa-vista?libro="+encodeURIComponent(slug));
+    if (!r.ok){ c.innerHTML = `<div class="err">${esc(r.error)}</div>`; return; }
+    c.innerHTML = `<div style="width:100%"><p style="color:var(--gris);margin:0 0 10px;font-size:12.5px">${r.estimado?"Lomo estimado para "+r.paginas+" páginas (armá el libro para el valor real)":"Lomo de "+r.lomo+" mm para "+r.paginas+" páginas"} · rojo: corte · celeste: pliegues · verde: zona segura</p>
+      <img src="${r.url}" style="width:100%;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.15)" alt="tapa"></div>`;
+  }catch(e){ c.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+/* ── producción ── */
+function pintarProduccion(){
+  const u = L.ultimo, A = L.archivos;
+  $("#cifras").innerHTML = u ? `<div class="cifra"><b>${u.paginas}</b><span>páginas</span></div><div class="cifra"><b>${u.lomo} mm</b><span>lomo</span></div><div class="cifra"><b>${new Date(u.fecha*1000).toLocaleString("es-AR",{dateStyle:"short",timeStyle:"short"})}</b><span>último armado</span></div>` : "";
+  const nombres = {"interior.pdf":"Interior (imprenta)","tapa.pdf":"Tapa (imprenta)","tapa-guias.pdf":"Tapa con guías","libro.epub":"EPUB"};
+  $("#descargas").innerHTML = Object.entries(nombres).filter(([k])=>A[k]).map(([k,n]) => `<a href="${A[k].url}?t=${Math.round(A[k].fecha)}" target="_blank">⬇ ${n}</a>`).join("");
+}
+async function cargarAvisos(){
+  try{ const r = await api("/api/revisar?libro="+encodeURIComponent(slug));
+    $("#avisos").innerHTML = r.avisos.length ? r.avisos.map(a=>`<li>${esc(a)}</li>`).join("") : `<li class="ok">Todo en orden.</li>`;
+  }catch(e){ $("#avisos").innerHTML = `<li class="mal">${esc(e.message)}</li>`; }
+}
+async function seguir(id, alTerminar){
+  const lg = $("#log"); lg.style.display="block";
+  for(;;){
+    const t = await api("/api/trabajo?id="+id);
+    lg.textContent = t.log.join("\n"); lg.scrollTop = lg.scrollHeight;
+    if (t.estado !== "corriendo"){ alTerminar(t); return; }
+    await new Promise(r=>setTimeout(r,1200));
+  }
+}
+$("#b-armar").onclick = async () => {
+  if (sucio) await guardar();
+  const b = $("#b-armar"); b.disabled = true; b.innerHTML = `<span class="spin"></span> Armando…`;
+  const {id} = await api("/api/armar", {libro:slug, epub:$("#c-epub").checked});
+  seguir(id, async t => {
+    b.disabled = false; b.textContent = "Armar PDF y tapa";
+    if (t.estado==="listo"){ toast(`Listo: ${t.resultado.paginas} páginas`); await recargar(); cargarAvisos(); }
+    else toast("El armado falló: mirá el registro");
+  });
+};
+$("#b-simular").onclick = async () => {
+  const b = $("#b-simular"); b.disabled = true; b.innerHTML = `<span class="spin"></span> Simulando…`;
+  const objetivo = Number($("#s-objetivo").value)||null;
+  const {id} = await api("/api/simular", {libro:slug, formatos:$("#s-formatos").value.trim().split(/\s+/), cuerpos:$("#s-cuerpos").value.trim().split(/\s+/), objetivo});
+  seguir(id, t => {
+    b.disabled = false; b.textContent = "Simular";
+    if (t.estado!=="listo"){ $("#sim").innerHTML = `<p class="mal">La simulación falló.</p>`; return; }
+    const filas = t.resultado.filas;
+    const cerca = objetivo ? [...filas].sort((x,y)=>Math.abs(x.paginas-objetivo)-Math.abs(y.paginas-objetivo)).slice(0,3) : [];
+    $("#sim").innerHTML = `<table><tr><th>Medida</th><th>Cuerpo / interl.</th><th>Fuente</th><th style="text-align:right">Páginas</th><th style="text-align:right">Lomo</th><th></th></tr>` +
+      filas.map((f,i) => `<tr class="${cerca.includes(f)?"cerca":""}"><td>${esc(f.formato)}</td><td>${f.cuerpo}/${f.interlineado} pt</td><td>${esc(f.fuente)}</td><td class="n">${f.paginas}</td><td class="n">${f.lomo} mm</td>
+        <td><button data-aplicar="${i}">Usar esta</button></td></tr>`).join("") + `</table>`;
+    $$("[data-aplicar]").forEach(btn => btn.onclick = async () => {
+      const f = filas[Number(btn.dataset.aplicar)];
+      await api("/api/config", {libro:slug, cambios:{formato:{preset:f.formato}, tipografia:{cuerpo:f.cuerpo+"pt", interlineado:f.interlineado+"pt"}}});
+      await recargar(); toast(`Aplicado: ${f.formato}, ${f.cuerpo}/${f.interlineado}. Volvé a armar.`);
+    });
+  });
+};
+
+iniciar().catch(e => { document.body.innerHTML = `<div class="err" style="margin:40px">No pude abrir el panel: ${esc(e.message)}</div>`; });
+</script>
+</body>
+</html>

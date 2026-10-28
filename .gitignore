@@ -2,3 +2,4 @@ libros/*/_build/
 libros/*/salida/
 __pycache__/
 .DS_Store
+libros/*/_vista/
