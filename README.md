@@ -58,20 +58,22 @@ Compone el libro con cada combinación y muestra páginas y ancho de lomo. Sirve
 | Foto | `![Pie de foto](imagenes/foto.jpg){ancho=80%}` |
 | Mapa | `![Rutas por el Darién](mapas/darien.png){.mapa fuente="IGN"}` |
 | Mapa a página entera | `![…](mapas/x.png){.mapa pagina=completa}` |
+| Mapa apaisado (girado, página propia) | `![…](mapas/x.svg){.mapa apaisado=si}` |
+| Pie chico de cuadro o mapa | `::: leyenda` … `:::` |
 | Imagen a sangre (sin márgenes) | `![](imagenes/x.jpg){sangrado=si}` |
 | Epígrafe | `::: epigrafe` … `:::` |
 | Cita larga | `> texto` o `::: cita` … `:::` |
 | Recuadro | `::: recuadro` … `:::` |
 | Separador | `---` |
 
-Las fotos y mapas flotan arriba o abajo de la página más cercana para no dejar huecos. Usá imágenes de 300 dpi al tamaño de impresión (para 17 cm de ancho, unos 2000 px).
+Las fotos y mapas flotan arriba o abajo de la página más cercana para no dejar huecos. Los mapas de CRUZAR están en SVG (vectorial: se ven nítidos a cualquier tamaño). Para fotos, usá imágenes de 300 dpi al tamaño de impresión (para 17 cm de ancho, unos 2000 px).
 
 ## Cambiar el aspecto (libro.toml)
 
 - **Formato**: `preset = "15x23"` (ver `plantilla/presets.toml`: 11×17, 13×20, 14×21, 15×23, 16×23, 17×24, A5, 6×9 in) o `ancho`/`alto` a mano. Márgenes interior, exterior, superior e inferior.
 - **Tipografía**: fuente de texto, de títulos y de apoyo; cuerpo, interlineado, notas, sangría, justificado, partición en castellano. Incluidas (licencia libre): EB Garamond, Source Serif 4, Libertinus Serif, Inter. Para sumar otra, copiá los `.otf`/`.ttf` a `fuentes/`.
 - **Estilo**: capítulos en página impar, numeración de secciones, notas que reinician por capítulo, qué va en cada cornisa, posición del folio, color de acento, índice analítico y colofón.
-- **Estructura**: el orden de `[[contenido]]` es el orden del libro. Para **fusionar o mover capítulos** se mueven o borran entradas; los números de capítulo, secciones y notas se recalculan.
+- **Estructura**: el orden de `[[contenido]]` es el orden del libro. Tipos: `preliminar`, `parte`, `capitulo`, `interludio` (capítulo sin número dentro del cuerpo, como el de Francisco) y `final`. Para **fusionar o mover capítulos** se mueven o borran entradas; los números de capítulo, secciones y notas se recalculan.
 
 ## La tapa
 

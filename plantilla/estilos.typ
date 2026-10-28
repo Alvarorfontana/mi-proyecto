@@ -127,6 +127,13 @@
 
 #let centrado(body) = align(center, body)
 
+// Texto chico de apoyo: pies de cuadros y mapas, notas de fuente.
+#let leyenda(body) = block(above: 0.7em, below: 1.1em, width: 100%)[
+  #set text(size: TIPO.notas * 0.92)
+  #set par(first-line-indent: 0pt, justify: false, leading: 0.42em, spacing: 0.6em)
+  #body
+]
+
 #let bibliografia(body) = {
   set text(size: TIPO.notas)
   set par(hanging-indent: 1.4em, first-line-indent: 0pt, justify: false, spacing: TIPO.interlineado * 0.55)
@@ -152,11 +159,18 @@
 
 // Figuras: fotos, mapas, gráficos.
 #let _supl = (foto: "Foto", mapa: "Mapa", grafico: "Gráfico", ilustracion: "Ilustración")
-#let figura(src, tipo: "foto", ancho: 100%, pie: none, fuente: none, pagina-completa: false, sangrado: false) = {
+#let figura(src, tipo: "foto", ancho: 100%, pie: none, fuente: none, pagina-completa: false, sangrado: false, apaisado: false) = {
   let leyenda = if pie != none or fuente != none {
     [#pie#if fuente != none [#if pie != none [. ]#text(style: "italic")[Fuente: #fuente.]]]
   } else { none }
-  if sangrado {
+  let alto-caja = FORMATO.alto - FORMATO.superior - FORMATO.inferior
+  let ancho-caja = FORMATO.ancho - FORMATO.interior - FORMATO.exterior
+  if apaisado {
+    // lámina girada: ocupa una página entera para aprovechar el alto
+    place(top, float: true, scope: "parent", clearance: 0pt, block(height: alto-caja, width: 100%,
+      align(center + horizon, rotate(-90deg, reflow: true,
+        figure(image(src, width: alto-caja - 1em), kind: tipo, supplement: _supl.at(tipo, default: "Figura"), caption: leyenda)))))
+  } else if sangrado {
     // imagen a sangre: página propia, sin márgenes (la imprenta corta el sobrante)
     page(margin: 0pt, header: none, footer: none)[
       #_marca("limpia")

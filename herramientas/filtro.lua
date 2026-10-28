@@ -32,6 +32,7 @@ local function figura(img, caption_inlines)
   table.insert(args, "tipo: " .. str(tipo))
   if a["ancho"] or a["width"] then table.insert(args, "ancho: " .. (a["ancho"] or a["width"])) end
   if a["pagina"] == "completa" then table.insert(args, "pagina-completa: true") end
+  if a["apaisado"] == "si" or a["apaisado"] == "true" then table.insert(args, "apaisado: true") end
   if a["sangrado"] == "si" or a["sangrado"] == "true" then table.insert(args, "sangrado: true") end
   if a["fuente"] then table.insert(args, "fuente: [" .. a["fuente"] .. "]") end
   local cap = typst_inlines(caption_inlines or {})

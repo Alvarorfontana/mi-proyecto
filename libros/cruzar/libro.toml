@@ -12,8 +12,8 @@ editorial  = "Editorial Umbral"
 ciudad     = "Buenos Aires"
 anio       = 2026
 isbn       = ""          # ej. "978-987-00-0000-0" → genera el código de barras en la contratapa
-edicion    = "Primera edición"
-creditos_extra = "ISBN, ficha catalográfica, depósito legal y datos de imprenta: por asignar."
+edicion    = "Primera edición de muestra"
+creditos_extra = "Editorial Umbral, sello editorial de fantasía. Texto: Álvaro Fontana. Cartografía: elaboración propia de Álvaro Fontana sobre cartografía de referencia de Natural Earth, de dominio público, y las fuentes indicadas en cada mapa. Diseño editorial, composición, diseño e imagen de cubierta: créditos por completar. Edición, impresión y distribución: datos por completar. ISBN: por asignar. Ficha catalográfica y depósito legal: por gestionar."
 
 # ── Formato de página ────────────────────────────────────────
 # Usá un preset (ver plantilla/presets.toml) o poné ancho/alto a mano.
@@ -32,7 +32,7 @@ fuente          = "EB Garamond"   # texto
 fuente_titulos  = "EB Garamond"   # capítulos y secciones
 fuente_apoyo    = "Inter"         # cornisas, epígrafes de figuras, tablas (opcional)
 cuerpo          = "12pt"
-interlineado    = "16pt"          # distancia entre líneas de base (como en InDesign)
+interlineado    = "17pt"          # distancia entre líneas de base (como en InDesign)
 notas           = "10pt"
 sangria         = "1.2em"         # primera línea de cada párrafo
 justificado     = true
@@ -53,10 +53,24 @@ indice_analitico         = true
 colofon                  = true
 
 # ── Estructura: el orden en que entra cada archivo ──────────
-# tipo: preliminar | parte | capitulo | final
+# tipo: preliminar | parte | capitulo | interludio | final
+#   interludio = capítulo sin número dentro del cuerpo (ej. Francisco)
+# Para fusionar capítulos: uní los .md y borrá la entrada que sobra.
 [[contenido]]
 tipo = "preliminar"
-archivo = "texto/00-prologo.md"
+archivo = "texto/01-palabras-sobre-cruzar.md"
+
+[[contenido]]
+tipo = "preliminar"
+archivo = "texto/02-prologo.md"
+
+[[contenido]]
+tipo = "preliminar"
+archivo = "texto/03-prefacio.md"
+
+[[contenido]]
+tipo = "preliminar"
+archivo = "texto/04-introduccion.md"
 
 [[contenido]]
 tipo = "parte"
@@ -64,22 +78,27 @@ titulo = "América"
 
 [[contenido]]
 tipo = "capitulo"
-archivo = "texto/01-america-latina.md"
+archivo = "texto/05-america-latina.md"
+
 [[contenido]]
 tipo = "capitulo"
-archivo = "texto/02-haiti-chile-y-el-darien.md"
+archivo = "texto/06-haiti-chile-y-el-darien.md"
+
 [[contenido]]
 tipo = "capitulo"
-archivo = "texto/03-venezuela.md"
+archivo = "texto/07-venezuela.md"
+
 [[contenido]]
 tipo = "capitulo"
-archivo = "texto/04-mexico.md"
+archivo = "texto/08-mexico.md"
+
 [[contenido]]
 tipo = "capitulo"
-archivo = "texto/05-estados-unidos.md"
+archivo = "texto/09-estados-unidos.md"
+
 [[contenido]]
 tipo = "capitulo"
-archivo = "texto/06-argentina.md"
+archivo = "texto/10-argentina.md"
 
 [[contenido]]
 tipo = "parte"
@@ -87,16 +106,23 @@ titulo = "Otras rutas y crisis del mundo"
 
 [[contenido]]
 tipo = "capitulo"
-archivo = "texto/07-china.md"
+archivo = "texto/11-china.md"
+
 [[contenido]]
 tipo = "capitulo"
-archivo = "texto/08-europa.md"
+archivo = "texto/12-europa.md"
+
 [[contenido]]
 tipo = "capitulo"
-archivo = "texto/09-africa.md"
+archivo = "texto/13-africa.md"
+
 [[contenido]]
 tipo = "capitulo"
-archivo = "texto/10-guerras-y-desplazamiento.md"
+archivo = "texto/14-guerras-y-desplazamiento.md"
+
+[[contenido]]
+tipo = "interludio"
+archivo = "texto/15-francisco.md"
 
 [[contenido]]
 tipo = "parte"
@@ -104,46 +130,65 @@ titulo = "La experiencia de migrar"
 
 [[contenido]]
 tipo = "capitulo"
-archivo = "texto/11-por-que-se-va-la-gente.md"
+archivo = "texto/16-por-que-se-va-la-gente.md"
+
 [[contenido]]
 tipo = "capitulo"
-archivo = "texto/12-el-momento-de-la-decision.md"
+archivo = "texto/17-el-momento-de-la-decision.md"
+
 [[contenido]]
 tipo = "capitulo"
-archivo = "texto/13-el-viaje.md"
+archivo = "texto/18-el-viaje.md"
+
 [[contenido]]
 tipo = "capitulo"
-archivo = "texto/14-la-llegada.md"
+archivo = "texto/19-la-llegada.md"
+
 [[contenido]]
 tipo = "capitulo"
-archivo = "texto/15-los-papeles.md"
+archivo = "texto/20-los-papeles.md"
+
 [[contenido]]
 tipo = "capitulo"
-archivo = "texto/16-el-trabajo.md"
+archivo = "texto/21-el-trabajo.md"
+
 [[contenido]]
 tipo = "capitulo"
-archivo = "texto/17-la-familia-partida.md"
+archivo = "texto/22-la-familia-partida.md"
+
 [[contenido]]
 tipo = "capitulo"
-archivo = "texto/18-la-identidad-en-transito.md"
+archivo = "texto/23-la-identidad-en-transito.md"
 
 [[contenido]]
 tipo = "final"
-archivo = "texto/90-epilogo.md"
+archivo = "texto/24-derechos-y-fronteras.md"
+
 [[contenido]]
 tipo = "final"
-archivo = "texto/91-agradecimientos.md"
+archivo = "texto/25-conclusiones-y-propuestas.md"
+
 [[contenido]]
 tipo = "final"
-archivo = "texto/92-anexos.md"
+archivo = "texto/26-agradecimientos.md"
+
 [[contenido]]
 tipo = "final"
-archivo = "texto/93-bibliografia.md"
+archivo = "texto/27-anexos.md"
+
+[[contenido]]
+tipo = "final"
+archivo = "texto/28-bibliografia-general.md"
 indice  = false   # no cuenta para el índice analítico
+
 [[contenido]]
 tipo = "final"
-archivo = "texto/94-articulos-del-autor.md"
+archivo = "texto/29-mis-articulos-periodisticos.md"
 indice  = false
+
+[[contenido]]
+tipo = "final"
+archivo = "texto/30-nota-del-autor.md"
 
 # ── Preliminares ─────────────────────────────────────────────
 [preliminares]

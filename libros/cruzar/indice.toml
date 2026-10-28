@@ -1,18 +1,50 @@
 # Índice analítico de CRUZAR
 # Cada término lista las formas en que aparece en el texto (expresiones regulares).
-# Las páginas se calculan solas en cada armado: si cambiás el formato, el índice se actualiza.
-# \w* = "cualquier terminación"  ·  [Aa] = mayúscula o minúscula
+# Las páginas se recalculan en cada armado. Para sumar un término, copiá un bloque.
+# \\w* = cualquier terminación · [Aa] = mayúscula o minúscula
+
+[[termino]]
+entrada = "Achotegui, Joseba"
+buscar  = ["Achotegui"]
 
 [[termino]]
 entrada = "ACNUR"
-buscar  = ["ACNUR", "Alto Comisionado de las Naciones Unidas para los Refugiados"]
+buscar  = ["ACNUR"]
 
 [[termino]]
 entrada = "Afganistán"
-buscar  = ["Afganistán", "afgan\\w*"]
+buscar  = ["Afganistán"]
 
 [[termino]]
-entrada = "Argentina, Ley de Migraciones 25.871"
+entrada = "Agamben, Giorgio"
+buscar  = ["Agamben"]
+
+[[termino]]
+entrada = "Agier, Michel"
+buscar  = ["Agier"]
+
+[[termino]]
+entrada = "Akayesu, Jean-Paul"
+buscar  = ["Akayesu"]
+
+[[termino]]
+entrada = "Alberdi, Juan Bautista"
+buscar  = ["Alberdi"]
+
+[[termino]]
+entrada = "Apóstoles, Misiones"
+buscar  = ["Apóstoles"]
+
+[[termino]]
+entrada = "Arango, Joaquín"
+buscar  = ["Arango"]
+
+[[termino]]
+entrada = "Arendt, Hannah"
+buscar  = ["Arendt"]
+
+[[termino]]
+entrada = "Argentina, Ley de Migraciones"
 buscar  = ["Ley 25\\.871", "Ley de Migraciones"]
 
 [[termino]]
@@ -20,44 +52,128 @@ entrada = "Asilo"
 buscar  = ["[Aa]silo"]
 
 [[termino]]
+entrada = "Aspegren, Lennart"
+buscar  = ["Aspegren"]
+
+[[termino]]
 entrada = "Azraq"
 buscar  = ["Azraq"]
 
 [[termino]]
-entrada = "Bangladesh"
-buscar  = ["Bangladesh"]
+entrada = "Bacon, David"
+buscar  = ["Bacon"]
+
+[[termino]]
+entrada = "Bai Juyi"
+buscar  = ["Bai Juyi"]
+
+[[termino]]
+entrada = "Balibar, Étienne"
+buscar  = ["Balibar"]
+
+[[termino]]
+entrada = "Basualdo, Eduardo"
+buscar  = ["Basualdo"]
+
+[[termino]]
+entrada = "Batthyány, Karina"
+buscar  = ["Batthyány"]
+
+[[termino]]
+entrada = "Bauman, Zygmunt"
+buscar  = ["Bauman"]
+
+[[termino]]
+entrada = "Berger, John"
+buscar  = ["Berger"]
+
+[[termino]]
+entrada = "Bhabha, Homi K."
+buscar  = ["Bhabha"]
+
+[[termino]]
+entrada = "Bhasan Char"
+buscar  = ["Bhasan Char"]
 
 [[termino]]
 entrada = "Biden, Joe"
 buscar  = ["Biden"]
 
 [[termino]]
+entrada = "Biernat, Carolina"
+buscar  = ["Biernat"]
+
+[[termino]]
+entrada = "Bowlby, John"
+buscar  = ["Bowlby"]
+
+[[termino]]
 entrada = "Brasil"
 buscar  = ["Brasil"]
+
+[[termino]]
+entrada = "Brown, Wendy"
+buscar  = ["Wendy Brown"]
+
+[[termino]]
+entrada = "Bruno, Sebastián"
+buscar  = ["Bruno"]
 
 [[termino]]
 entrada = "Cambio climático"
 buscar  = ["[Cc]ambio climático"]
 
 [[termino]]
+entrada = "Castells, Manuel"
+buscar  = ["Castells"]
+
+[[termino]]
+entrada = "Castles, Stephen"
+buscar  = ["Castles"]
+
+[[termino]]
 entrada = "Centroamérica"
 buscar  = ["Centroamérica", "centroamerican\\w*"]
+
+[[termino]]
+entrada = "Ceuta"
+buscar  = ["Ceuta"]
+
+[[termino]]
+entrada = "Chetail, Vincent"
+buscar  = ["Chetail"]
 
 [[termino]]
 entrada = "Chile"
 buscar  = ["Chile"]
 
 [[termino]]
-entrada = "China, migración interna"
+entrada = "China"
 buscar  = ["China"]
 
 [[termino]]
-entrada = "Colombia, Estatuto Temporal de Protección"
-buscar  = ["Estatuto Temporal de Protección"]
+entrada = "Clinton, Bill"
+buscar  = ["Clinton"]
+
+[[termino]]
+entrada = "Coleman, James S."
+buscar  = ["Coleman"]
+
+[[termino]]
+entrada = "Colombia, Estatuto Temporal"
+buscar  = ["Estatuto Temporal"]
+
+[[termino]]
+entrada = "Colonias agrícolas"
+buscar  = ["[Cc]olonias? agrícolas?"]
 
 [[termino]]
 entrada = "Congo"
 buscar  = ["Congo"]
+
+[[termino]]
+entrada = "Dallaire, Roméo"
+buscar  = ["Dallaire"]
 
 [[termino]]
 entrada = "Darfur"
@@ -68,32 +184,128 @@ entrada = "Darién"
 buscar  = ["Darién"]
 
 [[termino]]
+entrada = "De Genova, Nicholas"
+buscar  = ["De Genova"]
+
+[[termino]]
+entrada = "De León, Jason"
+buscar  = ["De León"]
+
+[[termino]]
+entrada = "Delgado Wise, Raúl"
+buscar  = ["Delgado Wise"]
+
+[[termino]]
 entrada = "Deportación"
 buscar  = ["[Dd]eportaci\\w+", "[Dd]eportad\\w+"]
+
+[[termino]]
+entrada = "Djenderedjian, Julio César"
+buscar  = ["Djenderedjian"]
+
+[[termino]]
+entrada = "Domenech, Eduardo"
+buscar  = ["Domenech"]
+
+[[termino]]
+entrada = "Domiz"
+buscar  = ["Domiz"]
+
+[[termino]]
+entrada = "Douglass, Frederick"
+buscar  = ["Douglass"]
+
+[[termino]]
+entrada = "Du Bois, W. E. B."
+buscar  = ["Du Bois"]
+
+[[termino]]
+entrada = "Eldorado, Misiones"
+buscar  = ["Eldorado"]
 
 [[termino]]
 entrada = "El Salvador"
 buscar  = ["El Salvador"]
 
 [[termino]]
-entrada = "Externalización de fronteras"
-buscar  = ["[Ee]xternalizaci\\w+"]
+entrada = "Eribon, Didier"
+buscar  = ["Eribon"]
 
 [[termino]]
-entrada = "Familias, separación de"
+entrada = "Esperanza, Santa Fe"
+buscar  = ["Esperanza, Santa Fe", "colonia Esperanza"]
+
+[[termino]]
+entrada = "Europa, política migratoria"
+buscar  = ["política migratoria europea", "política europea"]
+
+[[termino]]
+entrada = "Familia, separación"
 buscar  = ["separación de familias", "separación familiar"]
 
 [[termino]]
-entrada = "Ginebra, Convención de 1951"
-buscar  = ["Convención de Ginebra", "Convención sobre el Estatuto de los Refugiados", "Convención de 1951"]
+entrada = "Fassin, Didier"
+buscar  = ["Fassin"]
+
+[[termino]]
+entrada = "Foucault, Michel"
+buscar  = ["Foucault"]
+
+[[termino]]
+entrada = "Francisco, papa"
+buscar  = ["Francisco"]
+
+[[termino]]
+entrada = "Freier, Luisa Feline"
+buscar  = ["Freier"]
+
+[[termino]]
+entrada = "Gallero, María Cecilia"
+buscar  = ["Gallero"]
+
+[[termino]]
+entrada = "Germani, Gino"
+buscar  = ["Germani"]
+
+[[termino]]
+entrada = "Ginebra, Convención de"
+buscar  = ["Convención de Ginebra", "Convención de 1951", "Convención sobre el Estatuto de los Refugiados"]
+
+[[termino]]
+entrada = "Giustiniani, Rubén"
+buscar  = ["Giustiniani"]
+
+[[termino]]
+entrada = "Golash-Boza, Tanya"
+buscar  = ["Golash\\-Boza"]
+
+[[termino]]
+entrada = "Grandi, Filippo"
+buscar  = ["Grandi"]
 
 [[termino]]
 entrada = "Guatemala"
 buscar  = ["Guatemala"]
 
 [[termino]]
+entrada = "Habyarimana, Juvénal"
+buscar  = ["Habyarimana"]
+
+[[termino]]
 entrada = "Haití"
 buscar  = ["Haití", "haitian\\w*"]
+
+[[termino]]
+entrada = "Hall, Stuart"
+buscar  = ["Stuart Hall"]
+
+[[termino]]
+entrada = "Hernández Arregui, Juan José"
+buscar  = ["Hernández Arregui"]
+
+[[termino]]
+entrada = "Hochschild, Arlie Russell"
+buscar  = ["Hochschild"]
 
 [[termino]]
 entrada = "Honduras"
@@ -108,52 +320,224 @@ entrada = "ICE"
 buscar  = ["ICE"]
 
 [[termino]]
-entrada = "INADI"
-buscar  = ["INADI"]
+entrada = "Identidad migrante"
+buscar  = ["identidad migrante", "identidades migrantes"]
+
+[[termino]]
+entrada = "Jauretche, Arturo"
+buscar  = ["Jauretche"]
 
 [[termino]]
 entrada = "Jordania"
 buscar  = ["Jordania"]
 
 [[termino]]
-entrada = "Libia"
-buscar  = ["Libia"]
+entrada = "Kagame, Paul"
+buscar  = ["Kagame"]
+
+[[termino]]
+entrada = "Kama, Laïty"
+buscar  = ["Kama"]
+
+[[termino]]
+entrada = "Karlen, Alejandro"
+buscar  = ["Karlen"]
+
+[[termino]]
+entrada = "Korzeniewicz, Roberto"
+buscar  = ["Korzeniewicz"]
+
+[[termino]]
+entrada = "Kosovo"
+buscar  = ["Kosovo"]
+
+[[termino]]
+entrada = "Kurdos"
+buscar  = ["[Kk]urd\\w*"]
+
+[[termino]]
+entrada = "Kutupalong"
+buscar  = ["Kutupalong"]
 
 [[termino]]
 entrada = "Líbano"
 buscar  = ["Líbano"]
 
 [[termino]]
+entrada = "Libia"
+buscar  = ["Libia"]
+
+[[termino]]
+entrada = "Lister, Ruth"
+buscar  = ["Lister"]
+
+[[termino]]
 entrada = "López Obrador, Andrés Manuel"
 buscar  = ["López Obrador"]
+
+[[termino]]
+entrada = "Luiselli, Valeria"
+buscar  = ["Luiselli"]
+
+[[termino]]
+entrada = "Machado, Antonio"
+buscar  = ["Machado"]
+
+[[termino]]
+entrada = "Macron, Emmanuel"
+buscar  = ["Macron"]
+
+[[termino]]
+entrada = "Magliano, María José"
+buscar  = ["Magliano"]
+
+[[termino]]
+entrada = "Mallimaci Barral, Ana Inés"
+buscar  = ["Mallimaci Barral"]
+
+[[termino]]
+entrada = "Mamdani, Mahmood"
+buscar  = ["Mamdani"]
+
+[[termino]]
+entrada = "Martí, José"
+buscar  = ["Martí"]
+
+[[termino]]
+entrada = "Martínez, Óscar"
+buscar  = ["Óscar Martínez"]
+
+[[termino]]
+entrada = "Martínez Pizarro, Jorge"
+buscar  = ["Martínez Pizarro"]
+
+[[termino]]
+entrada = "Massey, Douglas S."
+buscar  = ["Massey"]
+
+[[termino]]
+entrada = "Mbembe, Achille"
+buscar  = ["Mbembe"]
 
 [[termino]]
 entrada = "Mediterráneo"
 buscar  = ["Mediterráneo"]
 
 [[termino]]
-entrada = "Mercosur"
-buscar  = ["Mercosur", "MERCOSUR"]
+entrada = "Methol Ferré, Alberto"
+buscar  = ["Methol Ferré"]
 
 [[termino]]
 entrada = "México"
 buscar  = ["México"]
 
 [[termino]]
+entrada = "Mezzadra, Sandro"
+buscar  = ["Mezzadra"]
+
+[[termino]]
+entrada = "Migración interna"
+buscar  = ["migraci\\w+ internas?"]
+
+[[termino]]
+entrada = "Migración laboral"
+buscar  = ["migraci\\w+ laborale?s?"]
+
+[[termino]]
+entrada = "Miller, Mark J."
+buscar  = ["Miller"]
+
+[[termino]]
+entrada = "Mohr, Jean"
+buscar  = ["Mohr"]
+
+[[termino]]
+entrada = "Moisés Ville"
+buscar  = ["Moisés Ville"]
+
+[[termino]]
 entrada = "Myanmar"
 buscar  = ["Myanmar"]
+
+[[termino]]
+entrada = "Nazario, Sonia"
+buscar  = ["Nazario"]
+
+[[termino]]
+entrada = "Neilson, Brett"
+buscar  = ["Neilson"]
 
 [[termino]]
 entrada = "No devolución, principio de"
 buscar  = ["no devolución", "non-refoulement"]
 
 [[termino]]
+entrada = "Novick, Susana"
+buscar  = ["Novick"]
+
+[[termino]]
+entrada = "Obama, Barack"
+buscar  = ["Obama"]
+
+[[termino]]
+entrada = "Oberá, Misiones"
+buscar  = ["Oberá"]
+
+[[termino]]
+entrada = "OIM, Organización Internacional para las Migraciones"
+buscar  = ["OIM", "Organización Internacional para las Migraciones"]
+
+[[termino]]
+entrada = "OMS, Organización Mundial de la Salud"
+buscar  = ["OMS", "Organización Mundial de la Salud"]
+
+[[termino]]
+entrada = "Pager, Devah"
+buscar  = ["Pager"]
+
+[[termino]]
+entrada = "Parent, Nicolas"
+buscar  = ["Parent"]
+
+[[termino]]
 entrada = "Patria Grande, Plan"
 buscar  = ["Patria Grande"]
 
 [[termino]]
+entrada = "Pillay, Navi"
+buscar  = ["Pillay"]
+
+[[termino]]
+entrada = "Piore, Michael J."
+buscar  = ["Piore"]
+
+[[termino]]
+entrada = "Putnam, Robert D."
+buscar  = ["Putnam"]
+
+[[termino]]
+entrada = "Quijano, Aníbal"
+buscar  = ["Quijano"]
+
+[[termino]]
+entrada = "Ramos, Jorge Abelardo"
+buscar  = ["Abelardo Ramos"]
+
+[[termino]]
+entrada = "Ramos, Víctor"
+buscar  = ["Víctor Ramos"]
+
+[[termino]]
+entrada = "Refugiado, definición"
+buscar  = ["definición de refugiado", "condición de refugiado"]
+
+[[termino]]
 entrada = "Remesas"
 buscar  = ["[Rr]emesas"]
+
+[[termino]]
+entrada = "Retorno"
+buscar  = ["[Rr]etorno"]
 
 [[termino]]
 entrada = "Rohinyás"
@@ -168,8 +552,16 @@ entrada = "Sahel"
 buscar  = ["Sahel"]
 
 [[termino]]
+entrada = "San José, Entre Ríos"
+buscar  = ["San José, Entre Ríos"]
+
+[[termino]]
 entrada = "Sassen, Saskia"
 buscar  = ["Sassen"]
+
+[[termino]]
+entrada = "Sayad, Abdelmalek"
+buscar  = ["Sayad"]
 
 [[termino]]
 entrada = "Sheinbaum, Claudia"
@@ -180,28 +572,56 @@ entrada = "Siria"
 buscar  = ["Siria", "siri[oa]s?"]
 
 [[termino]]
+entrada = "Stiglitz, Joseph E."
+buscar  = ["Stiglitz"]
+
+[[termino]]
 entrada = "Sudán"
 buscar  = ["Sudán"]
+
+[[termino]]
+entrada = "Sudán del Sur"
+buscar  = ["Sudán del Sur"]
 
 [[termino]]
 entrada = "Tijuana"
 buscar  = ["Tijuana"]
 
 [[termino]]
+entrada = "Trabajo"
+buscar  = ["[Tt]rabajo migrante", "[Tt]rabajadores migrantes"]
+
+[[termino]]
 entrada = "Trump, Donald"
 buscar  = ["Trump"]
 
 [[termino]]
-entrada = "Turquía"
-buscar  = ["Turquía"]
+entrada = "Ugarte, Manuel"
+buscar  = ["Ugarte"]
+
+[[termino]]
+entrada = "Ugrešić, Dubravka"
+buscar  = ["Ugrešić"]
 
 [[termino]]
 entrada = "Unión Europea"
 buscar  = ["Unión Europea"]
 
 [[termino]]
+entrada = "Vasconcelos, José"
+buscar  = ["Vasconcelos"]
+
+[[termino]]
 entrada = "Venezuela"
 buscar  = ["Venezuela", "venezolan\\w*"]
+
+[[termino]]
+entrada = "Vitorino, António"
+buscar  = ["Vitorino"]
+
+[[termino]]
+entrada = "Vivienda, acceso a"
+buscar  = ["[Vv]ivienda"]
 
 [[termino]]
 entrada = "Zaatari"
