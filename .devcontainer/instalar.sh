@@ -3,7 +3,7 @@
 set -e
 cd /tmp
 curl -sSL https://github.com/typst/typst/releases/download/v0.13.1/typst-x86_64-unknown-linux-musl.tar.xz | tar xJ
-sudo cp typst-x86_64-unknown-linux-musl/typst /usr/local/bin/
+sudo install -m 755 typst-x86_64-unknown-linux-musl/typst /usr/local/bin/typst
 curl -sSL -o pandoc.deb https://github.com/jgm/pandoc/releases/download/3.6.4/pandoc-3.6.4-1-amd64.deb
 sudo dpkg -i pandoc.deb
 pip install --quiet pypdf
