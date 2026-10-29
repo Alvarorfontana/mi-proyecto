@@ -445,6 +445,10 @@ class Manejador(BaseHTTPRequestHandler):
 
 
 def main():
+    instalar = RAIZ / ".devcontainer" / "instalar.sh"
+    if (not shutil.which("typst") or not shutil.which("pandoc")) and sys.platform.startswith("linux") and instalar.exists():
+        print("→ Instalando Typst y pandoc (una sola vez, tarda un minuto)…")
+        subprocess.run(["bash", str(instalar)])
     for t in ("typst", "pandoc"):
         if not shutil.which(t):
             sys.exit(f"✗ No encuentro «{t}». Instalalo (ver README) y volvé a abrir el panel.")
