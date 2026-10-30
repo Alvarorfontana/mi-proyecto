@@ -474,7 +474,11 @@ def main():
     for t in ("typst", "pandoc"):
         if not shutil.which(t):
             sys.exit(f"✗ No encuentro «{t}». Instalalo (ver README) y volvé a abrir el panel.")
-    srv = ThreadingHTTPServer(("127.0.0.1", PUERTO), Manejador)
+    try:
+        srv = ThreadingHTTPServer(("127.0.0.1", PUERTO), Manejador)
+    except OSError:
+        print(f"✓ El panel ya está abierto: http://localhost:{PUERTO}  (en Codespaces: pestaña Puertos → 8000 → globito)")
+        return
     url = f"http://localhost:{PUERTO}"
     print(f"✓ Panel abierto en {url}  (Ctrl+C para cerrar)")
     if not os.environ.get("SIN_NAVEGADOR"):
