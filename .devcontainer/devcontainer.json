@@ -23,5 +23,6 @@
   },
   "containerEnv": {
     "SIN_NAVEGADOR": "1"
-  }
+  },
+  "postStartCommand": "git pull --rebase --autostash || true"
 }

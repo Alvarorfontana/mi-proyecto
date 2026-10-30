@@ -302,6 +302,26 @@ def simular(tid, slug, formatos, cuerpos, objetivo):
     return {"filas": filas}
 
 
+def guardar_github(mensaje=None):
+    """Sube a GitHub los cambios de los libros (equivale a Commit + Sync)."""
+    if not (RAIZ / ".git").exists():
+        return {"ok": False, "error": "Esta carpeta no está conectada a GitHub."}
+    def git(*a):
+        return subprocess.run(["git", *a], cwd=RAIZ, capture_output=True, text=True, timeout=120)
+    git("add", "libros", "plantilla", "panel", "herramientas")
+    if not git("status", "--porcelain").stdout.strip():
+        return {"ok": True, "msg": "No había cambios nuevos: todo ya estaba en GitHub."}
+    msg = (mensaje or "").strip() or "Cambios desde el panel · " + time.strftime("%d/%m/%Y %H:%M")
+    r = git("-c", "user.name=Taller editorial", "-c", "user.email=taller@localhost", "commit", "-m", msg)
+    if r.returncode != 0:
+        return {"ok": False, "error": limpiar_error(r.stdout + r.stderr)}
+    git("pull", "--rebase", "--autostash")
+    r = git("push")
+    if r.returncode != 0:
+        return {"ok": False, "error": "Se guardó acá pero no se pudo subir: " + limpiar_error(r.stderr)}
+    return {"ok": True, "msg": "Subido a GitHub. En unos minutos se arma el PDF nuevo (pestaña Actions)."}
+
+
 def revisar(slug):
     """Avisos de producción: cosas a resolver antes de imprenta."""
     d = libro_dir(slug)
@@ -434,6 +454,8 @@ class Manejador(BaseHTTPRequestHandler):
                 return self.responder({"ok": True, "archivo": ruta})
             if u.path == "/api/armar":
                 return self.responder({"id": lanzar(armar, slug, bool(b.get("epub")))})
+            if u.path == "/api/github":
+                return self.responder(guardar_github(b.get("mensaje")))
             if u.path == "/api/simular":
                 return self.responder({"id": lanzar(simular, slug, b.get("formatos") or ["14x21", "15x23", "17x24"],
                                                     b.get("cuerpos") or ["11/14.5", "11.5/15.5", "12/17"], b.get("objetivo"))})

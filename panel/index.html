@@ -137,6 +137,7 @@ tr.cerca td{background:#f1f6ee}
     <button data-v="produccion">Producción</button>
   </nav>
   <div class="estado" id="estado"></div>
+  <button id="b-github" title="Sube a GitHub todo lo que cambiaste (capítulos, estilos, tapa)">⇧ Guardar en GitHub</button>
 </header>
 
 <main>
@@ -572,6 +573,14 @@ $("#b-simular").onclick = async () => {
       await recargar(); toast(`Aplicado: ${f.formato}, ${f.cuerpo}/${f.interlineado}. Volvé a armar.`);
     });
   });
+};
+
+$("#b-github").onclick = async () => {
+  if (sucio) await guardar();
+  const b = $("#b-github"); b.disabled = true; b.innerHTML = `<span class="spin"></span> Subiendo…`;
+  try{ const r = await api("/api/github", {}); toast(r.ok ? r.msg : r.error); if(!r.ok) alert(r.error); }
+  catch(e){ alert(e.message); }
+  b.disabled = false; b.textContent = "⇧ Guardar en GitHub";
 };
 
 iniciar().catch(e => { document.body.innerHTML = `<div class="err" style="margin:40px">No pude abrir el panel: ${esc(e.message)}</div>`; });
