@@ -136,3 +136,34 @@ export function marcasDesdeIA(respuesta, texto, base = 0) {
 
 // Corrector ortográfico del navegador dentro del editor.
 export const ortografiaNavegador = EditorView.contentAttributes.of({ spellcheck: 'true', lang: 'es', autocorrect: 'off' });
+
+// Largo de los párrafos: marca los muy largos (más de media página) y las rachas de párrafos muy cortos.
+export function revisarParrafos(texto, { maximo = 220, corto = 25 } = {}) {
+  const marcas = [];
+  const re = /(?:^|\n\n)([^\n][\s\S]*?)(?=\n\n|$)/g;
+  const pars = [];
+  let m;
+  while ((m = re.exec(texto))) {
+    const t = m[1];
+    const from = m.index + (m[0].length - t.length);
+    if (/^(#|:::|\[\^|!\[|\||>|- |\* |\d+\. |<!--)/.test(t.trim())) { pars.push(null); continue; }
+    pars.push({ from, to: from + t.length, palabras: t.split(/\s+/).filter(Boolean).length, oraciones: (t.match(/[.!?…](\s|$)/g) || []).length || 1 });
+  }
+  for (const p of pars) {
+    if (p && p.palabras > maximo) {
+      const fin = texto.indexOf(' ', p.from + 60);
+      marcas.push({ id: 'par' + p.from, origen: 'Párrafos', tipo: 'estilo', from: p.from, to: fin > 0 && fin < p.to ? fin : Math.min(p.to, p.from + 60), original: '',
+        mensaje: `Párrafo de ${p.palabras} palabras y ${p.oraciones} oraciones: ocupa más de media página. Conviene partirlo donde cambia la idea.`, sugerencias: [] });
+    }
+  }
+  // cuatro o más párrafos de una línea seguidos
+  let racha = [];
+  const cerrar = () => {
+    if (racha.length >= 4) marcas.push({ id: 'cor' + racha[0].from, origen: 'Párrafos', tipo: 'estilo', from: racha[0].from, to: Math.min(racha[0].to, racha[0].from + 50), original: '',
+      mensaje: `${racha.length} párrafos muy cortos seguidos: el texto se fragmenta. Pensá si algunos se pueden unir.`, sugerencias: [] });
+    racha = [];
+  };
+  for (const p of pars) { if (p && p.palabras < corto) racha.push(p); else cerrar(); }
+  cerrar();
+  return marcas.sort((a, b) => a.from - b.from);
+}

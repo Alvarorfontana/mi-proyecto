@@ -15,7 +15,7 @@ import { tomlSet, tomlContenido } from './toml.js';
 import { importarTexto } from './importar.js';
 import { buscarOpenAlex, buscarCrossref, buscarWikipedia, buscarGemini, formatear, ESTILOS_CITA, notasSinEnlace, parecido } from './citas.js';
 import { puntuar, hayDictadoNavegador, dictarNavegador, dictarWhisper } from './dictado.js';
-import { campoMarcas, fijarMarcas, quitarMarca, listarMarcas, revisarLanguageTool, PEDIDO_REVISION, marcasDesdeIA, ortografiaNavegador } from './revision.js';
+import { campoMarcas, fijarMarcas, quitarMarca, listarMarcas, revisarLanguageTool, PEDIDO_REVISION, marcasDesdeIA, ortografiaNavegador, revisarParrafos } from './revision.js';
 import { iniciarMotor, cargarTextos, cargarBinarios, yaCargado, compilar, aSvg } from './motor.js';
 import { MODELOS, MODELOS_GEMINI, PROVEEDORES, ACCIONES, preguntar, modelosGemini } from './ia.js';
 
@@ -910,6 +910,7 @@ const ESTILOS_TAPA = [
   ['foto', 'Foto', 'Imagen a sangre con el título abajo sobre una sombra (sin foto, un degradé).'],
   ['suiza', 'Suiza', 'Grilla, barra vertical de color y título en palo seco muy negro.'],
   ['generativa', 'Generativa', 'Arte geométrico creado a partir de las letras del título (10PRINT).'],
+  ['libre', 'Libre', 'Solo el fondo: armá la tapa a mano con textos, fotos y formas.'],
 ];
 const PALETAS_TAPA = [
   ['Noche y oro', '#1d2a33', '#f4efe6', '#d9a441', '#8a6420'],
@@ -974,7 +975,8 @@ function pintarTapa() {
     </div></div>
     <div class="grupo"><h3>Textos y fotos libres <small class="sutil">en cualquier cara: tapa, contratapa, lomo o solapas</small></h3>
       <div id="elementos"></div>
-      <div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="btn chico" id="b-el-texto">${I.mas}Texto</button><button type="button" class="btn chico" id="b-el-foto">${I.mas}Foto</button></div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button type="button" class="btn chico" id="b-el-texto">${I.mas}Texto</button><button type="button" class="btn chico" id="b-el-foto">${I.mas}Foto</button><button type="button" class="btn chico" data-forma="rect">${I.mas}Rectángulo</button><button type="button" class="btn chico" data-forma="circulo">${I.mas}Círculo</button><button type="button" class="btn chico" data-forma="linea">${I.mas}Línea</button><button type="button" class="btn chico fant" id="b-el-deshacer">Deshacer</button></div>
+      ${estilo !== 'libre' ? `<div class="aviso" style="margin-top:12px">¿Querés mover también el título, el subtítulo y el autor? <button type="button" class="btn chico" id="b-desarmar">Pasar la tapa a capas</button><br><small>Convierte el diseño en capas sueltas que se editan con el mouse (el fondo y los colores se mantienen).</small></div>` : ''}
     </div>
     <div class="grupo"><h3>Papel y medidas</h3><div class="grilla">
       ${opciones('tapa.papel', 'Papel', Object.keys(S.presets.papeles).map((p) => [p, p]))}
@@ -1006,6 +1008,11 @@ function pintarTapa() {
   }));
   $$('[data-sacar]', f).forEach((b) => (b.onclick = () => { $(`[data-c="tapa.${b.dataset.sacar}"]`, f).value = ''; if (aplicar()) { const sc = f.scrollTop; pintarTapa(); $('#f-tapa').scrollTop = sc; } }));
   $('#b-el-texto').onclick = () => agregarElemento({ tipo: 'texto', cara: 'tapa', texto: 'Texto nuevo', x: 12, y: 45, ancho: 76, tam: 14, color: (S.cfg.tapa?.color_texto || '#ffffff'), alineacion: 'left' });
+  $$('[data-forma]', f).forEach((b) => (b.onclick = () => agregarElemento(b.dataset.forma === 'linea'
+    ? { tipo: 'forma', forma: 'linea', cara: 'tapa', x: 12, y: 50, ancho: 40, borde: S.cfg.tapa?.color_acento || '#d9a441', grosor: 1.5 }
+    : { tipo: 'forma', forma: b.dataset.forma, cara: 'tapa', x: 20, y: 30, ancho: b.dataset.forma === 'circulo' ? 40 : 60, alto: b.dataset.forma === 'circulo' ? 28 : 20, relleno: S.cfg.tapa?.color_acento || '#d9a441', opacidad: 100 })));
+  $('#b-el-deshacer').onclick = deshacerElemento;
+  const bd = $('#b-desarmar', f); if (bd) bd.onclick = desarmarDiseno;
   $('#b-el-foto').onclick = async () => { const ruta = await subirFoto(); if (ruta) agregarElemento({ tipo: 'foto', cara: 'tapa', archivo: ruta, x: 12, y: 55, ancho: 76, alto: 30, ajuste: 'cover' }); };
   pintarElementos();
   const isbnInp = $('[data-c="libro.isbn"]', f);
@@ -1051,7 +1058,8 @@ function elementosTapa() {
   const r = S.cfg?.tapa?.elementos; if (!r) return [];
   try { return JSON.parse(S.textos.get(r) || '[]'); } catch { return []; }
 }
-function guardarElementos(lista) {
+function guardarElementos(lista, { historia = true } = {}) {
+  if (historia) { (S.histEl ||= []).push(JSON.stringify(elementosTapa())); if (S.histEl.length > 60) S.histEl.shift(); }
   const nuevo = !S.cfg.tapa?.elementos;
   const r = S.cfg.tapa?.elementos || 'tapa/elementos.json';
   const json = JSON.stringify(lista, null, 1) + '\n';
@@ -1060,7 +1068,31 @@ function guardarElementos(lista) {
   if (nuevo) aplicarCambiosConfig({ tapa: { elementos: r } });
   marcarEstado();
 }
-function agregarElemento(e) { const l = elementosTapa(); l.push(e); guardarElementos(l); pintarElementos(l.length - 1); verTapa(); }
+function agregarElemento(e) { const l = elementosTapa(); l.push(e); guardarElementos(l); S.selEl = l.length - 1; pintarElementos(l.length - 1); verTapa(); }
+function deshacerElemento() {
+  const prev = (S.histEl || []).pop(); if (prev == null) return toast('No hay nada para deshacer.');
+  guardarElementos(JSON.parse(prev), { historia: false }); S.selEl = null; pintarElementos(); verTapa();
+}
+// Convierte el diseño elegido en capas sueltas (título, subtítulo, autor, editorial) para moverlas a mano.
+function desarmarDiseno() {
+  const t = S.cfg.tapa || {}, L = S.cfg.libro || {};
+  const color = t.color_texto || '#f4efe6', acento = t.color_acento || '#d9a441', fuente = t.fuente_titulo || 'EB Garamond';
+  const titulo = (t.titulo || L.titulo || 'Título').replace(/\|/g, '\n');
+  const largo = Math.max(...titulo.split(/\s|\n/).map((w) => w.length), 1);
+  const capas = [
+    { tipo: 'texto', cara: 'tapa', rol: 'autor', texto: L.autor || '', x: 10, y: 9, ancho: 80, tam: 10, color, fuente: 'Inter', mayusculas: true, espaciado: 30, alineacion: 'left' },
+    { tipo: 'texto', cara: 'tapa', rol: 'titulo', texto: titulo, x: 10, y: 38, ancho: 82, tam: Math.round(Math.min(60, 300 / largo)), color, fuente, negrita: true, alineacion: 'left', interlineado: 0.2 },
+    { tipo: 'forma', cara: 'tapa', forma: 'linea', x: 10, y: 54, ancho: 22, borde: acento, grosor: 1.5 },
+    { tipo: 'texto', cara: 'tapa', rol: 'subtitulo', texto: t.subtitulo || L.subtitulo || '', x: 10, y: 58, ancho: 75, tam: 15, color, fuente, cursiva: true, alineacion: 'left' },
+    { tipo: 'texto', cara: 'tapa', rol: 'editorial', texto: L.editorial || '', x: 10, y: 91, ancho: 80, tam: 7.5, color, fuente: 'Inter', mayusculas: true, espaciado: 30, alineacion: 'left' },
+  ].filter((c) => c.tipo !== 'texto' || c.texto);
+  const l = [...capas, ...elementosTapa()];
+  guardarElementos(l);
+  aplicarCambiosConfig({ tapa: { estilo: 'libre' } });
+  S.selEl = 1;
+  toast('Listo: la tapa quedó en capas. Hacé clic en cualquier texto para moverlo o cambiarlo.');
+  pintarTapa();
+}
 let tTapa;
 function programarTapa() { clearTimeout(tTapa); tTapa = setTimeout(verTapa, 450); }
 function pintarElementos(abierto = -1) {
@@ -1070,11 +1102,19 @@ function pintarElementos(abierto = -1) {
   const deslizador = (i, k, n, min, max, v) => `<label class="desl"><span>${n} <b>${v}</b></span><input type="range" min="${min}" max="${max}" step="0.5" value="${v}" data-i="${i}" data-k="${k}"></label>`;
   const fams = [...new Set([...familias(), 'Inter'])].sort();
   caja.innerHTML = l.map((e, i) => `<details class="elem" ${i === abierto ? 'open' : ''}>
-    <summary><span class="elem-tipo">${e.tipo === 'foto' ? 'Foto' : 'Texto'}</span><span class="elem-nombre">${esc(e.tipo === 'foto' ? e.archivo.split('/').pop() : (e.texto || '').split('\n')[0].slice(0, 40))}</span><span class="elem-cara">${CARAS.find(([k]) => k === e.cara)?.[1] || ''}</span>
+    <summary><span class="elem-tipo">${e.tipo === 'foto' ? 'Foto' : e.tipo === 'forma' ? 'Forma' : 'Texto'}</span><span class="elem-nombre">${esc(e.tipo === 'foto' ? e.archivo.split('/').pop() : e.tipo === 'forma' ? ({ rect: 'Rectángulo', circulo: 'Círculo', linea: 'Línea' }[e.forma] || 'Forma') : (e.texto || '').split('\n')[0].slice(0, 40))}</span><span class="elem-cara">${CARAS.find(([k]) => k === e.cara)?.[1] || ''}</span>
       <button type="button" class="ico" data-mov="${i}:-1" title="Más atrás">${I.arriba}</button><button type="button" class="ico" data-mov="${i}:1" title="Más adelante">${I.abajo}</button><button type="button" class="ico" data-borrar="${i}" title="Quitar">${I.quitar}</button></summary>
     <div class="elem-cuerpo">
       <label class="campo"><span>Dónde va</span><select class="entrada" data-i="${i}" data-k="cara">${CARAS.map(([k, n]) => `<option value="${k}" ${k === e.cara ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-      ${e.tipo === 'foto' ? `
+      ${e.tipo === 'forma' ? `
+        <label class="campo"><span>Forma</span><select class="entrada" data-i="${i}" data-k="forma">${[['rect', 'Rectángulo'], ['circulo', 'Círculo'], ['linea', 'Línea']].map(([k, n]) => `<option value="${k}" ${k === (e.forma || 'rect') ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        <label class="campo"><span>Relleno</span><div class="subida"><input class="entrada" type="color" data-i="${i}" data-k="relleno" value="${esc(e.relleno || '#000000')}" ${e.relleno ? '' : 'style="opacity:.35"'}><label class="check"><input type="checkbox" data-i="${i}" data-k="con_relleno" ${e.relleno ? 'checked' : ''}>usar</label></div></label>
+        <label class="campo"><span>Borde</span><div class="subida"><input class="entrada" type="color" data-i="${i}" data-k="borde" value="${esc(e.borde || '#000000')}" ${e.borde ? '' : 'style="opacity:.35"'}><label class="check"><input type="checkbox" data-i="${i}" data-k="con_borde" ${e.borde ? 'checked' : ''}>usar</label></div></label>
+        ${deslizador(i, 'grosor', 'Grosor del borde (pt)', 0.25, 12, e.grosor ?? 1)}
+        ${deslizador(i, 'opacidad', 'Opacidad %', 5, 100, e.opacidad ?? 100)}${deslizador(i, 'redondeo', 'Esquinas (mm)', 0, 30, e.redondeo ?? 0)}
+        ${deslizador(i, 'x', 'Izquierda %', -20, 100, e.x ?? 0)}${deslizador(i, 'y', 'Arriba %', -20, 100, e.y ?? 0)}
+        ${deslizador(i, 'ancho', 'Ancho %', 1, 140, e.ancho ?? 50)}${e.forma === 'linea' ? '' : deslizador(i, 'alto', 'Alto %', 0.5, 140, e.alto ?? 10)}
+        ${deslizador(i, 'giro', 'Giro °', -90, 90, e.giro ?? 0)}` : e.tipo === 'foto' ? `
         <label class="campo"><span>Cómo entra</span><select class="entrada" data-i="${i}" data-k="ajuste">${[['cover', 'Llena el recuadro (recorta)'], ['contain', 'Entera (sin recortar)'], ['stretch', 'Estirada']].map(([k, n]) => `<option value="${k}" ${k === (e.ajuste || 'cover') ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
         <div class="ancho fila-checks"><label class="check"><input type="checkbox" data-i="${i}" data-k="sangre" ${e.sangre ? 'checked' : ''}>A sangre si toca el borde</label><button type="button" class="btn chico" data-cambiar="${i}">Cambiar foto</button></div>
         ${deslizador(i, 'x', 'Izquierda %', -20, 100, e.x ?? 0)}${deslizador(i, 'y', 'Arriba %', -20, 100, e.y ?? 0)}
@@ -1093,7 +1133,9 @@ function pintarElementos(abierto = -1) {
   const cambiar = (i, k, v) => {
     const lista = elementosTapa();
     if (k === 'con_fondo') { if (v) lista[i].fondo = lista[i].fondo || '#000000'; else delete lista[i].fondo; }
-    else if (k === 'fondo' && !lista[i].fondo) return;
+    else if (k === 'con_relleno') { if (v) lista[i].relleno = lista[i].relleno || '#000000'; else delete lista[i].relleno; }
+    else if (k === 'con_borde') { if (v) lista[i].borde = lista[i].borde || '#000000'; else delete lista[i].borde; }
+    else if ((k === 'fondo' || k === 'relleno' || k === 'borde') && !lista[i][k]) return;
     else lista[i][k] = v;
     guardarElementos(lista); programarTapa();
   };
@@ -1102,7 +1144,7 @@ function pintarElementos(abierto = -1) {
     el.addEventListener(ev, () => {
       const v = el.type === 'checkbox' ? el.checked : el.type === 'range' ? Number(el.value) : el.value;
       if (el.type === 'range') el.previousElementSibling.querySelector('b').textContent = el.value;
-      if (el.dataset.k === 'con_fondo') { cambiar(+el.dataset.i, 'con_fondo', v); return pintarElementos(+el.dataset.i); }
+      if (/^con_/.test(el.dataset.k)) { cambiar(+el.dataset.i, el.dataset.k, v); return pintarElementos(+el.dataset.i); }
       cambiar(+el.dataset.i, el.dataset.k, v);
       if (el.dataset.k === 'cara' || el.dataset.k === 'texto') { const s = el.closest('details').querySelector('.elem-nombre, .elem-cara'); if (el.dataset.k === 'cara') el.closest('details').querySelector('.elem-cara').textContent = CARAS.find(([k]) => k === v)[1]; else el.closest('details').querySelector('.elem-nombre').textContent = String(v).split('\n')[0].slice(0, 40); }
     });
@@ -1200,6 +1242,7 @@ function cajaElemento(e, g) {
   const x = x0 + ac * (e.x ?? 10) / 100, y = g.sg + g.H * (e.y ?? 10) / 100, w = ac * (e.ancho ?? 80) / 100;
   let h;
   if (e.tipo === 'foto') h = g.H * (e.alto ?? 30) / 100;
+  else if (e.tipo === 'forma') h = e.forma === 'linea' ? Math.max(1, (e.grosor ?? 1) * 0.3528) : g.H * (e.alto ?? 10) / 100;
   else {
     const lineas = String(e.texto || '').split('\n').length;
     h = lineas * (e.tam ?? 14) * 0.3528 * (1 + (e.interlineado ?? 0.45)) + (e.fondo ? 5 : 0);
@@ -1208,34 +1251,60 @@ function cajaElemento(e, g) {
 }
 function capaArrastre() {
   const m = $('#mesa-tapa'); const svg = m && $('svg', m); if (!svg) return;
-  $('.capa-tapa', m)?.remove();
+  $('.capa-tapa', m)?.remove(); $('.barra-el')?.remove();
   const lista = elementosTapa(); if (!lista.length) return;
   const g = geometriaTapa();
   m.style.position = 'relative';
   const rs = svg.getBoundingClientRect(), rm = m.getBoundingClientRect();
   const k = rs.width / g.total; // px por mm
   const capa = h(`<div class="capa-tapa" style="left:${rs.left - rm.left + m.scrollLeft}px;top:${rs.top - rm.top + m.scrollTop}px;width:${rs.width}px;height:${rs.height}px"></div>`);
+  // guías de imán: bordes, centro y zona segura de cada cara
+  const guiasX = [], guiasY = [g.sg + 6, g.sg + g.H / 2, g.sg + g.H - 6, g.sg, g.sg + g.H];
+  for (const [x0, w] of Object.values(g.caras)) if (w > 0) guiasX.push(x0, x0 + w / 2, x0 + w, x0 + 6, x0 + w - 6);
+  const linea = (vertical) => { const d = h(`<i class="guia-iman ${vertical ? 'v' : 'h'}"></i>`); capa.append(d); return d; };
+  const gv = linea(true), gh = linea(false);
+  const iman = (v, guias) => { for (const gg of guias) if (Math.abs(v - gg) < 1.6) return gg; return null; };
   lista.forEach((e, i) => {
     if (e.cara?.startsWith('solapa') && !(g.caras[e.cara][1] > 0)) return;
     const c = cajaElemento(e, g);
-    const d = h(`<div class="caja-el" data-i="${i}" title="Arrastrá para mover; la esquina cambia el tamaño" style="left:${c.x * k}px;top:${c.y * k}px;width:${c.w * k}px;height:${Math.max(c.h * k, 10)}px"><i class="tirador"></i></div>`);
+    const d = h(`<div class="caja-el ${S.selEl === i ? 'sel' : ''}" data-i="${i}" title="Clic: elegir · arrastrar: mover · doble clic: escribir · la bolita: tamaño" style="left:${c.x * k}px;top:${c.y * k}px;width:${c.w * k}px;height:${Math.max(c.h * k, 8)}px"><i class="tirador"></i></div>`);
     capa.append(d);
+    d.addEventListener('dblclick', () => { if (e.tipo === 'texto') editarEnLugar(i, d); else if (e.tipo === 'foto') subirFoto().then((r) => { if (r) { const l = elementosTapa(); l[i].archivo = r; guardarElementos(l); verTapa(); } }); });
     d.addEventListener('pointerdown', (ev) => {
+      if (ev.detail > 1) return;
       ev.preventDefault(); d.setPointerCapture(ev.pointerId);
+      seleccionar(i);
       const redim = ev.target.classList.contains('tirador');
       const x0 = ev.clientX, y0 = ev.clientY, l0 = d.offsetLeft, t0 = d.offsetTop, w0 = d.offsetWidth, h0 = d.offsetHeight;
+      let movio = false;
       d.classList.add('activa');
       const mover = (ev2) => {
         const dx = ev2.clientX - x0, dy = ev2.clientY - y0;
-        if (redim) { d.style.width = Math.max(12, w0 + dx) + 'px'; if (e.tipo === 'foto') d.style.height = Math.max(12, h0 + dy) + 'px'; }
-        else { d.style.left = l0 + dx + 'px'; d.style.top = t0 + dy + 'px'; }
+        if (Math.abs(dx) + Math.abs(dy) > 2) movio = true;
+        if (redim) {
+          d.style.width = Math.max(8, w0 + dx) + 'px';
+          if (e.tipo !== 'texto' && e.forma !== 'linea') d.style.height = Math.max(8, ev2.shiftKey ? (w0 + dx) * h0 / w0 : h0 + dy) + 'px';
+          return;
+        }
+        let L = l0 + dx, T = t0 + dy;
+        // imán: borde izquierdo, centro o borde derecho contra las guías
+        let sx = null, sy = null;
+        for (const off of [0, d.offsetWidth / 2, d.offsetWidth]) { const gx = iman((L + off) / k, guiasX); if (gx != null) { L = gx * k - off; sx = gx; break; } }
+        for (const off of [0, d.offsetHeight / 2, d.offsetHeight]) { const gy = iman((T + off) / k, guiasY); if (gy != null) { T = gy * k - off; sy = gy; break; } }
+        d.style.left = L + 'px'; d.style.top = T + 'px';
+        gv.style.display = sx != null ? 'block' : 'none'; if (sx != null) gv.style.left = sx * k + 'px';
+        gh.style.display = sy != null ? 'block' : 'none'; if (sy != null) gh.style.top = sy * k + 'px';
       };
       const soltar = () => {
-        d.removeEventListener('pointermove', mover); d.classList.remove('activa');
+        d.removeEventListener('pointermove', mover); d.classList.remove('activa'); gv.style.display = gh.style.display = 'none';
+        if (!movio) return;
         const r = (v) => Math.round(v * 2) / 2;
-        const l = elementosTapa(); const el = l[i]; const [cx0, ac] = g.caras[el.cara || 'tapa'];
-        if (redim) { el.ancho = r(d.offsetWidth / k / ac * 100); if (el.tipo === 'foto') el.alto = r(d.offsetHeight / k / g.H * 100); }
-        else {
+        const l = elementosTapa(); const el = l[i];
+        if (redim) {
+          const [, ac] = g.caras[el.cara || 'tapa'];
+          el.ancho = r(d.offsetWidth / k / ac * 100);
+          if (el.tipo !== 'texto' && el.forma !== 'linea') el.alto = r(d.offsetHeight / k / g.H * 100);
+        } else {
           // si se suelta en otra cara, el elemento se muda a esa cara
           const cxMm = (d.offsetLeft + d.offsetWidth / 2) / k;
           const nueva = Object.entries(g.caras).find(([, [a, w]]) => w > 0 && cxMm >= a && cxMm < a + w)?.[0] || el.cara || 'tapa';
@@ -1251,7 +1320,88 @@ function capaArrastre() {
     });
   });
   m.append(capa);
+  barraElemento();
 }
+function seleccionar(i) {
+  S.selEl = i;
+  $$('.caja-el').forEach((d) => d.classList.toggle('sel', +d.dataset.i === i));
+  barraElemento();
+  // abre su ficha en el formulario
+  $$('#elementos details.elem').forEach((d, j) => { d.open = j === i; if (j === i) d.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
+}
+// Barra de herramientas sobre la vista: alinear, ordenar, duplicar, tamaño, borrar.
+function barraElemento() {
+  $('.barra-el')?.remove();
+  const l = elementosTapa(), i = S.selEl;
+  if (i == null || !l[i]) return;
+  const e = l[i];
+  const btn = (acc, t, tit) => `<button type="button" data-acc="${acc}" title="${tit}">${t}</button>`;
+  const b = h(`<div class="barra-el"><span class="be-nombre">${e.tipo === 'texto' ? 'Texto' : e.tipo === 'foto' ? 'Foto' : 'Forma'}</span>
+    ${btn('izq', '⇤', 'Alinear a la izquierda de la cara')}${btn('cen', '↔', 'Centrar en la cara')}${btn('der', '⇥', 'Alinear a la derecha')}
+    <span class="sep"></span>${btn('arr', '⤒', 'Arriba')}${btn('med', '↕', 'Centrar en alto')}${btn('aba', '⤓', 'Abajo')}
+    <span class="sep"></span>${e.tipo === 'texto' ? btn('menos', 'A−', 'Más chico') + btn('mas', 'A+', 'Más grande') + btn('escribir', '✎', 'Escribir (doble clic)') : ''}
+    ${btn('atras', '▽', 'Mandar atrás')}${btn('frente', '△', 'Traer al frente')}${btn('dup', '⧉', 'Duplicar (Ctrl+D)')}${btn('borrar', '✕', 'Borrar (Supr)')}
+    <span class="sep"></span>${btn('soltar', 'Listo', 'Dejar de editar (Esc)')}</div>`);
+  $('#mesa-tapa').prepend(b);
+  $$('[data-acc]', b).forEach((x) => (x.onclick = () => accionElemento(x.dataset.acc)));
+}
+function accionElemento(acc) {
+  const l = elementosTapa(), i = S.selEl; if (i == null || !l[i]) return;
+  const e = l[i]; const g = geometriaTapa(); const [, ac] = g.caras[e.cara || 'tapa'];
+  const c = cajaElemento(e, g); const altoPct = (c.h / g.H) * 100, anchoPct = e.ancho ?? 80;
+  const margen = (6 / ac) * 100, margenV = (6 / g.H) * 100;
+  const r = (v) => Math.round(v * 2) / 2;
+  if (acc === 'soltar') { S.selEl = null; capaArrastre(); return; }
+  if (acc === 'escribir') { const d = $(`.caja-el[data-i="${i}"]`); if (d) editarEnLugar(i, d); return; }
+  if (acc === 'izq') { e.x = r(margen); if (e.tipo === 'texto') e.alineacion = 'left'; }
+  if (acc === 'cen') { e.x = r((100 - anchoPct) / 2); if (e.tipo === 'texto') e.alineacion = 'center'; }
+  if (acc === 'der') { e.x = r(100 - anchoPct - margen); if (e.tipo === 'texto') e.alineacion = 'right'; }
+  if (acc === 'arr') e.y = r(margenV);
+  if (acc === 'med') e.y = r((100 - altoPct) / 2);
+  if (acc === 'aba') e.y = r(100 - altoPct - margenV);
+  if (acc === 'mas') e.tam = Math.round((e.tam ?? 14) * 1.12 * 2) / 2;
+  if (acc === 'menos') e.tam = Math.max(4, Math.round((e.tam ?? 14) / 1.12 * 2) / 2);
+  if (acc === 'dup') { const cp = JSON.parse(JSON.stringify(e)); cp.x = (cp.x ?? 0) + 3; cp.y = (cp.y ?? 0) + 3; l.push(cp); S.selEl = l.length - 1; }
+  if (acc === 'borrar') { l.splice(i, 1); S.selEl = null; }
+  if (acc === 'frente') { l.push(l.splice(i, 1)[0]); S.selEl = l.length - 1; }
+  if (acc === 'atras') { l.unshift(l.splice(i, 1)[0]); S.selEl = 0; }
+  guardarElementos(l); pintarElementos(S.selEl ?? -1); verTapa();
+}
+// Escribir directamente sobre la tapa (doble clic en un texto).
+function editarEnLugar(i, caja) {
+  const e = elementosTapa()[i]; if (!e) return;
+  $('.edicion-lugar')?.remove();
+  const ta = h(`<textarea class="edicion-lugar" spellcheck="true" lang="es">${esc(e.texto || '')}</textarea>`);
+  ta.style.left = caja.style.left; ta.style.top = caja.style.top; ta.style.width = Math.max(160, caja.offsetWidth) + 'px';
+  caja.parentElement.append(ta); ta.focus(); ta.select();
+  const cerrar = (guardar) => {
+    if (!ta.isConnected) return;
+    const v = ta.value; ta.remove();
+    if (guardar && v !== e.texto) { const l = elementosTapa(); l[i].texto = v; guardarElementos(l); pintarElementos(i); verTapa(); }
+  };
+  ta.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') cerrar(false); if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) cerrar(true); ev.stopPropagation(); });
+  ta.addEventListener('blur', () => cerrar(true));
+}
+// Teclado en la pestaña Tapa: flechas mueven, Supr borra, Ctrl+D duplica, Ctrl+Z deshace, Esc suelta.
+document.addEventListener('keydown', (ev) => {
+  if (!$('#v-tapa')?.classList.contains('activa')) return;
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName) || document.activeElement?.isContentEditable) return;
+  if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') { ev.preventDefault(); deshacerElemento(); return; }
+  if (S.selEl == null) return;
+  const paso = ev.shiftKey ? 5 : 0.5;
+  const mov = { ArrowLeft: ['x', -paso], ArrowRight: ['x', paso], ArrowUp: ['y', -paso], ArrowDown: ['y', paso] }[ev.key];
+  if (mov) {
+    ev.preventDefault();
+    const l = elementosTapa(); const e = l[S.selEl]; if (!e) return;
+    e[mov[0]] = Math.round(((e[mov[0]] ?? 0) + mov[1]) * 2) / 2;
+    guardarElementos(l); programarTapa();
+    const d = $(`.caja-el[data-i="${S.selEl}"]`); if (d) { const g = geometriaTapa(); const k = d.parentElement.offsetWidth / g.total; const c = cajaElemento(e, g); d.style.left = c.x * k + 'px'; d.style.top = c.y * k + 'px'; }
+    return;
+  }
+  if (ev.key === 'Delete' || ev.key === 'Backspace') { ev.preventDefault(); accionElemento('borrar'); }
+  if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'd') { ev.preventDefault(); accionElemento('dup'); }
+  if (ev.key === 'Escape') accionElemento('soltar');
+});
 function estimarPaginas() {
   const palabras = [...S.textos.values()].reduce((a, t) => a + t.split(/\s+/).length, 0);
   return Math.round(palabras / 280 / 2) * 2 || 200;
@@ -1575,12 +1725,24 @@ function pintarRevision() {
     <div class="acciones">
       <button class="btn prim chico" id="rev-lt">Revisar con LanguageTool</button>
       <button class="btn chico" id="rev-ia" ${hayIA ? '' : 'disabled title="Activá Gemini o Groq en la pestaña Asistente"'}>Revisar con ${PROVEEDORES[provActual()].nombre.replace(' (Google)', '')}</button>
+      <button class="btn chico" id="rev-parrafos" title="Marca párrafos de más de media página y rachas de párrafos muy cortos">Largo de párrafos</button>
       <button class="btn chico" id="rev-limpiar">Limpiar marcas</button>
     </div>
     <label class="check" style="font-size:12.5px"><input type="checkbox" id="rev-orto" ${S.conf.ortografia === false ? '' : 'checked'}>Subrayado ortográfico del navegador mientras escribo</label>
     <div id="rev-estado"></div>
     <div id="rev-lista" class="rev-lista"></div>`;
   $('#rev-lt').onclick = () => revisar('lt');
+  $('#rev-parrafos').onclick = () => {
+    if (!S.actual) return;
+    const t = S.editor.state.doc.toString();
+    const marcas = revisarParrafos(t);
+    const otras = listarMarcas(S.editor.state).filter((x) => x.origen !== 'Párrafos');
+    S.editor.dispatch({ effects: fijarMarcas.of([...otras, ...marcas]) });
+    const pars = t.split(/\n\n+/).filter((p) => p.trim() && !/^(#|:::|\[\^)/.test(p.trim()));
+    const prom = Math.round(pars.reduce((a, p) => a + p.split(/\s+/).length, 0) / Math.max(1, pars.length));
+    $('#rev-estado').innerHTML = `<div class="nota">${pars.length} párrafos, ${prom} palabras de promedio. ${marcas.length ? `${marcas.length} para revisar.` : 'Todos en un largo cómodo.'}</div>`;
+    pintarListaRevision();
+  };
   $('#rev-ia').onclick = () => revisar('ia');
   $('#rev-limpiar').onclick = () => { S.editor.dispatch({ effects: fijarMarcas.of([]) }); pintarListaRevision(); };
   $('#rev-orto').onchange = (e) => {

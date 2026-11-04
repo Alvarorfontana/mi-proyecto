@@ -24,7 +24,7 @@
 #let numero-col = str(_ti("numero", ""))
 #let seguro = 6mm   // zona segura: nada importante más cerca del corte
 #let estilo-tapa = sys.inputs.at("estilo_tapa", default: T.at("estilo", default: "clasica"))
-// clasica | editorial | tipografica | minimalista | coleccion | dos-tintas | marco | cruce | centrada | foto | suiza | generativa
+// clasica | editorial | tipografica | minimalista | coleccion | dos-tintas | marco | cruce | centrada | foto | suiza | generativa | libre
 #let fuente-tapa = _ti("fuente_titulo", TIPO.titulos)
 
 // posiciones horizontales (desde el borde izquierdo del papel, con sangrado)
@@ -102,7 +102,9 @@
   en-tapa(0pt, y0, rect(width: W + ext-der, height: h, fill: color, stroke: none))
 }
 
-#if estilo-tapa == "editorial" {
+#if estilo-tapa == "libre" {
+  // editor libre: la tapa es solo el fondo; títulos, fotos y formas son capas en tapa/elementos.json
+} else if estilo-tapa == "editorial" {
   panel(x-tapa, W, pad(x: 16mm, top: 18mm, bottom: 16mm, grid(rows: (auto, 1fr, auto), {
     grid(columns: (1fr, auto), versal(ed, 7pt, fill: tinta.transparentize(35%), tracking: 0.3em, peso: "regular"), text(font: TIPO.apoyo, size: 7pt, fill: tinta.transparentize(35%))[#anio])
   }, align(horizon, {
@@ -446,7 +448,18 @@
   let py = H * pc("y", 10)
   let w = ac * pc("ancho", 80)
   let giro = float(e.at("giro", default: 0)) * 1deg
-  let cuerpo = if e.at("tipo", default: "texto") == "foto" {
+  let tipo = e.at("tipo", default: "texto")
+  let cuerpo = if tipo == "forma" {
+    // rectángulo, círculo o línea: sirven para franjas, recuadros, sellos y filetes
+    let h = H * pc("alto", 10)
+    let op = calc.clamp(float(e.at("opacidad", default: 100)), 0, 100)
+    let relleno = if e.at("relleno", default: "") != "" { rgb(e.relleno).transparentize((100 - op) * 1%) } else { none }
+    let borde = if e.at("borde", default: "") != "" { float(e.at("grosor", default: 0.8)) * 1pt + rgb(e.borde) } else { none }
+    let f = e.at("forma", default: "rect")
+    if f == "circulo" { ellipse(width: w, height: h, fill: relleno, stroke: borde) }
+    else if f == "linea" { line(length: w, stroke: float(e.at("grosor", default: 1)) * 1pt + rgb(e.at("borde", default: e.at("relleno", default: tinta.to-hex())))) }
+    else { rect(width: w, height: h, fill: relleno, stroke: borde, radius: float(e.at("redondeo", default: 0)) * 1mm) }
+  } else if tipo == "foto" {
     if e.at("archivo", default: "") == "" { none } else {
       let h = H * pc("alto", 30)
       let sang = e.at("sangre", default: false)
