@@ -142,6 +142,24 @@ Las fotos y mapas flotan arriba o abajo de la página más cercana para no dejar
 - **Libro completo**: en Producción, «Armar acá» da el interior, la tapa y la tapa con guías; cada uno tiene su botón de descargar y de imprimir.
 - **CMYK**: al armar en GitHub, además de los PDF en RGB salen `interior-cmyk.pdf` y `tapa-cmyk.pdf` (convertidos con Ghostscript), que es lo que suelen pedir las imprentas. Igual conviene pedirle a la imprenta una prueba de color.
 
+## Pegar texto (del bloc de notas al libro)
+
+El botón **Pegar texto** (abajo del índice) arma capítulos solos a partir de un texto pegado o de un `.txt`/`.md`, **sin límite de largo**: todo se procesa en el navegador.
+
+1. **Antes de pegar** se eligen las variables: diseño del interior, medida y si va como capítulos nuevos o reemplaza el capítulo abierto.
+2. **Al pegar**, el taller reconoce:
+   - títulos de capítulo («Capítulo 3», «CAPÍTULO 2: EL DARIÉN», «Prólogo», «Título — bajada», renglones cortos en mayúsculas) y de sección;
+   - partes («PARTE I» con su nombre);
+   - notas al pie numeradas, ya sea en una sección «Notas» o al final del capítulo, con las llamadas en el texto como `palabra.12`, `palabra¹²`, `[12]` o `(12)`. Se convierten en notas al pie de verdad;
+   - bibliografía («Bibliografía», «Referencias», «Fuentes»), con sangría francesa;
+   - epígrafes (líneas cortas al comienzo con «— Autor»);
+   - renglones cortados de un PDF copiado (los une y arregla las palabras partidas con guion).
+3. **Antes de crear**, muestra cómo lo va a armar: capítulos, partes, notas, y avisa si alguna nota no encontró su llamada (queda al final del capítulo para ubicarla a mano). Los títulos se pueden corregir ahí.
+
+## Dictado por voz
+
+El botón **Dictar** de la barra del editor escribe lo que decís donde está el cursor. Entiende «coma», «punto», «punto y aparte», «nuevo párrafo», «dos puntos», «punto y coma», «abrir/cerrar comillas», «abrir/cerrar pregunta», «abrir/cerrar exclamación», «abrir/cerrar paréntesis» y «raya». Usa el reconocimiento del navegador (gratis, en vivo, en Chrome y Edge) o, si está cargada la clave de Groq, **Whisper** (más preciso; transcribe cada 25 segundos). Después se pule con la Revisión.
+
 ## Corrección del texto
 
 En la pestaña Texto, el panel **Revisión** tiene tres correctores:
@@ -150,7 +168,7 @@ En la pestaña Texto, el panel **Revisión** tiene tres correctores:
 - **LanguageTool** (gratis, sin clave): ortografía, gramática, puntuación y estilo. Subraya en rojo, azul o amarillo y propone la corrección; un clic la aplica.
 - **Revisión con IA** (Gemini o Groq): lee el capítulo como un corrector de estilo y devuelve observaciones con su sugerencia, en la misma lista.
 
-El panel **Asistente** usa Gemini (clave gratis en aistudio.google.com/apikey) o Groq (console.groq.com/keys) para condensar, corregir, mejorar la fluidez, buscar repeticiones, sugerir títulos o resumir. Las claves quedan guardadas solo en tu navegador.
+El panel **Asistente** no tiene límite de largo: si el texto es más grande de lo que el modelo acepta de una vez, lo trabaja por tramos. Usa Gemini (clave gratis en aistudio.google.com/apikey) o Groq (console.groq.com/keys) para condensar, corregir, mejorar la fluidez, buscar repeticiones, sugerir títulos o resumir. Las claves quedan guardadas solo en tu navegador.
 
 ## Un libro nuevo
 

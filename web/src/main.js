@@ -12,6 +12,8 @@ import { GitHub } from './github.js';
 import { convertir, primerTitulo } from './md2typ.js';
 import { principal, nombreTyp, lomoMm, contarPaginasPdf } from './armado.js';
 import { tomlSet, tomlContenido } from './toml.js';
+import { importarTexto } from './importar.js';
+import { puntuar, hayDictadoNavegador, dictarNavegador, dictarWhisper } from './dictado.js';
 import { campoMarcas, fijarMarcas, quitarMarca, listarMarcas, revisarLanguageTool, PEDIDO_REVISION, marcasDesdeIA, ortografiaNavegador } from './revision.js';
 import { iniciarMotor, cargarTextos, cargarBinarios, yaCargado, compilar, aSvg } from './motor.js';
 import { MODELOS, MODELOS_GEMINI, PROVEEDORES, ACCIONES, preguntar, modelosGemini } from './ia.js';
@@ -37,6 +39,8 @@ const I = {
   bajar: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 2v9M4.5 7.5L8 11l3.5-3.5M2.5 10v3.5h11V10"/></svg>',
   ajustes: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></svg>',
   buscar: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>',
+  pegar: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="10" height="11.5" rx="1.5"/><path d="M6 3V1.8h4V3M5.5 7h5M5.5 9.5h5M5.5 12h3"/></svg>',
+  micro: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.5" y="1.5" width="5" height="8.5" rx="2.5"/><path d="M3 7.5a5 5 0 0010 0M8 12.5V15"/></svg>',
   imprimir: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4.5 6V2h7v4M4.5 11.5h-2v-5h11v5h-2M4.5 9.5h7V14h-7z"/></svg>',
   registro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M12 1v22M1 12h22"/></svg>',
 };
@@ -167,6 +171,7 @@ function armarApp() {
           <div class="pie">
             <button class="btn chico" id="b-nuevo">${I.mas}Capítulo</button>
             <button class="btn chico" id="b-parte">${I.mas}Parte</button>
+            <button class="btn chico prim" id="b-importar" title="Pegá el texto de un bloc de notas o Word y el taller lo arma solo">${I.pegar}Pegar texto</button>
             <button class="btn chico fant" id="b-otros">Otros textos</button>
           </div>
           <div class="resumen" id="resumen"></div>
@@ -191,6 +196,8 @@ function armarApp() {
             <button data-ins="tabla">Tabla</button>
             <span class="sep"></span>
             <button data-ins="buscar" title="Buscar y reemplazar (Ctrl+F)">Buscar</button>
+            <span class="sep"></span>
+            <button id="b-dictar" class="dictar" title="Dictar con la voz: escribe donde está el cursor">${I.micro}Dictar</button>
           </div>
           <div class="cm-host" id="cm"></div>
         </section>
@@ -225,6 +232,8 @@ function armarApp() {
   $('#b-guardar').onclick = guardarTodo;
   $('#b-ajustes').onclick = dialogoAjustes;
   $('#b-nuevo').onclick = nuevoCapitulo;
+  $('#b-importar').onclick = asistenteImportar;
+  $('#b-dictar').onclick = alternarDictado;
   $('#b-parte').onclick = nuevaParte;
   $('#b-otros').onclick = otrosTextos;
   $$('#herr [data-ins]').forEach((b) => (b.onclick = () => insertar(b.dataset.ins)));
@@ -1400,10 +1409,20 @@ async function consultar(accion, pedido) {
   const v = S.editor; const { from, to } = v.state.selection.main;
   const conSel = to > from;
   const texto = conSel ? v.state.sliceDoc(from, to) : v.state.doc.toString();
-  if (texto.length > 60000) return toast('El capítulo es muy largo para una sola consulta: marcá una parte.');
-  const out = $('#ia-out'); out.innerHTML = '<div class="nota"><span class="spin"></span> Pensando…</div>';
+  // sin límite de largo: si el texto es más grande de lo que el modelo acepta de una vez, va por tramos
+  const op = opcionesIA();
+  const max = op.proveedor === 'gemini' ? 300000 : 9000;
+  const tramos = []; let ini = 0;
+  while (ini < texto.length) { let fin = Math.min(texto.length, ini + max); if (fin < texto.length) { const p = texto.lastIndexOf('\n\n', fin); if (p > ini + max / 3) fin = p; } tramos.push(texto.slice(ini, fin)); ini = fin; }
+  const out = $('#ia-out');
   try {
-    const r = await preguntar({ ...opcionesIA(), accion, texto, pedido });
+    const partes = [];
+    for (let i = 0; i < tramos.length; i++) {
+      out.innerHTML = `<div class="nota"><span class="spin"></span> Pensando…${tramos.length > 1 ? ` tramo ${i + 1} de ${tramos.length}` : ''}</div>`;
+      partes.push(await preguntar({ ...op, accion, texto: tramos[i].trim(), pedido }));
+    }
+    const reemplaza = accion && ACCIONES[accion].reemplaza;
+    const r = partes.length === 1 ? partes[0] : reemplaza ? partes.join('\n\n') : partes.map((x, i) => `— Tramo ${i + 1} de ${partes.length} —\n${x}`).join('\n\n');
     ultimaRespuesta = { r, accion, from, to, conSel, archivo: S.actual };
     mostrarRespuesta(ultimaRespuesta);
   } catch (e) { out.innerHTML = `<div class="error">${esc(e.message)}</div>`; }
@@ -1510,6 +1529,132 @@ function pintarListaRevision() {
     }));
     el.querySelector('[data-ign]').onclick = () => { v.dispatch({ effects: quitarMarca.of(m.id) }); pintarListaRevision(); };
   });
+}
+
+/* ═════════ pegar texto: del bloc de notas al libro ═════════ */
+function asistenteImportar() {
+  const fmts = Object.keys(S.presets.formatos);
+  const d = h(`<dialog class="grande"><div class="cuerpo">
+    <h2>Pegar texto</h2>
+    <p class="sutil" style="margin:-8px 0 0">Pegá un capítulo o el libro entero, del largo que sea: no hay límite. El taller reconoce títulos, partes, notas al pie numeradas, bibliografía y epígrafes, y te muestra cómo lo va a armar antes de crear nada.</p>
+    <div class="imp-pasos">
+      <div class="imp-col">
+        <h3>1 · Antes de pegar, elegí</h3>
+        <label class="campo"><span>Diseño del interior</span><select class="entrada" id="im-diseno"><option value="">Dejar el actual</option>${DISENOS_INTERIOR.map((x) => `<option value="${x.id}">${x.nombre} — ${esc(x.nota)}</option>`).join('')}</select></label>
+        <label class="campo"><span>Medida</span><select class="entrada" id="im-medida"><option value="">Dejar la actual (${esc(S.cfg.formato?.preset || '')})</option>${fmts.map((f) => `<option>${f}</option>`).join('')}</select></label>
+        <label class="campo"><span>Dónde va</span><select class="entrada" id="im-destino"><option value="agregar">Agregar al libro como capítulos nuevos</option>${S.actual ? `<option value="reemplazar">Reemplazar el capítulo abierto</option>` : ''}</select></label>
+        <div class="imp-ops">
+          <label class="check"><input type="checkbox" id="im-cortar" checked>Cortar en capítulos por los títulos</label>
+          <label class="check"><input type="checkbox" id="im-notas" checked>Convertir notas numeradas en notas al pie</label>
+          <label class="check"><input type="checkbox" id="im-unir" checked>Unir renglones cortados (texto copiado de PDF)</label>
+          <label class="check"><input type="checkbox" id="im-epi" checked>Reconocer epígrafes («— Autor»)</label>
+          <label class="check"><input type="checkbox" id="im-bib" checked>Formato de bibliografía</label>
+        </div>
+      </div>
+      <div class="imp-col">
+        <h3>2 · Pegá el texto</h3>
+        <textarea class="entrada imp-texto" id="im-texto" placeholder="Pegá acá (Ctrl+V)…"></textarea>
+        <div class="imp-pie"><span id="im-cuenta" class="sutil">0 palabras</span><label class="btn chico">${I.subir}Abrir archivo .txt o .md<input type="file" id="im-archivo" accept=".txt,.md,.markdown,text/plain" hidden></label></div>
+      </div>
+    </div>
+    <div id="im-vista"></div>
+  </div><div class="pie"><button class="btn" data-x>Cancelar</button><button class="btn" id="im-analizar">Ver cómo queda</button><button class="btn prim" id="im-crear" disabled>Crear</button></div></dialog>`);
+  document.body.append(d); d.addEventListener('close', () => d.remove()); d.showModal();
+  $('[data-x]', d).onclick = () => d.close();
+  const ta = $('#im-texto', d);
+  const cuenta = () => { $('#im-cuenta', d).textContent = `${numero(ta.value.split(/\s+/).filter(Boolean).length)} palabras · ${numero(ta.value.length)} caracteres`; $('#im-crear', d).disabled = true; };
+  ta.addEventListener('input', cuenta);
+  $('#im-archivo', d).onchange = async (e) => { const f = e.target.files[0]; if (f) { ta.value = await f.text(); cuenta(); analizar(); } };
+  let resultado = null;
+  const analizar = () => {
+    if (!ta.value.trim()) return toast('Pegá un texto primero.');
+    const reemplazar = $('#im-destino', d).value === 'reemplazar';
+    resultado = importarTexto(ta.value, { cortar: !reemplazar && $('#im-cortar', d).checked, notas: $('#im-notas', d).checked, unir: $('#im-unir', d).checked ? 'auto' : false, epigrafes: $('#im-epi', d).checked, biblio: $('#im-bib', d).checked });
+    const caps = resultado.filter((x) => x.tipo === 'capitulo');
+    const notas = caps.reduce((a, c) => a + c.informe.notas, 0);
+    const sueltas = caps.flatMap((c) => c.informe.notasSinLlamada.map((n) => `${c.titulo}: nota ${n}`));
+    $('#im-vista', d).innerHTML = `<h3>3 · Así lo voy a armar</h3>
+      <div class="imp-resumen">${caps.length} ${caps.length === 1 ? 'capítulo' : 'capítulos'}${resultado.some((x) => x.tipo === 'parte') ? ` en ${resultado.filter((x) => x.tipo === 'parte').length} partes` : ''} · ${numero(notas)} notas al pie · ${numero(caps.reduce((a, c) => a + c.palabras, 0))} palabras</div>
+      ${sueltas.length ? `<div class="aviso mal">No encontré dónde va la llamada de ${sueltas.length} ${sueltas.length === 1 ? 'nota' : 'notas'} (${esc(sueltas.slice(0, 4).join('; '))}${sueltas.length > 4 ? '…' : ''}). Quedan al final del capítulo para ubicarlas a mano.</div>` : ''}
+      <div class="imp-lista">${resultado.map((x, i) => x.tipo === 'parte'
+        ? `<div class="imp-parte">Parte · <input class="entrada" data-tit="${i}" value="${esc(x.titulo)}"></div>`
+        : `<div class="imp-cap"><input class="entrada" data-tit="${i}" value="${esc(x.titulo)}"><span>${numero(x.palabras)} pal.${x.informe.notas ? ` · ${x.informe.notas} notas` : ''}${x.informe.epigrafe ? ' · epígrafe' : ''}${x.informe.biblio ? ` · bibliografía (${x.informe.biblio})` : ''}</span></div>`).join('')}</div>
+      <p class="sutil" style="margin:6px 0 0">Podés corregir los títulos acá. Si cortó mal un capítulo, destildá «Cortar en capítulos» o marcá los títulos en el texto con # al principio del renglón.</p>`;
+    $('#im-crear', d).disabled = false;
+    $('#im-crear', d).textContent = reemplazar ? 'Reemplazar el capítulo' : `Crear ${caps.length} ${caps.length === 1 ? 'capítulo' : 'capítulos'}`;
+  };
+  $('#im-analizar', d).onclick = analizar;
+  $('#im-crear', d).onclick = () => {
+    if (!resultado) return;
+    $$('[data-tit]', d).forEach((inp) => { const x = resultado[+inp.dataset.tit]; const nuevo = inp.value.trim() || x.titulo; if (x.md) x.md = x.md.replace(/^# .*$/m, '# ' + nuevo); x.titulo = nuevo; });
+    const diseno = DISENOS_INTERIOR.find((x) => x.id === $('#im-diseno', d).value);
+    const medida = $('#im-medida', d).value;
+    const cambios = {};
+    if (diseno) Object.assign(cambios, { tipografia: { fuente: diseno.fuente, fuente_titulos: diseno.fuente_titulos, fuente_apoyo: diseno.fuente_apoyo, cuerpo: diseno.cuerpo, interlineado: diseno.interlineado }, estilo: { apertura: diseno.apertura, color_acento: diseno.color_acento, secciones_color: diseno.secciones_color } });
+    if (medida) cambios.formato = { preset: medida };
+    if (Object.keys(cambios).length) aplicarCambiosConfig(cambios);
+    const caps = resultado.filter((x) => x.tipo === 'capitulo');
+    if ($('#im-destino', d).value === 'reemplazar') {
+      const md = caps.map((c) => c.md).join('\n');
+      S.editor.dispatch({ changes: { from: 0, to: S.editor.state.doc.length, insert: md } });
+      d.close(); toast('Capítulo reemplazado. Podés deshacer con Ctrl+Z.'); return;
+    }
+    const l = [...(S.cfg.contenido || [])];
+    let n = l.filter((c) => c.archivo).length;
+    const usados = new Set(l.map((c) => c.archivo));
+    let primero = null;
+    for (const x of resultado) {
+      if (x.tipo === 'parte') { l.push({ tipo: 'parte', titulo: x.titulo }); continue; }
+      n++;
+      const slug = x.titulo.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30) || 'capitulo';
+      let archivo = `texto/${String(n).padStart(2, '0')}-${slug}.md`;
+      while (usados.has(archivo)) archivo = archivo.replace(/\.md$/, '-b.md');
+      usados.add(archivo);
+      S.textos.set(archivo, x.md); S.originales.set(archivo, null);
+      l.push({ tipo: 'capitulo', archivo });
+      primero ||= archivo;
+    }
+    cambiarContenido(l);
+    d.close();
+    if (primero) abrirTexto(primero);
+    toast(`Listo: ${caps.length} ${caps.length === 1 ? 'capítulo creado' : 'capítulos creados'}. Revisalos y tocá Guardar para subirlos a GitHub.`);
+  };
+  ta.focus();
+}
+
+/* ═════════ dictado por voz ═════════ */
+let dictado = null;
+function alternarDictado() {
+  if (dictado) { dictado.ctrl?.parar(); return; }
+  if (!S.actual) return toast('Abrí un capítulo primero.');
+  const conWhisper = !!S.conf.groq;
+  const nav = hayDictadoNavegador();
+  if (!nav && !conWhisper) return toast('Este navegador no dicta. Usá Chrome o Edge, o activá Groq en el Asistente para usar Whisper.');
+  const motor = S.conf.dictado || (nav ? 'navegador' : 'whisper');
+  const barra = h(`<div class="barra-dictado"><span class="punto-rojo"></span><span class="dic-estado">Escuchando… hablá normalmente. Decí «coma», «punto», «punto y aparte», «abrir comillas»…</span><span class="dic-parcial"></span>
+    ${nav && conWhisper ? `<select class="entrada" id="dic-motor"><option value="navegador" ${motor === 'navegador' ? 'selected' : ''}>Navegador (en vivo)</option><option value="whisper" ${motor === 'whisper' ? 'selected' : ''}>Whisper de Groq (más preciso)</option></select>` : ''}
+    <button class="btn chico prim" id="dic-parar">Terminar</button></div>`);
+  $('.editor').append(barra);
+  $('#b-dictar').classList.add('activo');
+  const insertar = (crudo) => {
+    const v = S.editor; const pos = v.state.selection.main.head;
+    const antes = v.state.sliceDoc(Math.max(0, pos - 3), pos);
+    const inicio = !antes.trim() || /[.?!…]\s*$|\n\s*$/.test(antes);
+    let t = puntuar(crudo, { inicio });
+    if (antes && !/[\s(«¿¡\n]$/.test(antes) && !/^[.,;:?!…»)\n]/.test(t)) t = ' ' + t;
+    v.dispatch({ changes: { from: pos, insert: t }, selection: { anchor: pos + t.length }, scrollIntoView: true });
+  };
+  const fin = () => { barra.remove(); $('#b-dictar')?.classList.remove('activo'); dictado = null; };
+  const opts = { alTexto: insertar, alParcial: (p) => { $('.dic-parcial', barra).textContent = p; }, alTerminar: fin, alError: (m) => { toast(m); } };
+  dictado = {};
+  const arrancar = async (cual) => {
+    dictado.ctrl = cual === 'whisper' ? await dictarWhisper({ clave: S.conf.groq, ...opts }) : dictarNavegador(opts);
+    if (!dictado.ctrl) fin();
+  };
+  $('#dic-parar', barra).onclick = () => dictado?.ctrl?.parar();
+  const sel = $('#dic-motor', barra);
+  if (sel) sel.onchange = () => { S.conf.dictado = sel.value; escribir('taller.conf', S.conf); const c = dictado.ctrl; dictado.ctrl = null; c.parar(); toast('Cambiá el motor: tocá Dictar de nuevo.'); };
+  arrancar(motor);
 }
 
 /* ═════════ PDF: descargar e imprimir ═════════ */
