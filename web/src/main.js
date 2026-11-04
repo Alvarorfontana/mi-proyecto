@@ -845,6 +845,14 @@ function pintarProduccion() {
       <button class="btn" id="b-actions">Armar en GitHub</button>
       <div class="corridas" id="corridas"></div>
     </div>
+    <div class="bloque ancho">
+      <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+        <div style="flex:1;min-width:260px"><h2>Versiones publicadas</h2>
+        <p>Cada versión guarda en GitHub el interior, la tapa y el EPUB con nombre y fecha. No vencen y se bajan desde cualquier compu o celular.</p></div>
+        <button class="btn prim" id="b-publicar">Publicar versión</button>
+      </div>
+      <div id="versiones"><div class="nota" style="font-size:12.5px;color:var(--tinta-suave)"><span class="spin"></span> Buscando versiones…</div></div>
+    </div>
     <div class="bloque">
       <h2>Simulador de páginas</h2>
       <p>Prueba medidas y cuerpos de letra y cuenta las páginas de cada combinación. Cada prueba tarda unos segundos.</p>
@@ -860,6 +868,8 @@ function pintarProduccion() {
   $('#b-armar').onclick = armarAca;
   $('#b-actions').onclick = armarGitHub;
   $('#b-simular').onclick = simular;
+  $('#b-publicar').onclick = publicarVersion;
+  listarVersiones();
   if (urls.length) $('#descargas').innerHTML = urls.map(([u, n, a]) => `<a class="btn" href="${u}" download="${esc(a)}">${I.bajar}${esc(n)}</a>`).join('');
   listarCorridas();
 }
@@ -899,6 +909,48 @@ async function armarGitHub() {
   const b = $('#b-actions'); b.disabled = true;
   try { await S.gh.lanzarArmado(S.slug); toast('Armado pedido. En unos minutos aparece listo.'); setTimeout(listarCorridas, 4000); }
   catch (e) { toast(e.message); } finally { b.disabled = false; }
+}
+async function publicarVersion() {
+  if (hayCambios()) { toast('Primero guardá los cambios: la versión se arma con lo que está en GitHub.'); return; }
+  const fecha = new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const d = dialogo(`<h2>Publicar versión</h2>
+    <p style="margin:0;color:var(--tinta-suave)">GitHub arma el libro con lo último guardado y lo publica. Tarda unos tres minutos.</p>
+    <label class="campo"><span>Nombre</span><input class="entrada" id="v-nombre" value="${esc((S.cfg.libro?.titulo || S.slug) + ' · ' + fecha)}"></label>
+    <label class="campo"><span>Nota (opcional)</span><textarea class="entrada" id="v-nota" rows="3" placeholder="Por ejemplo: versión para enviar a la imprenta, con los capítulos 21 a 23 condensados."></textarea></label>`,
+  [['Cancelar'], ['Publicar', 'prim']]);
+  d.addEventListener('close', async () => {
+    if (d.returnValue !== '1') return;
+    const nombre = $('#v-nombre', d).value.trim() || S.slug, nota = $('#v-nota', d).value.trim();
+    try {
+      await S.gh.lanzarArmado(S.slug, nombre, nota);
+      toast('Publicando. En unos minutos aparece en la lista.');
+      $('#versiones').insertAdjacentHTML('afterbegin', `<div class="corrida" id="v-pend"><i class="va"></i><span>Armando «${esc(nombre)}»…</span><span></span></div>`);
+      esperarVersion(nombre, 0);
+      setTimeout(listarCorridas, 4000);
+    } catch (e) { toast(e.message); }
+  });
+}
+function esperarVersion(nombre, n) {
+  if (n > 40 || !$('#versiones')) return;
+  setTimeout(async () => {
+    const lista = await S.gh.versiones().catch(() => []);
+    if (lista.some((r) => r.name === nombre)) { listarVersiones(); toast(`Versión «${nombre}» publicada.`); }
+    else esperarVersion(nombre, n + 1);
+  }, 15000);
+}
+async function listarVersiones() {
+  const c = $('#versiones'); if (!c) return;
+  try {
+    const lista = (await S.gh.versiones()).filter((r) => r.tag_name.startsWith(S.slug + '-'));
+    const pend = $('#v-pend')?.outerHTML || '';
+    const tam = (b) => b > 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.round(b / 1e3) + ' kB';
+    const nombreArch = (n) => n.endsWith('.epub') ? 'EPUB' : n.includes('tapa-guias') ? 'Tapa con guías' : n.includes('tapa') ? 'Tapa' : n.includes('interior') ? 'Interior' : n;
+    c.innerHTML = pend + (lista.length ? `<table class="tabla"><tr><th>Versión</th><th>Fecha</th><th>Archivos</th></tr>${lista.map((r) => `<tr>
+      <td><b>${esc(r.name || r.tag_name)}</b>${r.body ? `<div style="font-size:12px;color:var(--tinta-suave);max-width:46ch">${esc(r.body.split('\n')[0])}</div>` : ''}</td>
+      <td style="white-space:nowrap">${new Date(r.published_at || r.created_at).toLocaleDateString('es-AR', { dateStyle: 'medium' })}</td>
+      <td><div style="display:flex;gap:6px;flex-wrap:wrap">${r.assets.map((a) => `<a class="btn chico" href="${a.browser_download_url}" title="${tam(a.size)}">${I.bajar}${nombreArch(a.name)}</a>`).join('')}</div></td></tr>`).join('')}</table>`
+      : (pend ? '' : '<div class="nota" style="font-size:12.5px;color:var(--tinta-suave)">Todavía no publicaste ninguna versión.</div>'));
+  } catch (e) { c.innerHTML = `<div class="nota" style="font-size:12.5px;color:var(--tinta-suave)">${esc(e.message)}</div>`; }
 }
 let tCorridas;
 async function listarCorridas() {

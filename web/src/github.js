@@ -75,9 +75,12 @@ export class GitHub {
       throw e;
     }
   }
-  lanzarArmado(libro) {
-    return this.req(`${this.base}/actions/workflows/construir.yml/dispatches`, { method: 'POST', body: { ref: this.rama, inputs: { libro } }, tipo: 'nada' });
+  lanzarArmado(libro, version = '', nota = '') {
+    const inputs = { libro };
+    if (version) Object.assign(inputs, { version, nota });
+    return this.req(`${this.base}/actions/workflows/construir.yml/dispatches`, { method: 'POST', body: { ref: this.rama, inputs }, tipo: 'nada' });
   }
+  versiones() { return this.req(`${this.base}/releases?per_page=12`); }
   corridas() { return this.req(`${this.base}/actions/workflows/construir.yml/runs?per_page=6`); }
   artefactos(id) { return this.req(`${this.base}/actions/runs/${id}/artifacts`); }
 }

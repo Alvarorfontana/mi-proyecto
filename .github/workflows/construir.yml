@@ -1,5 +1,7 @@
 # Arma los PDF en GitHub cada vez que subís cambios (sin instalar nada en tu compu).
 # Los PDF quedan para descargar en la pestaña "Actions" → la última corrida → "Artifacts".
+# Si se pide con "version", además publica una versión permanente en "Releases"
+# (interior, tapa y EPUB con nombre y fecha; no vence).
 name: Construir libro
 
 on:
@@ -10,12 +12,23 @@ on:
       libro:
         description: "Carpeta del libro"
         default: "cruzar"
+      version:
+        description: "Nombre de la versión a publicar (vacío = solo armar)"
+        default: ""
+      nota:
+        description: "Nota de la versión"
+        default: ""
+
+permissions:
+  contents: write
 
 jobs:
   construir:
     runs-on: ubuntu-latest
     env:
       LIBRO: ${{ github.event.inputs.libro || 'cruzar' }}
+      VERSION: ${{ github.event.inputs.version }}
+      NOTA: ${{ github.event.inputs.nota }}
     steps:
       - uses: actions/checkout@v4
       - uses: typst-community/setup-typst@v4
@@ -28,8 +41,24 @@ jobs:
       - name: Armar interior, tapa y EPUB
         run: |
           pip install pypdf
-          python herramientas/construir.py "$LIBRO" --epub
+          python herramientas/construir.py "$LIBRO" --epub | tee armado.log
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ env.LIBRO }}-pdf
           path: libros/${{ env.LIBRO }}/salida/
+      - name: Publicar versión
+        if: ${{ github.event.inputs.version != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          S=libros/$LIBRO/salida
+          FECHA=$(TZ=America/Argentina/Buenos_Aires date +%Y-%m-%d)
+          TAG="$LIBRO-$(TZ=America/Argentina/Buenos_Aires date +%Y%m%d-%H%M)"
+          PAGS=$(grep -o '([0-9]* páginas)' armado.log | tr -d '()' || true)
+          cp "$S/interior.pdf" "$S/$LIBRO-interior.pdf"
+          cp "$S/tapa.pdf" "$S/$LIBRO-tapa.pdf"
+          cp "$S/tapa-guias.pdf" "$S/$LIBRO-tapa-guias.pdf"
+          cp "$S/libro.epub" "$S/$LIBRO.epub"
+          printf '%s\n\n%s · %s · commit %s\n' "$NOTA" "$FECHA" "$PAGS" "${GITHUB_SHA::7}" > notas.md
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$VERSION" --notes-file notas.md \
+            "$S/$LIBRO-interior.pdf" "$S/$LIBRO-tapa.pdf" "$S/$LIBRO-tapa-guias.pdf" "$S/$LIBRO.epub"
