@@ -51,7 +51,7 @@
   cornisa_impar: _e.at("cornisa_impar", default: "capitulo"),
   folio: _e.at("folio", default: "abajo-afuera"),
   acento: rgb(_in("color_acento", _e.at("color_acento", default: "#000000"))),
-  // diseño de la apertura de capítulo: clasica | centrada | numero | filete | banda | novela
+  // diseño de la apertura de capítulo: clasica | centrada | numero | filete | banda | novela | manual | pestana | recuadro
   apertura: _in("apertura", _e.at("apertura", default: "clasica")),
   secciones_color: _in("secciones_color", if _e.at("secciones_color", default: false) { "true" } else { "false" }) == "true",
 )
@@ -407,7 +407,7 @@
   show figure: set block(above: 1.4em, below: 1.4em)
   show quote.where(block: true): it => cita(it.body)
 
-  // Capítulo — seis diseños de apertura (algunos adaptados de ilm, Orange Book y Wonderous Book, MIT-0)
+  // Capítulo — nueve diseños de apertura (adaptados de ilm, Orange Book y Wonderous Book, MIT-0, y de bookly, MIT)
   show heading.where(level: 1): it => {
     let t = plano(it.body)
     let partes = t.split(" — ")
@@ -461,6 +461,44 @@
         #block(fill: white, inset: (x: 1em, y: 0.7em), radius: 3pt, stroke: 0.6pt + ESTILO.acento,
           text(font: TIPO.apoyo, size: TIPO.cuerpo * 1.55, weight: "bold")[#if numerado [#n. ]#titulo])
         #if sub != none { v(1.4em); text(font: TIPO.titulos, size: TIPO.cuerpo * 1.15, style: "italic")[#sub] }
+        #cierre-espacio
+      ]
+    } else if ap == "manual" {
+      // inspirado en el tema «orly» de bookly (MIT): todo a la derecha, filete fino
+      block(width: 100%, above: 0pt, below: 0pt, align(right)[
+        #v(FORMATO.alto * 0.08)
+        #if numerado { text(font: TIPO.apoyo, size: TIPO.cuerpo * 0.95, tracking: 0.12em, weight: "medium")[CAPÍTULO #n]; v(-0.2em) }
+        #line(length: 100%, stroke: 0.5pt + ESTILO.acento)
+        #v(0.3em)
+        #text(font: TIPO.titulos, size: TIPO.cuerpo * 2.1, weight: "regular")[#titulo]
+        #if sub != none { v(0.5em); block(width: 85%, text(font: TIPO.titulos, size: TIPO.cuerpo * 1.1, style: "italic")[#sub]) }
+        #v(TIPO.interlineado * 4)
+      ])
+    } else if ap == "pestana" {
+      // inspirado en el tema «pretty» de bookly (MIT): pestaña de color con el número
+      block(width: 100%, above: 0pt, below: 0pt)[
+        #v(FORMATO.alto * 0.09)
+        #if numerado { text(font: TIPO.apoyo, size: TIPO.cuerpo * 0.9, tracking: 0.08em)[Capítulo]; v(0.3em) }
+        #block(width: 100%, stroke: (top: 1.5pt + ESTILO.acento), grid(columns: if numerado { (auto, 1fr) } else { (1fr,) }, column-gutter: 0.8em, align: top + left,
+          ..if numerado { (box(fill: ESTILO.acento, inset: (x: 0.55em, top: 0.6em, bottom: 0.7em), radius: (bottom: 0.35em),
+            text(font: TIPO.apoyo, size: TIPO.cuerpo * 1.5, weight: "bold", fill: white)[#n]),) },
+          pad(top: 0.55em, {
+            text(font: TIPO.titulos, size: TIPO.cuerpo * 1.75, weight: "semibold")[#titulo]
+            if sub != none { v(0.5em); text(font: TIPO.titulos, size: TIPO.cuerpo * 1.05, style: "italic")[#sub] }
+          })))
+        #cierre-espacio
+      ]
+    } else if ap == "recuadro" {
+      // inspirado en el tema «obook» de bookly (MIT): recuadro redondeado
+      block(width: 100%, above: 0pt, below: 0pt)[
+        #v(FORMATO.alto * 0.1)
+        #block(width: 100%, stroke: 1.4pt + ESTILO.acento, inset: (x: 0.8em, y: 0.75em), radius: 0.5em,
+          grid(columns: (auto, 1fr), column-gutter: 0.5em,
+            if numerado { text(font: TIPO.titulos, size: TIPO.cuerpo * 1.6, weight: "bold", fill: ESTILO.acento)[#n.] },
+            {
+              text(font: TIPO.titulos, size: TIPO.cuerpo * 1.6, weight: "semibold")[#titulo]
+              if sub != none { v(0.45em); text(font: TIPO.titulos, size: TIPO.cuerpo * 1.02, style: "italic")[#sub] }
+            }))
         #cierre-espacio
       ]
     } else if ap == "novela" {

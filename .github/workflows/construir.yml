@@ -42,6 +42,16 @@ jobs:
         run: |
           pip install pypdf
           python herramientas/construir.py "$LIBRO" --epub | tee armado.log
+      - name: Versiones CMYK para imprenta
+        # Typst exporta en RGB; muchas imprentas piden CMYK. Ghostscript hace la conversión.
+        run: |
+          sudo apt-get install -y -qq ghostscript >/dev/null
+          S=libros/$LIBRO/salida
+          for f in interior tapa; do
+            gs -q -dBATCH -dNOPAUSE -dSAFER -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress \
+               -sColorConversionStrategy=CMYK -sProcessColorModel=DeviceCMYK -dAutoRotatePages=/None \
+               -sOutputFile="$S/$f-cmyk.pdf" "$S/$f.pdf" || echo "No pude convertir $f a CMYK"
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ env.LIBRO }}-pdf
@@ -59,6 +69,8 @@ jobs:
           cp "$S/tapa.pdf" "$S/$LIBRO-tapa.pdf"
           cp "$S/tapa-guias.pdf" "$S/$LIBRO-tapa-guias.pdf"
           cp "$S/libro.epub" "$S/$LIBRO.epub"
+          EXTRA=""
+          for f in interior tapa; do [ -f "$S/$f-cmyk.pdf" ] && cp "$S/$f-cmyk.pdf" "$S/$LIBRO-$f-cmyk.pdf" && EXTRA="$EXTRA $S/$LIBRO-$f-cmyk.pdf"; done
           printf '%s\n\n%s · %s · commit %s\n' "$NOTA" "$FECHA" "$PAGS" "${GITHUB_SHA::7}" > notas.md
           gh release create "$TAG" --target "$GITHUB_SHA" --title "$VERSION" --notes-file notas.md \
-            "$S/$LIBRO-interior.pdf" "$S/$LIBRO-tapa.pdf" "$S/$LIBRO-tapa-guias.pdf" "$S/$LIBRO.epub"
+            "$S/$LIBRO-interior.pdf" "$S/$LIBRO-tapa.pdf" "$S/$LIBRO-tapa-guias.pdf" "$S/$LIBRO.epub" $EXTRA

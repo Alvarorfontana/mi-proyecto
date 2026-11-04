@@ -328,3 +328,11 @@ dialog .pie { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 
 .desl b { color: var(--tinta); font-weight: 600; }
 .desl input { width: 100%; accent-color: var(--cian); }
 textarea.entrada { height: auto; padding: 8px 10px; resize: vertical; font: inherit; line-height: 1.45; }
+.par-pdf { display: inline-flex; gap: 0; }
+.par-pdf .btn:first-child { border-radius: var(--radio-chico) 0 0 var(--radio-chico); }
+.par-pdf .ico-btn { border-radius: 0 var(--radio-chico) var(--radio-chico) 0; border-left: 0; padding: 0 10px; }
+.btn svg { width: 14px; height: 14px; }
+.capa-tapa { position: absolute; pointer-events: none; }
+.caja-el { position: absolute; pointer-events: auto; outline: 1.5px dashed rgba(0,163,224,.85); outline-offset: 1px; cursor: move; touch-action: none; border-radius: 2px; }
+.caja-el:hover, .caja-el.activa { outline-style: solid; background: rgba(0,163,224,.08); }
+.caja-el .tirador { position: absolute; right: -6px; bottom: -6px; width: 11px; height: 11px; background: #00A3E0; border: 2px solid #fff; border-radius: 50%; cursor: nwse-resize; }

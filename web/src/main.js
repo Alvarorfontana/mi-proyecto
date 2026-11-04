@@ -37,6 +37,7 @@ const I = {
   bajar: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 2v9M4.5 7.5L8 11l3.5-3.5M2.5 10v3.5h11V10"/></svg>',
   ajustes: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></svg>',
   buscar: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>',
+  imprimir: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4.5 6V2h7v4M4.5 11.5h-2v-5h11v5h-2M4.5 9.5h7V14h-7z"/></svg>',
   registro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M12 1v22M1 12h22"/></svg>',
 };
 
@@ -202,6 +203,7 @@ function armarApp() {
             </div>
             <span class="info" id="p-info"></span>
             <div class="der" id="p-der">
+              <button class="btn chico" id="b-pdf-cap" title="Descargar o imprimir este capítulo en PDF">${I.bajar}PDF</button>
               <label class="check" style="font-size:12.5px"><input type="checkbox" id="c-auto" checked>Al escribir</label>
               <input type="range" id="zoom" min="40" max="160" value="${leer('taller.zoom', 100)}" aria-label="Tamaño de las páginas">
             </div>
@@ -227,6 +229,8 @@ function armarApp() {
   $('#b-otros').onclick = otrosTextos;
   $$('#herr [data-ins]').forEach((b) => (b.onclick = () => insertar(b.dataset.ins)));
   $$('[data-lado]').forEach((b) => (b.onclick = () => verLado(b.dataset.lado)));
+  $('#b-pdf-cap').onclick = pdfCapitulo;
+  window.addEventListener('resize', () => { clearTimeout(S.tCapa); S.tCapa = setTimeout(capaArrastre, 200); });
   $('#zoom').oninput = () => { escribir('taller.zoom', +$('#zoom').value); aplicarZoom(); };
   crearEditor();
   document.addEventListener('keydown', (e) => {
@@ -623,7 +627,7 @@ function leerForm(raiz) {
     let v;
     if (el.classList.contains('desplegable')) v = el.dataset.valor;
     else if (el.type === 'checkbox') v = el.checked;
-    else if (el.type === 'number') v = el.value === '' ? 0 : Number(el.value);
+    else if (el.type === 'number') v = el.value === '' ? (val(el.dataset.c) === undefined ? undefined : 0) : Number(el.value);
     else v = el.value.trim();
     if (v === undefined) return;
     (cambios[s] ||= {})[k] = v;
@@ -744,9 +748,12 @@ const DISENOS_INTERIOR = [
   { id: 'periodistico', nombre: 'Periodístico', nota: 'Merriweather y Fraunces, número gigante de color.', fuente: 'Merriweather', fuente_titulos: 'Fraunces', fuente_apoyo: 'Inter', cuerpo: '10.5pt', interlineado: '15pt', apertura: 'numero', color_acento: '#C2410C', secciones_color: true },
   { id: 'contemporaneo', nombre: 'Contemporáneo', nota: 'Lora y Playfair, número grande y aire.', fuente: 'Lora', fuente_titulos: 'Playfair Display', fuente_apoyo: 'Inter', cuerpo: '11pt', interlineado: '15.5pt', apertura: 'numero', color_acento: '#0F766E', secciones_color: false },
   { id: 'manual', nombre: 'Manual', nota: 'Banda de color a sangre, al estilo Orange Book.', fuente: 'Source Serif 4', fuente_titulos: 'Inter', fuente_apoyo: 'Inter', cuerpo: '11pt', interlineado: '15pt', apertura: 'banda', color_acento: '#E07B00', secciones_color: true },
+  { id: 'tecnico', nombre: 'Técnico', nota: 'Todo a la derecha con filete fino, al estilo O’Reilly (bookly).', fuente: 'Source Serif 4', fuente_titulos: 'Inter', fuente_apoyo: 'Inter', cuerpo: '10.5pt', interlineado: '14.5pt', apertura: 'manual', color_acento: '#B91C1C', secciones_color: false },
+  { id: 'didactico', nombre: 'Didáctico', nota: 'Pestaña de color con el número, para libros de estudio (bookly).', fuente: 'Lora', fuente_titulos: 'Lora', fuente_apoyo: 'Inter', cuerpo: '11pt', interlineado: '15.5pt', apertura: 'pestana', color_acento: '#2563EB', secciones_color: true },
+  { id: 'cronica', nombre: 'Crónica', nota: 'Recuadro redondeado y Merriweather: no ficción de lectura ágil (bookly).', fuente: 'Merriweather', fuente_titulos: 'Merriweather', fuente_apoyo: 'Inter', cuerpo: '10.5pt', interlineado: '15pt', apertura: 'recuadro', color_acento: '#7C2D12', secciones_color: true },
   { id: 'novela', nombre: 'Novela', nota: 'Título en negrita sin número, al estilo Wonderous.', fuente: 'EB Garamond', fuente_titulos: 'EB Garamond', fuente_apoyo: 'EB Garamond', cuerpo: '12pt', interlineado: '16.5pt', apertura: 'novela', color_acento: '#000000', secciones_color: false },
 ];
-const APERTURAS = [['clasica', 'Clásica'], ['centrada', 'Centrada'], ['numero', 'Número grande'], ['filete', 'Filete de color'], ['banda', 'Banda a sangre'], ['novela', 'Novela (sin número)']];
+const APERTURAS = [['clasica', 'Clásica'], ['centrada', 'Centrada'], ['numero', 'Número grande'], ['filete', 'Filete de color'], ['banda', 'Banda a sangre'], ['novela', 'Novela (sin número)'], ['manual', 'Manual (a la derecha)'], ['pestana', 'Pestaña de color'], ['recuadro', 'Recuadro']];
 const MUESTRA_INTERIOR = `#import "/plantilla/estilos.typ": *
 #show: libro
 #counter(heading).update(2)
@@ -820,6 +827,23 @@ function pintarTapa() {
     <div class="grupo"><h3>Fotos de fondo</h3><div class="grilla">
       ${['imagen:Foto de tapa (a sangre)', 'imagen_contratapa:Foto de contratapa', 'foto_autor:Foto del autor (solapa)'].map((x) => { const [k, n] = x.split(':'); return `<div class="campo ancho"><span>${n}</span><div class="subida"><input class="entrada" data-c="tapa.${k}" value="${esc(t[k] || '')}" placeholder="sin foto"><button type="button" class="btn chico" data-subir="${k}">${I.subir}Subir</button>${t[k] ? `<button type="button" class="btn chico" data-sacar="${k}">Quitar</button>` : ''}</div></div>`; }).join('')}
     </div></div>
+    <div class="grupo"><h3>Solapas</h3><div class="grilla">
+      ${opciones('tapa.foto_autor_forma', 'Foto del autor', [['rectangular', 'Rectangular'], ['redonda', 'Redonda']])}
+      ${campo('tapa.foto_autor_ancho', 'Tamaño de la foto (%)', 'number', '', '100')}
+      ${campo('tapa.foto_autor_credito', 'Crédito de la foto', 'text', 'ancho', 'Ej.: Ana Pérez')}
+      ${campo('tapa.cuerpo_solapas', 'Letra de solapas (pt)', 'number', '', '9.5')}
+      ${campo('tapa.cuerpo_contratapa', 'Letra de contratapa (pt)', 'number', '', '12')}
+      ${campo('tapa.fondo_solapas', 'Color de las solapas', 'text', '', 'vacío = el del fondo')}
+      ${campo('tapa.fondo_lomo', 'Color del lomo', 'text', '', 'vacío = el del fondo')}
+      <div class="campo ancho"><span>Logo de la editorial (lomo, contratapa y solapa)</span><div class="subida"><input class="entrada" data-c="tapa.logo" value="${esc(t.logo || '')}" placeholder="sin logo: va el nombre en letras"><button type="button" class="btn chico" data-subir="logo">${I.subir}Subir</button>${t.logo ? '<button type="button" class="btn chico" data-sacar="logo">Quitar</button>' : ''}</div><small class="sutil" style="margin:0">Mejor un PNG con fondo transparente.</small></div>
+    </div></div>
+    <div class="grupo"><h3>Código de barras y precio</h3><div class="grilla">
+      ${campo('libro.isbn', 'ISBN', 'text', '', '978-…')}
+      ${opciones('tapa.codigo_posicion', 'Dónde va', [['derecha', 'Abajo a la derecha'], ['izquierda', 'Abajo a la izquierda'], ['centro', 'Abajo al centro']])}
+      <div class="ancho" id="isbn-estado"></div>
+      ${campo('tapa.codigo_precio', 'Agregado de 5 cifras (EAN-5)', 'text', '', 'vacío = sin agregado; 90000 = sin precio')}
+      ${campo('tapa.precio', 'Precio impreso', 'text', '', 'Ej.: PVP $ 25.000')}
+    </div></div>
     <div class="grupo"><h3>Textos y fotos libres <small class="sutil">en cualquier cara: tapa, contratapa, lomo o solapas</small></h3>
       <div id="elementos"></div>
       <div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="btn chico" id="b-el-texto">${I.mas}Texto</button><button type="button" class="btn chico" id="b-el-foto">${I.mas}Foto</button></div>
@@ -856,6 +880,9 @@ function pintarTapa() {
   $('#b-el-texto').onclick = () => agregarElemento({ tipo: 'texto', cara: 'tapa', texto: 'Texto nuevo', x: 12, y: 45, ancho: 76, tam: 14, color: (S.cfg.tapa?.color_texto || '#ffffff'), alineacion: 'left' });
   $('#b-el-foto').onclick = async () => { const ruta = await subirFoto(); if (ruta) agregarElemento({ tipo: 'foto', cara: 'tapa', archivo: ruta, x: 12, y: 55, ancho: 76, alto: 30, ajuste: 'cover' }); };
   pintarElementos();
+  const isbnInp = $('[data-c="libro.isbn"]', f);
+  const verIsbn = () => { const r = revisarIsbn(isbnInp.value); $('#isbn-estado').innerHTML = r ? `<div class="aviso ${r.ok ? 'bien' : 'mal'}">${esc(r.texto)}</div>` : ''; };
+  isbnInp.addEventListener('input', verIsbn); verIsbn();
   $('#b-ver-tapa').onclick = () => { if (aplicar()) verTapa(); };
   $('#b-guardar-tapa').onclick = () => { if (aplicar()) guardarTodo(); };
   $('#c-guias').onchange = verTapa;
@@ -876,6 +903,20 @@ async function miniaturasTapa() {
     } catch { caja.innerHTML = '<small>—</small>'; }
   }
 }
+// Verifica el dígito de control del ISBN-13 (y convierte un ISBN-10).
+function revisarIsbn(v) {
+  const d = String(v || '').replace(/[^0-9Xx]/g, '');
+  if (!d) return null;
+  const ctl13 = (x) => (10 - ([...x].slice(0, 12).reduce((a, c, i) => a + +c * (i % 2 ? 3 : 1), 0) % 10)) % 10;
+  if (d.length === 10) {
+    const n = '978' + d.slice(0, 9);
+    return { ok: false, texto: `Es un ISBN de 10 cifras. Para el código de barras usá el de 13: ${n}${ctl13(n)}` };
+  }
+  if (d.length !== 13) return { ok: false, texto: `Tiene ${d.length} cifras; un ISBN tiene 13.` };
+  if (!/^97[89]/.test(d)) return { ok: false, texto: 'Un ISBN empieza con 978 o 979.' };
+  const c = ctl13(d);
+  return +d[12] === c ? { ok: true, texto: 'ISBN válido. El código de barras se genera solo.' } : { ok: false, texto: `El último dígito debería ser ${c}, no ${d[12]}. Revisalo con la constancia de la Agencia ISBN.` };
+}
 /* ── textos y fotos libres en la tapa (tapa/elementos.json) ── */
 const CARAS = [['tapa', 'Tapa'], ['contratapa', 'Contratapa'], ['lomo', 'Lomo'], ['solapa-del', 'Solapa delantera'], ['solapa-tras', 'Solapa trasera']];
 function elementosTapa() {
@@ -883,9 +924,12 @@ function elementosTapa() {
   try { return JSON.parse(S.textos.get(r) || '[]'); } catch { return []; }
 }
 function guardarElementos(lista) {
-  let r = S.cfg.tapa?.elementos;
-  if (!r) { r = 'tapa/elementos.json'; aplicarCambiosConfig({ tapa: { elementos: r } }); }
-  S.textos.set(r, JSON.stringify(lista, null, 1) + '\n');
+  const nuevo = !S.cfg.tapa?.elementos;
+  const r = S.cfg.tapa?.elementos || 'tapa/elementos.json';
+  const json = JSON.stringify(lista, null, 1) + '\n';
+  S.textos.set(r, json);
+  cargarTextos({ [base() + r]: json }); // primero el archivo, después la configuración que lo nombra
+  if (nuevo) aplicarCambiosConfig({ tapa: { elementos: r } });
   marcarEstado();
 }
 function agregarElemento(e) { const l = elementosTapa(); l.push(e); guardarElementos(l); pintarElementos(l.length - 1); verTapa(); }
@@ -1004,8 +1048,81 @@ async function verTapa() {
     const svg = await aSvg(r.bytes);
     montarPliegos(svg, m, { pliego: false });
     $$('svg', m).forEach((s) => { s.style.width = '100%'; s.style.maxWidth = '100%'; });
-    $('#pt-info').textContent = `Lomo de ${lomo.toFixed(1)} mm para ${paginas} páginas${ult ? '' : ' (estimadas: armá el libro para el valor real)'}`;
+    $('#pt-info').textContent = `Lomo de ${lomo.toFixed(1)} mm para ${paginas} páginas${ult ? '' : ' (estimadas: armá el libro para el valor real)'} · arrastrá los textos y fotos agregados`;
+    S.lomoTapa = lomo;
+    capaArrastre();
   } catch (e) { m.innerHTML = `<div class="error">${esc(e.message)}</div>`; }
+}
+/* ── arrastrar textos y fotos sobre la vista de la tapa ── */
+function aMm(v, d = 0) {
+  if (v == null || v === '') return d;
+  const n = parseFloat(v); const u = String(v).replace(/[0-9.\s-]/g, '');
+  return u === 'cm' ? n * 10 : u === 'in' ? n * 25.4 : u === 'pt' ? n * 0.3528 : n;
+}
+function geometriaTapa() {
+  const fo = S.cfg.formato || {}, t = S.cfg.tapa || {};
+  const pre = S.presets.formatos[fo.preset] || S.presets.formatos['15x23'];
+  const W = aMm(fo.ancho || pre.ancho), H = aMm(fo.alto || pre.alto);
+  const sg = aMm(t.sangrado, 3), sol = aMm(t.solapa, 0), pl = sol > 0 ? aMm(t.pliegue_solapa, 3) : 0, lomo = S.lomoTapa || 15;
+  const xc = sg + sol + pl, xl = xc + W, xt = xl + lomo, xd = xt + W + pl;
+  return { W, H, sg, total: xd + sol + sg, alto: H + 2 * sg, caras: { 'solapa-tras': [sg, sol], contratapa: [xc, W], lomo: [xl, lomo], tapa: [xt, W], 'solapa-del': [xd, sol] } };
+}
+function cajaElemento(e, g) {
+  const [x0, ac] = g.caras[e.cara || 'tapa'] || g.caras.tapa;
+  const x = x0 + ac * (e.x ?? 10) / 100, y = g.sg + g.H * (e.y ?? 10) / 100, w = ac * (e.ancho ?? 80) / 100;
+  let h;
+  if (e.tipo === 'foto') h = g.H * (e.alto ?? 30) / 100;
+  else {
+    const lineas = String(e.texto || '').split('\n').length;
+    h = lineas * (e.tam ?? 14) * 0.3528 * (1 + (e.interlineado ?? 0.45)) + (e.fondo ? 5 : 0);
+  }
+  return { x, y, w, h, ac };
+}
+function capaArrastre() {
+  const m = $('#mesa-tapa'); const svg = m && $('svg', m); if (!svg) return;
+  $('.capa-tapa', m)?.remove();
+  const lista = elementosTapa(); if (!lista.length) return;
+  const g = geometriaTapa();
+  m.style.position = 'relative';
+  const rs = svg.getBoundingClientRect(), rm = m.getBoundingClientRect();
+  const k = rs.width / g.total; // px por mm
+  const capa = h(`<div class="capa-tapa" style="left:${rs.left - rm.left + m.scrollLeft}px;top:${rs.top - rm.top + m.scrollTop}px;width:${rs.width}px;height:${rs.height}px"></div>`);
+  lista.forEach((e, i) => {
+    if (e.cara?.startsWith('solapa') && !(g.caras[e.cara][1] > 0)) return;
+    const c = cajaElemento(e, g);
+    const d = h(`<div class="caja-el" data-i="${i}" title="Arrastrá para mover; la esquina cambia el tamaño" style="left:${c.x * k}px;top:${c.y * k}px;width:${c.w * k}px;height:${Math.max(c.h * k, 10)}px"><i class="tirador"></i></div>`);
+    capa.append(d);
+    d.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault(); d.setPointerCapture(ev.pointerId);
+      const redim = ev.target.classList.contains('tirador');
+      const x0 = ev.clientX, y0 = ev.clientY, l0 = d.offsetLeft, t0 = d.offsetTop, w0 = d.offsetWidth, h0 = d.offsetHeight;
+      d.classList.add('activa');
+      const mover = (ev2) => {
+        const dx = ev2.clientX - x0, dy = ev2.clientY - y0;
+        if (redim) { d.style.width = Math.max(12, w0 + dx) + 'px'; if (e.tipo === 'foto') d.style.height = Math.max(12, h0 + dy) + 'px'; }
+        else { d.style.left = l0 + dx + 'px'; d.style.top = t0 + dy + 'px'; }
+      };
+      const soltar = () => {
+        d.removeEventListener('pointermove', mover); d.classList.remove('activa');
+        const r = (v) => Math.round(v * 2) / 2;
+        const l = elementosTapa(); const el = l[i]; const [cx0, ac] = g.caras[el.cara || 'tapa'];
+        if (redim) { el.ancho = r(d.offsetWidth / k / ac * 100); if (el.tipo === 'foto') el.alto = r(d.offsetHeight / k / g.H * 100); }
+        else {
+          // si se suelta en otra cara, el elemento se muda a esa cara
+          const cxMm = (d.offsetLeft + d.offsetWidth / 2) / k;
+          const nueva = Object.entries(g.caras).find(([, [a, w]]) => w > 0 && cxMm >= a && cxMm < a + w)?.[0] || el.cara || 'tapa';
+          const [nx0, nac] = g.caras[nueva];
+          el.cara = nueva;
+          el.x = r((d.offsetLeft / k - nx0) / nac * 100);
+          el.y = r((d.offsetTop / k - g.sg) / g.H * 100);
+        }
+        guardarElementos(l); pintarElementos(i); verTapa();
+      };
+      d.addEventListener('pointermove', mover);
+      d.addEventListener('pointerup', soltar, { once: true });
+    });
+  });
+  m.append(capa);
 }
 function estimarPaginas() {
   const palabras = [...S.textos.values()].reduce((a, t) => a + t.split(/\s+/).length, 0);
@@ -1015,6 +1132,9 @@ function estimarPaginas() {
 /* ═════════ producción ═════════ */
 function avisos() {
   const out = [];
+  const isbn = revisarIsbn(S.cfg.libro?.isbn);
+  if (isbn && !isbn.ok) out.push('ISBN: ' + isbn.texto);
+  if (!S.cfg.libro?.isbn) out.push('Falta el ISBN: la contratapa sale con un recuadro «ISBN pendiente».');
   for (const c of S.cfg.contenido || []) {
     if (!c.archivo) continue;
     const s = S.textos.get(c.archivo);
@@ -1105,7 +1225,7 @@ function pintarProduccion() {
   $('#b-simular').onclick = simular;
   $('#b-publicar').onclick = publicarVersion;
   listarVersiones();
-  if (urls.length) $('#descargas').innerHTML = urls.map(([u, n, a]) => `<a class="btn" href="${u}" download="${esc(a)}">${I.bajar}${esc(n)}</a>`).join('');
+  if (urls.length) $('#descargas').innerHTML = botonesPdf(urls);
   listarCorridas();
 }
 const cifras = (u) => `<div class="cifra"><b>${u.paginas}</b><span>páginas</span></div><div class="cifra"><b>${u.lomo.toFixed(1)}<small style="font-size:16px"> mm</small></b><span>de lomo</span></div><div class="cifra"><b style="font-size:20px;line-height:34px">${new Date(u.fecha).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</b><span>último armado</span></div>`;
@@ -1133,7 +1253,7 @@ async function armarAca() {
     const ult = { paginas, lomo, fecha: Date.now() };
     escribir('taller.paginas.' + S.slug, ult);
     $('#cifras').innerHTML = cifras(ult);
-    $('#descargas').innerHTML = urls.map(([u, n, a]) => `<a class="btn" href="${u}" download="${esc(a)}">${I.bajar}${esc(n)}</a>`).join('');
+    $('#descargas').innerHTML = botonesPdf(urls);
     paso(`Listo en ${r.segundos.toFixed(0)} segundos.${paginas % 16 ? ` Para pliegos de 16 faltan ${16 - (paginas % 16)} páginas.` : ''}`, 1);
     pintarLista();
   } catch (e) { msg.innerHTML = `<div class="error" style="margin-top:8px">${esc(e.message)}</div>`; }
@@ -1179,7 +1299,7 @@ async function listarVersiones() {
     const lista = (await S.gh.versiones()).filter((r) => r.tag_name.startsWith(S.slug + '-'));
     const pend = $('#v-pend')?.outerHTML || '';
     const tam = (b) => b > 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.round(b / 1e3) + ' kB';
-    const nombreArch = (n) => n.endsWith('.epub') ? 'EPUB' : n.includes('tapa-guias') ? 'Tapa con guías' : n.includes('tapa') ? 'Tapa' : n.includes('interior') ? 'Interior' : n;
+    const nombreArch = (n) => n.endsWith('.epub') ? 'EPUB' : n.includes('-cmyk') ? (n.includes('tapa') ? 'Tapa CMYK' : 'Interior CMYK') : n.includes('tapa-guias') ? 'Tapa con guías' : n.includes('tapa') ? 'Tapa' : n.includes('interior') ? 'Interior' : n;
     c.innerHTML = pend + (lista.length ? `<table class="tabla"><tr><th>Versión</th><th>Fecha</th><th>Archivos</th></tr>${lista.map((r) => `<tr>
       <td><b>${esc(r.name || r.tag_name)}</b>${r.body ? `<div style="font-size:12px;color:var(--tinta-suave);max-width:46ch">${esc(r.body.split('\n')[0])}</div>` : ''}</td>
       <td style="white-space:nowrap">${new Date(r.published_at || r.created_at).toLocaleDateString('es-AR', { dateStyle: 'medium' })}</td>
@@ -1390,6 +1510,35 @@ function pintarListaRevision() {
     }));
     el.querySelector('[data-ign]').onclick = () => { v.dispatch({ effects: quitarMarca.of(m.id) }); pintarListaRevision(); };
   });
+}
+
+/* ═════════ PDF: descargar e imprimir ═════════ */
+function botonesPdf(urls) {
+  return urls.map(([u, n, a]) => `<span class="par-pdf"><a class="btn" href="${u}" download="${esc(a)}">${I.bajar}${esc(n)}</a><button type="button" class="btn ico-btn" data-imprimir="${u}" title="Imprimir ${esc(n.toLowerCase())}">${I.imprimir}</button></span>`).join('');
+}
+function imprimirPdf(url) {
+  // un PDF propio (blob) se puede imprimir desde un marco invisible; si el navegador no deja, se abre en otra pestaña
+  if (!url.startsWith('blob:')) { window.open(url, '_blank', 'noopener'); return; }
+  $('#marco-imprimir')?.remove();
+  const f = h('<iframe id="marco-imprimir" style="position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0"></iframe>');
+  f.onload = () => { try { f.contentWindow.focus(); f.contentWindow.print(); } catch { window.open(url, '_blank'); } };
+  f.src = url; document.body.append(f);
+}
+document.addEventListener('click', (e) => { const b = e.target.closest('[data-imprimir]'); if (b) imprimirPdf(b.dataset.imprimir); });
+let urlCapitulo;
+async function pdfCapitulo() {
+  if (!S.actual) return toast('Abrí un capítulo primero.');
+  const b = $('#b-pdf-cap'); b.disabled = true; const t = b.innerHTML; b.innerHTML = '<span class="spin"></span>';
+  try {
+    const r = await compilar(base() + '_vista/main.typ', { libro: S.slug, vista: 'si' }, 'pdf');
+    if (!r.ok) throw new Error(r.errores.join('\n'));
+    if (urlCapitulo) URL.revokeObjectURL(urlCapitulo);
+    urlCapitulo = URL.createObjectURL(new Blob([r.bytes], { type: 'application/pdf' }));
+    const nombre = S.actual.split('/').pop().replace(/\.md$/, '') + '.pdf';
+    const d = dialogo(`<h2>PDF del capítulo</h2><p>Sale con la medida real del libro. Para revisarlo en papel, imprimilo en A4 con «Tamaño real» o «Ajustar a la página».</p>
+      <div style="display:flex;gap:8px;margin-top:10px"><a class="btn prim" href="${urlCapitulo}" download="${esc(nombre)}">${I.bajar}Descargar</a><button class="btn" data-imprimir="${urlCapitulo}">${I.imprimir}Imprimir</button></div>`, [['Cerrar']]);
+  } catch (e) { toast(e.message); }
+  finally { b.disabled = false; b.innerHTML = t; }
 }
 
 /* ═════════ diálogos ═════════ */

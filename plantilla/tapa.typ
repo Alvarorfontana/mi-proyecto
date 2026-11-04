@@ -282,77 +282,151 @@
 }
 
 
+// ── LOGO de la editorial (opcional) ──
+#let logo-ruta = _ti("logo", "")
+#let logo(alto, ancho: auto) = if logo-ruta != "" { image(RAIZ + logo-ruta, height: alto, width: ancho, fit: "contain") }
+#let editorial-firma(tam) = if logo-ruta != "" { logo(tam * 2.6) } else { text(font: TIPO.apoyo, size: tam, tracking: 0.3em)[#upper(LIB.at("editorial", default: ""))] }
+
 // ── LOMO ──
-#if not solo-tapa { place(top + left, dx: x-lomo, dy: sangre, block(width: lomo, height: H, {
+#let lomo-fondo = _ti("fondo_lomo", "")
+#if not solo-tapa {
+  if lomo-fondo != "" { place(top + left, dx: x-lomo, dy: 0pt, rect(width: lomo, height: alto-total, fill: rgb(lomo-fondo), stroke: none)) }
+  place(top + left, dx: x-lomo, dy: sangre, block(width: lomo, height: H, {
   if lomo >= 6mm {
     set align(center + horizon)
+    let pie-lomo = if logo-ruta != "" and lomo >= 10mm { box(height: lomo * 0.6, width: lomo * 0.9, rotate(-90deg, reflow: true, logo(lomo * 0.6, ancho: lomo * 0.9))) } else {
+      text(font: TIPO.apoyo, size: calc.min(6.5pt, lomo * 0.3), tracking: 0.2em)[#upper(LIB.at("editorial", default: ""))] }
     rotate(90deg, reflow: true, box(width: H - 2 * seguro, height: lomo, align(horizon,
       grid(columns: (1fr, auto, 1fr), align: (left + horizon, center + horizon, right + horizon),
         text(font: TIPO.apoyo, size: calc.min(8pt, lomo * 0.38), tracking: 0.2em)[#upper(LIB.autor)],
-        text(font: TIPO.titulos, size: calc.min(15pt, lomo * 0.62), weight: "semibold", tracking: 0.08em)[#LIB.titulo],
-        text(font: TIPO.apoyo, size: calc.min(6.5pt, lomo * 0.3), tracking: 0.2em)[#upper(LIB.at("editorial", default: ""))],
+        text(font: fuente-tapa, size: calc.min(15pt, lomo * 0.62), weight: "semibold", tracking: 0.08em)[#titulo-t.replace("|", " ")],
+        pie-lomo,
       ))))
   }
 })) }
 
 // ── CONTRATAPA ──
-#let ean13(isbn) = {
-  let d = isbn.replace("-", "").replace(" ", "").clusters().map(int)
-  if d.len() == 13 { d = d.slice(0, 12) }
-  let suma = range(12).map(i => d.at(i) * if calc.even(i) { 1 } else { 3 }).sum()
-  d.push(calc.rem(10 - calc.rem(suma, 10), 10))
-  let L = ("0001101", "0011001", "0010011", "0111101", "0100011", "0110001", "0101111", "0111011", "0110111", "0001011")
-  let G = ("0100111", "0110011", "0011011", "0100001", "0011101", "0111001", "0000101", "0010001", "0001001", "0010111")
+// Código de barras EAN-13 del ISBN, con el agregado de 5 cifras (precio) si se pide.
+#let isbn-digitos(isbn) = isbn.replace("-", "").replace(" ", "").clusters().filter(c => c in "0123456789").map(int)
+#let isbn-control(d12) = calc.rem(10 - calc.rem(range(12).map(i => d12.at(i) * if calc.even(i) { 1 } else { 3 }).sum(), 10), 10)
+#let isbn-valido(isbn) = { let d = isbn-digitos(isbn); d.len() == 13 and isbn-control(d.slice(0, 12)) == d.at(12) }
+#let L-ean = ("0001101", "0011001", "0010011", "0111101", "0100011", "0110001", "0101111", "0111011", "0110111", "0001011")
+#let G-ean = ("0100111", "0110011", "0011011", "0100001", "0011101", "0111001", "0000101", "0010001", "0001001", "0010111")
+#let barras(bits, m, alto, guarda: i => false, extra: 2.5mm) = box(width: bits.len() * m, height: alto + extra, {
+  for (i, b) in bits.clusters().enumerate() {
+    if b == "1" { place(dx: i * m, dy: 0pt, rect(width: m, height: if guarda(i) { alto + extra } else { alto }, fill: black, stroke: none)) }
+  }
+})
+#let ean13(isbn, agregado: "") = {
+  let d = isbn-digitos(isbn)
+  if d.len() >= 12 { d = d.slice(0, 12) } else { d = (d + (0,) * 12).slice(0, 12) }
+  d.push(isbn-control(d))
   let R = ("1110010", "1100110", "1101100", "1000010", "1011100", "1001110", "1010000", "1000100", "1001000", "1110100")
   let par = ("LLLLLL", "LLGLGG", "LLGGLG", "LLGGGL", "LGLLGG", "LGGLLG", "LGGGLL", "LGLGLG", "LGLGGL", "LGGLGL")
   let bits = "101"
-  for i in range(6) { bits += if par.at(d.at(0)).at(i) == "L" { L.at(d.at(i + 1)) } else { G.at(d.at(i + 1)) } }
+  for i in range(6) { bits += if par.at(d.at(0)).at(i) == "L" { L-ean.at(d.at(i + 1)) } else { G-ean.at(d.at(i + 1)) } }
   bits += "01010"
   for i in range(6) { bits += R.at(d.at(i + 7)) }
   bits += "101"
   let m = 0.33mm
   let guarda(i) = i < 3 or (i >= 45 and i < 50) or i >= 92
+  // EAN-5: suele llevar el precio sugerido; «90000» = sin precio
+  let a5 = agregado.clusters().filter(c => c in "0123456789").map(int)
+  let suple = if a5.len() == 5 {
+    let ctl = calc.rem(3 * (a5.at(0) + a5.at(2) + a5.at(4)) + 9 * (a5.at(1) + a5.at(3)), 10)
+    let pat = ("GGLLL", "GLGLL", "GLLGL", "GLLLG", "LGGLL", "LLGGL", "LLLGG", "LGLGL", "LGLLG", "LLGLG").at(ctl)
+    let b5 = "01011"
+    for i in range(5) {
+      b5 += if pat.at(i) == "L" { L-ean.at(a5.at(i)) } else { G-ean.at(a5.at(i)) }
+      if i < 4 { b5 += "01" }
+    }
+    (a5, b5)
+  }
+  let mostrar = isbn.trim()
   box(fill: white, inset: (x: 3mm, top: 2.5mm, bottom: 1.5mm), {
     set text(font: TIPO.apoyo, fill: black, size: 6.5pt, tracking: 0.05em)
-    align(center, text(size: 6pt)[ISBN #isbn])
-    v(0.5mm)
-    box(width: 95 * m, height: 20mm, {
-      for (i, b) in bits.clusters().enumerate() {
-        if b == "1" { place(dx: i * m, rect(width: m, height: if guarda(i) { 20mm } else { 17.5mm }, fill: black, stroke: none)) }
-      }
-    })
-    v(-1.8mm)
-    align(center, text(size: 7pt)[#d.map(str).join()])
+    grid(columns: if suple != none { (auto, 3mm, auto) } else { (auto,) }, align: bottom,
+      {
+        align(center, text(size: 6pt)[ISBN #mostrar])
+        v(0.5mm)
+        barras(bits, m, 17.5mm, guarda: guarda)
+        v(-1.6mm)
+        align(center, text(size: 7pt)[#d.map(str).join()])
+      },
+      ..if suple != none { (none, {
+        align(center, text(size: 7pt)[#suple.at(0).map(str).join()])
+        v(0.6mm)
+        barras(suple.at(1), m, 15.5mm, extra: 0pt)
+        v(2.7mm)
+      }) },
+    )
   })
 }
+#let codigo-pos = _ti("codigo_posicion", "derecha")
+#let codigo-barras = {
+  let isbn = LIB.at("isbn", default: "")
+  if isbn != "" {
+    ean13(isbn, agregado: str(_ti("codigo_precio", "")))
+    if guias and not isbn-valido(isbn) {
+      place(top + left, dy: -5mm, text(font: TIPO.apoyo, size: 6.5pt, fill: rgb("#ff2d55"), weight: "bold")[El ISBN no es válido: revisá el último dígito])
+    }
+  } else {
+    box(width: 36mm, height: 24mm, fill: white, align(center + horizon, text(font: TIPO.apoyo, size: 7pt, fill: black)[código de barras\ ISBN pendiente]))
+  }
+}
+#let precio-txt = _ti("precio", "")
 
 #if not solo-tapa { panel(x-contra, W, pad(x: 18mm, top: 24mm, bottom: 14mm)[
-  #set text(size: 12pt)
+  #set text(size: calc.max(6, float(_ti("cuerpo_contratapa", 12))) * 1pt)
   #set par(leading: 0.62em, spacing: 1.1em)
   #block(height: H * 0.56 - 22mm - 8mm, clip: false)[#_bloque("tapa-contratapa.typ")]
   #v(1fr)
-  #grid(columns: (1fr, auto), align: (left + bottom, right + bottom),
-    text(font: TIPO.apoyo, size: 7.5pt, tracking: 0.3em)[#upper(LIB.at("editorial", default: ""))],
-    if LIB.at("isbn", default: "") != "" { ean13(LIB.isbn) } else {
-      box(width: 36mm, height: 24mm, fill: white, align(center + horizon, text(font: TIPO.apoyo, size: 7pt, fill: black)[código de barras\ ISBN pendiente]))
-    })
+  #let firma = {
+    editorial-firma(7.5pt)
+    if precio-txt != "" { v(2mm); text(font: TIPO.apoyo, size: 8pt, weight: "medium")[#precio-txt] }
+  }
+  #if codigo-pos == "izquierda" {
+    grid(columns: (auto, 1fr), align: (left + bottom, right + bottom), codigo-barras, firma)
+  } else if codigo-pos == "centro" {
+    align(center, { codigo-barras; v(4mm); firma })
+  } else {
+    grid(columns: (1fr, auto), align: (left + bottom, right + bottom), firma, codigo-barras)
+  }
 ]) }
 
 // ── SOLAPAS ──
+#let fondo-solapas = _ti("fondo_solapas", "")
+#let foto-redonda = _ti("foto_autor_forma", "rectangular") == "redonda"
+#let solapa-texto = calc.max(6, float(_ti("cuerpo_solapas", 9.5))) * 1pt
 #if solapa > 0mm and not solo-tapa {
+  if fondo-solapas != "" {
+    place(top + left, dx: x-solapa-del, dy: 0pt, rect(width: solapa + sangre, height: alto-total, fill: rgb(fondo-solapas), stroke: none))
+    place(top + left, dx: 0pt, dy: 0pt, rect(width: solapa + sangre, height: alto-total, fill: rgb(fondo-solapas), stroke: none))
+  }
+  // solapa delantera: foto y biografía del autor
   panel(x-solapa-del, solapa, pad(left: 9mm, right: 10mm, top: 24mm, bottom: 14mm)[
-    #set text(size: 9.5pt)
+    #set text(size: solapa-texto)
     #set par(justify: false, leading: 0.6em)
-    #if T.at("foto_autor", default: "") != "" {
-      image(RAIZ + T.foto_autor, width: 100%)
+    #if _ti("foto_autor", "") != "" {
+      let ancho-foto = calc.clamp(float(_ti("foto_autor_ancho", 100)), 20, 100) * 1%
+      if foto-redonda {
+        let lado = (solapa - 19mm) * calc.clamp(float(_ti("foto_autor_ancho", 70)), 20, 100) / 100
+        box(width: lado, height: lado, radius: 50%, clip: true, image(RAIZ + _ti("foto_autor", ""), width: 100%, height: 100%, fit: "cover"))
+      } else {
+        image(RAIZ + _ti("foto_autor", ""), width: ancho-foto)
+      }
+      if _ti("foto_autor_credito", "") != "" { v(1.2mm); text(size: 6.5pt, fill: tinta.transparentize(35%))[Foto: #_ti("foto_autor_credito", "")] }
       v(4mm)
     }
     #_bloque("tapa-solapa-delantera.typ")
   ])
+  // solapa trasera: texto libre (otros títulos, colección…) y logo abajo
   panel(x-solapa-tras, solapa, pad(left: 10mm, right: 9mm, top: 24mm, bottom: 14mm)[
-    #set text(size: 9.5pt)
+    #set text(size: solapa-texto)
     #set par(justify: false, leading: 0.6em)
     #_bloque("tapa-solapa-trasera.typ")
+    #v(1fr)
+    #if logo-ruta != "" { logo(11mm) }
   ])
 }
 

@@ -131,7 +131,16 @@ Las fotos y mapas flotan arriba o abajo de la página más cercana para no dejar
 - **Textos de tapa**: en la web se editan el título de tapa (con `|` para cortar la línea), el subtítulo, y los textos de contratapa y solapas, sin salir de la pestaña. Se puede ocultar el subtítulo, el autor o la editorial.
 - **Fotos**: el botón «Subir» manda la foto a `libros/<libro>/tapa/` en GitHub (si es muy grande la achica a 4200 px). Sirve para la foto de tapa, la de contratapa y la del autor.
 - **Textos y fotos libres**: frases, sellos («Nuevo», «Prólogo de…»), logos o fotos en cualquier cara (tapa, contratapa, lomo o solapas), con posición, tamaño, letra, color, recuadro, giro y esquinas redondeadas. Quedan en `tapa/elementos.json`.
+- **Arrastrar**: en la vista de la tapa, los textos y fotos agregados tienen un recuadro celeste. Se arrastran con el mouse (si se sueltan en otra cara, se mudan a esa cara) y la bolita de la esquina cambia el tamaño.
+- **Solapas**: foto del autor rectangular o redonda, con tamaño y crédito; tamaño de letra de solapas y contratapa; color propio para solapas y lomo; logo de la editorial (va en el lomo, la contratapa y la solapa trasera).
+- **Código de barras**: EAN-13 del ISBN con verificación del dígito de control (la web avisa si está mal y convierte un ISBN de 10 cifras), agregado EAN-5 opcional para el precio (`codigo_precio`, `90000` = sin precio), precio impreso y posición (derecha, izquierda o centro).
 - Sin solapas: `solapa = "0mm"`. Con foto: `imagen = "tapa/foto.jpg"`. Si cargás el ISBN, el código de barras EAN-13 se genera solo.
+
+## PDF, impresión e imprenta
+
+- **Capítulo suelto**: el botón «PDF» arriba de las páginas descarga o imprime el capítulo abierto, con la medida real del libro (para revisar en papel, imprimir en A4 con «Tamaño real»).
+- **Libro completo**: en Producción, «Armar acá» da el interior, la tapa y la tapa con guías; cada uno tiene su botón de descargar y de imprimir.
+- **CMYK**: al armar en GitHub, además de los PDF en RGB salen `interior-cmyk.pdf` y `tapa-cmyk.pdf` (convertidos con Ghostscript), que es lo que suelen pedir las imprentas. Igual conviene pedirle a la imprenta una prueba de color.
 
 ## Corrección del texto
 
