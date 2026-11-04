@@ -209,6 +209,22 @@ El botón **Pegar texto** (abajo del índice) arma capítulos solos a partir de 
 
 El botón **Dictar** de la barra del editor escribe lo que decís donde está el cursor. Entiende «coma», «punto», «punto y aparte», «nuevo párrafo», «dos puntos», «punto y coma», «abrir/cerrar comillas», «abrir/cerrar pregunta», «abrir/cerrar exclamación», «abrir/cerrar paréntesis» y «raya». Usa el reconocimiento del navegador (gratis, en vivo, en Chrome y Edge) o, si está cargada la clave de Groq, **Whisper** (más preciso; transcribe cada 25 segundos). Después se pule con la Revisión.
 
+## Normas ortotipográficas
+
+En Texto → Revisión, **«Normas ortotipográficas»** revisa el capítulo y todo el libro según las reglas del castellano y propone cada arreglo (se ve antes y después):
+
+- comillas latinas « » y, dentro de ellas, “ ”;
+- el punto va después de comillas y paréntesis de cierre («texto».);
+- puntos suspensivos en un solo signo (…) y «etc.» sin suspensivos;
+- raya de diálogo (—Hola) y raya en los incisos (texto —inciso— texto);
+- espacios de más, espacio antes de coma o punto, falta de espacio después de coma;
+- siglas sin puntos (O.N.U. → ONU) y años sin punto (2.024 → 2024);
+- punto de miles en cifras de cinco o más dígitos (12500 → 12.500), salvo números de leyes, decretos, ISBN y similares;
+- espacio entre el número y % (50 %);
+- aviso cuando falta el signo de apertura ¿ o ¡.
+
+No toca enlaces, notas, atributos ni bloques especiales. Se aplica una por una, todas las del capítulo o **todas las del libro** con un botón.
+
 ## Corrección del texto
 
 En la pestaña Texto, el panel **Revisión** tiene tres correctores:

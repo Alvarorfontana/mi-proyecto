@@ -13,6 +13,7 @@ import { convertir, primerTitulo } from './md2typ.js';
 import { principal, nombreTyp, lomoMm, contarPaginasPdf } from './armado.js';
 import { tomlSet, tomlContenido } from './toml.js';
 import { importarTexto } from './importar.js';
+import { revisarOrtotipografia, REGLAS } from './ortotipo.js';
 import { abrirPdf, marcadores, dibujarPagina } from './compaginar.js';
 import { ESTILOS_IMAGEN, ENCUADRES, armarPrompt, generarPollinations, generarGemini } from './imagenia.js';
 import { buscarOpenAlex, buscarCrossref, buscarWikipedia, buscarGemini, formatear, ESTILOS_CITA, notasSinEnlace, parecido, NORMAS, revisarNorma, pedidoNorma } from './citas.js';
@@ -1577,6 +1578,90 @@ async function prepararLibroCompleto(progreso) {
   await cargarTextos(arch);
 }
 let urls = [];
+// Lista de control de imprenta: [estado ok|aviso|mal, título, detalle]
+function controlImprenta(ult) {
+  const L = S.cfg.libro || {}, t = S.cfg.tapa || {}, ti = S.cfg.tipografia || {};
+  const out = [];
+  const isbn = revisarIsbn(L.isbn);
+  out.push(!L.isbn ? ['aviso', 'ISBN pendiente', 'La contratapa sale con un recuadro en vez del código de barras.'] : isbn.ok ? ['ok', 'ISBN válido', L.isbn] : ['mal', 'ISBN con error', isbn.texto]);
+  if (!ult) out.push(['aviso', 'Todavía no se armó el libro', 'Armalo para saber páginas, pliegos y lomo reales.']);
+  else {
+    const resto = ult.paginas % 16;
+    out.push(resto ? ['aviso', `${ult.paginas} páginas: el último pliego queda incompleto`, `Faltan ${16 - resto} para completar 16 (o sobran ${resto}). La imprenta agrega blancas o se ajusta el texto.`] : ['ok', `${ult.paginas} páginas, ${ult.paginas / 16} pliegos completos`, '']);
+    out.push(ult.lomo < 6 ? ['aviso', `Lomo de ${ult.lomo.toFixed(1)} mm`, 'Con menos de 6 mm no entra texto en el lomo.'] : ['ok', `Lomo de ${ult.lomo.toFixed(1)} mm`, `papel ${t.papel || 'obra-80'}: confirmalo con la imprenta`]);
+  }
+  out.push(aMm(t.sangrado, 3) >= 3 ? ['ok', 'Sangrado de tapa', `${aMm(t.sangrado, 3)} mm por lado`] : ['mal', 'Sangrado de tapa insuficiente', 'Las imprentas piden al menos 3 mm.']);
+  out.push(ti.viudas === false ? ['aviso', 'Viudas y huérfanas permitidas', 'Activá «Evitar renglones sueltos» en Estilos.'] : ['ok', 'Viudas y huérfanas controladas', '']);
+  out.push(ti.cortes === 'pocos' || ti.cortes === 'ninguno' || ti.justificado === false ? ['ok', 'Cortes de palabra moderados', ''] : ['aviso', 'Cortes de palabra normales', 'Con texto justificado conviene «Pocos» para evitar guiones seguidos.']);
+  let orto = 0, largos = 0, notasMal = 0, sinLlamada = 0;
+  const norma = S.cfg.estilo?.norma_citas || 'apa';
+  for (const c of S.cfg.contenido || []) {
+    const md = S.textos.get(c.archivo || ''); if (!md) continue;
+    orto += revisarOrtotipografia(md).filter((x) => x.sugerencias.length).length;
+    largos += revisarParrafos(md).filter((x) => x.id.startsWith('par')).length;
+    notasMal += revisarNorma(md, norma).length;
+    const llam = new Set([...md.matchAll(/\[\^([^\]]+)\](?!:)/g)].map((m) => m[1]));
+    sinLlamada += [...md.matchAll(/^\[\^([^\]]+)\]:/gm)].filter((m) => !llam.has(m[1])).length;
+  }
+  out.push(orto ? ['aviso', `${orto} arreglos ortotipográficos pendientes`, 'Comillas, rayas, espacios, cifras. Se aplican en Texto → Revisión → Normas ortotipográficas.'] : ['ok', 'Ortotipografía', 'sin arreglos pendientes']);
+  out.push(notasMal ? ['aviso', `${notasMal} notas fuera de la norma ${NORMAS[norma].nombre}`, 'Texto → Citas → Norma de citas.'] : ['ok', `Notas en ${NORMAS[norma].nombre}`, '']);
+  if (sinLlamada) out.push(['mal', `${sinLlamada} notas sin llamada en el texto`, 'Salen en el PDF sin número que las llame.']);
+  if (largos) out.push(['aviso', `${largos} párrafos de más de media página`, 'Texto → Revisión → Largo de párrafos.']);
+  out.push(['ok', 'Fuentes incrustadas', 'el PDF lleva las letras adentro']);
+  out.push(['aviso', 'Color', 'El PDF del navegador sale en RGB. Para imprenta usá los CMYK que arma GitHub («Armar en GitHub» o «Publicar versión»).']);
+  return out;
+}
+// Resolución real de cada imagen según el tamaño al que se imprime (300 ppp ideal, 200 mínimo).
+async function revisarResolucion() {
+  const caja = $('#ppp'); caja.innerHTML = '<div class="nota"><span class="spin"></span> Midiendo imágenes…</div>';
+  const fo = S.cfg.formato || {}, pre = S.presets.formatos[fo.preset] || S.presets.formatos['15x23'];
+  const W = aMm(fo.ancho || pre.ancho), H = aMm(fo.alto || pre.alto);
+  const caja_mm = W - aMm(fo.margen_interior, 20) - aMm(fo.margen_exterior, 16);
+  const usos = [];
+  for (const c of S.cfg.contenido || []) {
+    const md = S.textos.get(c.archivo || ''); if (!md) continue;
+    for (const m of md.matchAll(/!\[[^\]]*\]\(([^)]+)\)(\{[^}]*\})?/g)) {
+      if (/\.svg$/i.test(m[1]) || /^https?:/.test(m[1])) continue;
+      const at = m[2] || '';
+      const pct = /pagina=completa|apaisado/.test(at) ? 100 : /sangrado/.test(at) ? (W + 6) / caja_mm * 100 : parseFloat((at.match(/ancho=(\d+)/) || [])[1] || 100);
+      usos.push({ ruta: m[1], mm: caja_mm * pct / 100, donde: primerTitulo(md) || c.archivo });
+    }
+  }
+  const t = S.cfg.tapa || {}, g = geometriaTapa();
+  if (t.imagen) usos.push({ ruta: t.imagen, mm: g.W + 2 * g.sg, donde: 'Tapa' });
+  if (t.imagen_envolvente) usos.push({ ruta: t.imagen_envolvente, mm: 2 * g.W + (S.lomoTapa || 15) + 2 * g.sg, donde: 'Tapa envolvente' });
+  if (t.imagen_contratapa) usos.push({ ruta: t.imagen_contratapa, mm: g.W, donde: 'Contratapa' });
+  for (const e of elementosTapa()) if (e.tipo === 'foto' && e.archivo) usos.push({ ruta: e.archivo, mm: (g.caras[e.cara || 'tapa']?.[1] || g.W) * (e.ancho ?? 80) / 100, donde: 'Tapa (capa)' });
+  if (!usos.length) { caja.innerHTML = '<p class="sutil">El libro no tiene fotos (los mapas en SVG no tienen problema de resolución).</p>'; return; }
+  const filas = [];
+  await enLotes(usos, 4, async (u) => {
+    try {
+      const bytes = await S.gh.bytes(rutaLibro(u.ruta));
+      const bmp = await createImageBitmap(new Blob([bytes]));
+      const ppp = Math.round(bmp.width / (u.mm / 25.4));
+      filas.push({ ...u, ppp, px: `${bmp.width}×${bmp.height}` });
+    } catch { filas.push({ ...u, ppp: null }); }
+  });
+  filas.sort((a, b) => (a.ppp ?? 0) - (b.ppp ?? 0));
+  const malas = filas.filter((f) => f.ppp != null && f.ppp < 200).length, justas = filas.filter((f) => f.ppp >= 200 && f.ppp < 300).length;
+  caja.innerHTML = `<div class="aviso ${malas ? 'mal' : 'bien'}" style="margin-top:10px">${filas.length} imágenes · ${malas} con poca resolución (menos de 200 ppp) · ${justas} justas (200 a 300)</div>
+    <table class="tabla"><tr><th>Imagen</th><th>Dónde</th><th>Tamaño impreso</th><th>Resolución</th></tr>${filas.map((f) => `<tr><td>${esc(f.ruta.split('/').pop())}<br><small class="sutil">${f.px || ''}</small></td><td>${esc(f.donde)}</td><td>${Math.round(f.mm)} mm</td><td class="${f.ppp == null ? '' : f.ppp < 200 ? 'mal' : f.ppp < 300 ? 'justa' : 'bien'}">${f.ppp == null ? 'no la pude leer' : f.ppp + ' ppp'}</td></tr>`).join('')}</table>`;
+}
+async function fichaTecnica() {
+  const b = $('#b-ficha'); b.disabled = true;
+  try {
+    const ult = leer('taller.paginas.' + S.slug, null);
+    const paginas = ult?.paginas || estimarPaginas();
+    const lomo = ult?.lomo ?? lomoMm(S.cfg, S.presets, paginas);
+    if (!S.fichaTyp) { S.fichaTyp = await S.gh.texto('plantilla/ficha.typ'); await cargarTextos({ '/plantilla/ficha.typ': S.fichaTyp }); }
+    const r = await compilar('/plantilla/ficha.typ', { libro: S.slug, paginas: String(paginas), lomo: lomo.toFixed(1) + 'mm' }, 'pdf');
+    if (!r.ok) throw new Error(r.errores.join('\n'));
+    const u = URL.createObjectURL(new Blob([r.bytes], { type: 'application/pdf' }));
+    const a = h(`<a href="${u}" download="ficha-tecnica-${S.slug}.pdf"></a>`); document.body.append(a); a.click(); a.remove();
+    if (!ult) toast('Ojo: las páginas son estimadas. Armá el libro para que la ficha tenga las reales.');
+  } catch (e) { toast(e.message); }
+  finally { b.disabled = false; }
+}
 function pintarProduccion() {
   const v = $('#v-produccion');
   const ult = leer('taller.paginas.' + S.slug, null);
@@ -1593,9 +1678,12 @@ function pintarProduccion() {
       <div class="descargas" id="descargas"></div>
     </div>
     <div class="bloque">
-      <h2>Antes de imprenta</h2>
-      <p>Lo que conviene resolver antes de mandar los archivos.</p>
-      <ul class="lista-avisos">${lista.length ? lista.map((a) => `<li>${esc(a)}</li>`).join('') : '<li class="ok">Todo en orden.</li>'}</ul>
+      <h2>Control de imprenta</h2>
+      <p>Revisión final de todo lo que una imprenta te rebotaría.</p>
+      <ul class="control">${controlImprenta(ult).map(([e, t, d]) => `<li class="${e}"><b>${esc(t)}</b>${d ? `<span>${esc(d)}</span>` : ''}</li>`).join('')}</ul>
+      <div class="acciones" style="margin-top:10px"><button class="btn chico" id="b-ppp">Revisar resolución de imágenes</button><button class="btn chico" id="b-ficha">${I.bajar}Ficha técnica para la imprenta</button></div>
+      <div id="ppp"></div>
+      ${lista.length ? `<details style="margin-top:10px"><summary class="sutil" style="cursor:pointer">Otros avisos (${lista.length})</summary><ul class="lista-avisos" style="margin-top:8px">${lista.map((a) => `<li>${esc(a)}</li>`).join('')}</ul></details>` : ''}
     </div>
     <div class="bloque">
       <h2>Armado en GitHub</h2>
@@ -1624,6 +1712,8 @@ function pintarProduccion() {
     </div>
   </div>`;
   $('#b-armar').onclick = armarAca;
+  $('#b-ppp').onclick = revisarResolucion;
+  $('#b-ficha').onclick = fichaTecnica;
   $('#b-actions').onclick = armarGitHub;
   $('#b-simular').onclick = simular;
   $('#b-publicar').onclick = publicarVersion;
@@ -1851,6 +1941,7 @@ function pintarRevision() {
     <div class="acciones">
       <button class="btn prim chico" id="rev-lt">Revisar con LanguageTool</button>
       <button class="btn chico" id="rev-ia" ${hayIA ? '' : 'disabled title="Activá Gemini o Groq en la pestaña Asistente"'}>Revisar con ${PROVEEDORES[provActual()].nombre.replace(' (Google)', '')}</button>
+      <button class="btn chico" id="rev-normas" title="Comillas, rayas, puntos suspensivos, espacios, cifras y siglas según la norma del castellano">Normas ortotipográficas</button>
       <button class="btn chico" id="rev-parrafos" title="Marca párrafos de más de media página y rachas de párrafos muy cortos">Largo de párrafos</button>
       <button class="btn chico" id="rev-limpiar">Limpiar marcas</button>
     </div>
@@ -1858,6 +1949,34 @@ function pintarRevision() {
     <div id="rev-estado"></div>
     <div id="rev-lista" class="rev-lista"></div>`;
   $('#rev-lt').onclick = () => revisar('lt');
+  $('#rev-normas').onclick = () => {
+    if (!S.actual) return;
+    const t = S.editor.state.doc.toString();
+    const marcas = revisarOrtotipografia(t);
+    const otras = listarMarcas(S.editor.state).filter((x) => x.origen !== 'Normas');
+    S.editor.dispatch({ effects: fijarMarcas.of([...otras, ...marcas]) });
+    // en todo el libro
+    let total = 0, caps = 0;
+    for (const c of S.cfg.contenido || []) { const md = S.textos.get(c.archivo || ''); if (!md) continue; const n = revisarOrtotipografia(md).filter((x) => x.sugerencias.length).length; if (n) { total += n; caps++; } }
+    $('#rev-estado').innerHTML = `<div class="nota">En este capítulo: ${marcas.length} ${marcas.length === 1 ? 'cosa' : 'cosas'} para revisar. En todo el libro: ${total} arreglos en ${caps} capítulos.
+      ${total ? '<button class="btn chico prim" id="rev-normas-libro" style="margin-top:8px">Aplicar los arreglos en todo el libro</button>' : ''}</div>`;
+    const bl = $('#rev-normas-libro');
+    if (bl) bl.onclick = () => {
+      if (!confirm(`Se van a aplicar ${total} arreglos ortotipográficos en ${caps} capítulos (comillas, rayas, espacios, cifras…). Los avisos sin arreglo automático quedan para revisar a mano. ¿Seguir?`)) return;
+      for (const c of S.cfg.contenido || []) {
+        const md = S.textos.get(c.archivo || ''); if (!md) continue;
+        const ms = revisarOrtotipografia(md).filter((x) => x.sugerencias.length).sort((a, b) => b.from - a.from);
+        if (!ms.length) continue;
+        let nuevo = md; for (const x of ms) nuevo = nuevo.slice(0, x.from) + x.sugerencias[0] + nuevo.slice(x.to);
+        if (c.archivo === S.actual) S.editor.dispatch({ changes: { from: 0, to: S.editor.state.doc.length, insert: nuevo } });
+        else S.textos.set(c.archivo, nuevo);
+      }
+      marcarEstado(); pintarLista?.();
+      toast(`Listo: ${total} arreglos aplicados. Revisá y guardá. En el capítulo abierto podés deshacer con Ctrl+Z.`);
+      $('#rev-normas').click();
+    };
+    pintarListaRevision();
+  };
   $('#rev-parrafos').onclick = () => {
     if (!S.actual) return;
     const t = S.editor.state.doc.toString();
@@ -1920,12 +2039,19 @@ function pintarListaRevision() {
   const v = S.editor, marcas = listarMarcas(v.state);
   if (!marcas.length) { caja.innerHTML = ''; return; }
   const cuenta = Object.keys(TIPOS_REV).map((t) => [t, marcas.filter((m) => m.tipo === t).length]).filter(([, n]) => n);
-  caja.innerHTML = `<div class="rev-cuenta">${marcas.length} ${marcas.length === 1 ? 'observación' : 'observaciones'} · ${cuenta.map(([t, n]) => `<span class="punto-${t}"></span>${TIPOS_REV[t]} ${n}`).join(' · ')}</div>` +
+  const conArreglo = marcas.filter((m) => m.sugerencias.length);
+  caja.innerHTML = `<div class="rev-cuenta">${marcas.length} ${marcas.length === 1 ? 'observación' : 'observaciones'} · ${cuenta.map(([t, n]) => `<span class="punto-${t}"></span>${TIPOS_REV[t]} ${n}`).join(' · ')}${conArreglo.length > 1 ? ` <button class="btn chico" id="rev-todas" style="margin-left:auto">Aplicar las ${conArreglo.length} primeras sugerencias</button>` : ''}</div>` +
     marcas.map((m, i) => `<div class="rev-item" data-i="${i}">
       <div class="rev-msg"><span class="punto-${m.tipo}"></span>${esc(m.mensaje)} <small>${esc(m.origen)}</small></div>
-      <div class="rev-ctx">${contexto(v.state.doc, m)}</div>
+      <div class="rev-ctx">${contexto(v.state.doc, m)}</div>${m.sugerencias.length && m.origen === 'Normas' ? `<div class="rev-cambio"><s>${esc(m.original)}</s> → <b>${esc(m.sugerencias[0])}</b></div>` : ''}
       <div class="respuesta-acc">${m.sugerencias.map((s, k) => `<button class="btn chico prim-suave" data-s="${k}">${esc(s) || '<i>borrar</i>'}</button>`).join('')}<button class="btn chico" data-ign>Ignorar</button></div>
     </div>`).join('');
+  const bt = $('#rev-todas', caja);
+  if (bt) bt.onclick = () => {
+    const cambios = listarMarcas(v.state).filter((m) => m.sugerencias.length).map((m) => ({ from: m.from, to: m.to, insert: m.sugerencias[0] }));
+    v.dispatch({ changes: cambios, effects: fijarMarcas.of(listarMarcas(v.state).filter((m) => !m.sugerencias.length)) });
+    toast(`${cambios.length} cambios aplicados. Podés deshacer con Ctrl+Z.`); pintarListaRevision();
+  };
   $$('.rev-item', caja).forEach((el) => {
     const m = marcas[+el.dataset.i];
     el.querySelector('.rev-ctx').onclick = () => { v.dispatch({ selection: { anchor: m.from, head: m.to }, scrollIntoView: true }); v.focus(); };

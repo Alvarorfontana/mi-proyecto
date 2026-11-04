@@ -463,3 +463,12 @@ dialog h3 { font: 600 13px var(--marca); margin: 0 0 8px; color: var(--tinta); }
 .ia-img img { width: 100%; border-radius: 3px; display: block; }
 .ia-img small { font-size: 11px; color: var(--tinta-suave); }
 .ia-img.cargando { min-height: 160px; place-items: center; text-align: center; }
+.rev-cambio { font: 13px/1.4 "Source Serif 4", Georgia, serif; } .rev-cambio s { color: #a33; } .rev-cambio b { color: #1f5b37; font-weight: 600; }
+/* control de imprenta */
+.control { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.control li { display: grid; grid-template-columns: 18px 1fr; column-gap: 8px; font-size: 13px; }
+.control li::before { content: '✓'; grid-row: span 2; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #fff; background: #2e8b57; }
+.control li.aviso::before { content: '!'; background: #d99a1e; }
+.control li.mal::before { content: '✕'; background: #d7263d; }
+.control li span { grid-column: 2; font-size: 12px; color: var(--tinta-suave); }
+.tabla td.mal { color: #b0123a; font-weight: 600; } .tabla td.justa { color: #a86a00; font-weight: 600; } .tabla td.bien { color: #1f5b37; }
