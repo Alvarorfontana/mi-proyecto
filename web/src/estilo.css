@@ -34,6 +34,7 @@
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 * { box-sizing: border-box; }
+#app { height: 100%; }
 html, body { margin: 0; height: 100%; background: var(--papel); color: var(--tinta); font: 14px/1.5 var(--ui); -webkit-font-smoothing: antialiased; }
 button, input, select, textarea { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--cian); outline-offset: 2px; }
@@ -41,7 +42,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 
 /* ── botones y campos ── */
-.btn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border-radius: var(--radio-chico); border: 1px solid var(--filete); background: var(--blanco); cursor: pointer; font-weight: 600; font-size: 13px; color: var(--tinta); transition: border-color .15s, background .15s; white-space: nowrap; }
+.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border-radius: var(--radio-chico); border: 1px solid var(--filete); background: var(--blanco); cursor: pointer; font-weight: 600; font-size: 13px; color: var(--tinta); transition: border-color .15s, background .15s; white-space: nowrap; }
 .btn:hover { border-color: var(--tinta-tenue); }
 .btn:disabled { opacity: .45; cursor: default; }
 .btn.prim { background: var(--cian); border-color: var(--cian); color: #fff; }
@@ -65,7 +66,7 @@ input[type=color].entrada { padding: 3px; width: 52px; }
 @keyframes giro { to { transform: rotate(360deg); } }
 
 /* ── ingreso ── */
-.ingreso { min-height: 100%; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(380px, .85fr); }
+.ingreso { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(380px, .85fr); }
 .ingreso .lado { background: var(--tinta); color: var(--papel); padding: 56px 64px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; }
 .ingreso h1 { font: 800 clamp(40px, 5.2vw, 72px)/0.98 var(--marca); letter-spacing: -0.025em; margin: 0; max-width: 11ch; }
 .ingreso .bajada { font-size: 17px; line-height: 1.55; color: #B8C2CB; max-width: 42ch; margin: 22px 0 0; }

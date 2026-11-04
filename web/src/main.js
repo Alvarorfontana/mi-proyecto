@@ -71,21 +71,18 @@ function pantallaIngreso(error) {
       <div class="cmyk" style="width:120px"><i></i><i></i><i></i><i></i></div>
     </section>
     <section class="form-lado">
-      <div><h2>Conectá tu repositorio</h2><p style="margin-top:6px">La página lee y guarda los textos del libro directamente en GitHub.</p></div>
+      <div><h2>Entrar al taller</h2><p style="margin-top:6px">Se hace una sola vez en cada navegador: después entra solo.</p></div>
       ${error ? `<div class="aviso mal">${esc(error)}</div>` : ''}
-      <label class="campo"><span>Clave de acceso de GitHub (token)</span>
-        <input class="entrada" id="i-token" type="password" autocomplete="off" placeholder="github_pat_…" value="${esc(S.conf.token || '')}"></label>
-      <ol class="pasos">
-        <li>Abrí <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a></li>
-        <li>En «Repository access» elegí solo el repo del libro.</li>
-        <li>En permisos: <b>Contents</b> y <b>Actions</b> en «Read and write».</li>
-        <li>Generá el token y pegalo acá. Queda guardado solo en este navegador.</li>
-      </ol>
-      <div class="grilla">
-        <label class="campo"><span>Cuenta</span><input class="entrada" id="i-owner" value="${esc(S.conf.owner)}"></label>
-        <label class="campo"><span>Repositorio</span><input class="entrada" id="i-repo" value="${esc(S.conf.repo)}"></label>
-      </div>
-      <button class="btn prim" id="b-entrar" style="height:42px;justify-content:center">Conectar y abrir el taller</button>
+      <a class="btn" style="height:40px;justify-content:center" href="https://github.com/settings/tokens/new?scopes=repo,workflow&description=Taller%20editorial" target="_blank" rel="noopener">1. Crear la clave en GitHub</a>
+      <p style="font-size:13px">Se abre GitHub con todo ya marcado. Elegí <b>No expiration</b> en «Expiration», bajá hasta el final, tocá <b>Generate token</b> y copiá la clave que empieza con <code>ghp_</code>.</p>
+      <label class="campo"><span>2. Pegá la clave acá</span>
+        <input class="entrada" id="i-token" type="password" autocomplete="off" placeholder="ghp_…"></label>
+      <button class="btn prim" id="b-entrar" style="height:42px;justify-content:center">3. Entrar al taller</button>
+      <details style="font-size:12.5px;color:var(--tinta-suave)"><summary style="cursor:pointer">Otro repositorio</summary>
+        <div class="grilla" style="margin-top:10px">
+          <label class="campo"><span>Cuenta</span><input class="entrada" id="i-owner" value="${esc(S.conf.owner)}"></label>
+          <label class="campo"><span>Repositorio</span><input class="entrada" id="i-repo" value="${esc(S.conf.repo)}"></label>
+        </div></details>
     </section>
   </div>`;
   $('#b-entrar').onclick = async () => {
