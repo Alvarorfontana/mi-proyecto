@@ -38,7 +38,11 @@
   notas: _len(_in("notas", _t.at("notas", default: "9pt"))),
   sangria: _len(_in("sangria", _t.at("sangria", default: "1.2em"))),
   justificado: _t.at("justificado", default: true),
-  guiones: _t.at("guiones", default: true),
+  guiones: _t.at("guiones", default: true) and _in("cortes", _t.at("cortes", default: "normales")) != "ninguno",
+  // cortes de palabra al final del renglón: normales | pocos | ninguno
+  cortes: _in("cortes", _t.at("cortes", default: "normales")),
+  // evitar viudas y huérfanas (renglón suelto al pie o al tope de página) y finales de una palabra
+  viudas: _in("viudas", if _t.at("viudas", default: true) { "true" } else { "false" }) == "true",
   idioma: _t.at("idioma", default: "es"),
 )
 #let _e = _cfg.at("estilo", default: (:))
@@ -49,10 +53,15 @@
   notas_cap: _e.at("notas_por_capitulo", default: false),
   cornisa_par: _e.at("cornisa_par", default: "autor"),
   cornisa_impar: _e.at("cornisa_impar", default: "capitulo"),
-  folio: _e.at("folio", default: "abajo-afuera"),
+  folio: _in("folio", _e.at("folio", default: "abajo-afuera")),
   acento: rgb(_in("color_acento", _e.at("color_acento", default: "#000000"))),
   // diseño de la apertura de capítulo: clasica | centrada | numero | filete | banda | novela | manual | pestana | recuadro
   apertura: _in("apertura", _e.at("apertura", default: "clasica")),
+  // plano de página: columnas de texto y filetes de cornisa y pie
+  columnas: int(_in("columnas", str(_e.at("columnas", default: 1)))),
+  separacion: _len(_in("separacion_columnas", _e.at("separacion_columnas", default: "6mm"))),
+  filete_cornisa: _in("filete_cornisa", if _e.at("filete_cornisa", default: false) { "true" } else { "false" }) == "true",
+  filete_pie: _in("filete_pie", if _e.at("filete_pie", default: false) { "true" } else { "false" }) == "true",
   secciones_color: _in("secciones_color", if _e.at("secciones_color", default: false) { "true" } else { "false" }) == "true",
 )
 #let LIB = _cfg.libro
@@ -264,13 +273,20 @@
   cierre()
 }
 
-#let _puntos = box(width: 1fr, repeat(gap: 0.35em)[.])
+#let _puntos = if _in("indice_puntos", if _e.at("indice_puntos", default: true) { "true" } else { "false" }) == "true" { box(width: 1fr, repeat(gap: 0.35em)[.]) } else { h(1fr) }
 
+// una entrada del índice: el título no se corta en sílabas y el número queda alineado a la derecha
+#let _entrada(cont, pag) = grid(columns: (1fr, 2.4em), align: (left + bottom, right + bottom),
+  { set text(hyphenate: false); set par(justify: false, hanging-indent: 1em); cont; [ ]; _puntos }, str(pag))
 #let indice-general() = {
   apertura(impar: true)
   heading(level: 1, numbering: none, outlined: false)[Índice]
   context {
-    let items = query(selector(heading.where(level: 1)).or(heading.where(level: 2)).or(<parte>))
+    let prof = int(_in("indice_profundidad", str(_e.at("indice_profundidad", default: 2))))
+    let sel = selector(heading.where(level: 1)).or(<parte>)
+    if prof >= 2 { sel = sel.or(heading.where(level: 2)) }
+    if prof >= 3 { sel = sel.or(heading.where(level: 3)) }
+    let items = query(sel)
     set par(first-line-indent: 0pt, justify: false, spacing: 0.55em)
     for it in items {
       let loc = it.location()
@@ -281,10 +297,12 @@
       } else if it.outlined == false {
       } else if it.level == 1 {
         let num = if it.numbering != none { str(counter(heading).at(loc).first()) + ". " } else { "" }
-        block(above: 0.9em, below: 0.3em, link(loc)[#text(weight: "semibold")[#num#plano(it.body)] #_puntos #pag])
+        block(above: 0.9em, below: 0.3em, link(loc, _entrada([#text(weight: "semibold")[#num#plano(it.body)]], pag)))
       } else if it.level == 2 {
         let num = if it.numbering != none and ESTILO.numerar { counter(heading).at(loc).slice(0, 2).map(str).join(".") + " " } else { "" }
-        pad(left: 1.2em, link(loc)[#text(size: TIPO.cuerpo * 0.85)[#num#plano(it.body) #_puntos #pag]])
+        pad(left: 1.2em, link(loc, text(size: TIPO.cuerpo * 0.85, _entrada([#num#plano(it.body)], pag))))
+      } else if it.level == 3 {
+        pad(left: 2.6em, link(loc, text(size: TIPO.cuerpo * 0.8, style: "italic", _entrada(plano(it.body), pag))))
       }
     }
   }
@@ -363,6 +381,7 @@
     width: FORMATO.ancho, height: FORMATO.alto,
     margin: (inside: FORMATO.interior, outside: FORMATO.exterior, top: FORMATO.superior, bottom: FORMATO.inferior),
     binding: left,
+    columns: ESTILO.columnas,
     header-ascent: 40%,
     footer-descent: 35%,
     header: context {
@@ -374,18 +393,37 @@
       let que = if calc.even(p) { ESTILO.cornisa_par } else { ESTILO.cornisa_impar }
       let txt = if que == "autor" { LIB.autor } else if que == "titulo" { LIB.titulo } else if que == "capitulo" { cap } else { "" }
       set text(font: TIPO.apoyo, size: 7pt, tracking: 0.14em, fill: luma(60))
-      align(if calc.even(p) { left } else { right }, upper(txt))
+      let par = calc.even(p)
+      let linea = if ESTILO.filete_cornisa { (bottom: 0.4pt + luma(110)) } else { none }
+      block(width: 100%, stroke: linea, inset: if linea != none { (bottom: 3.5pt) } else { 0pt }, {
+        if ESTILO.folio == "arriba-afuera" {
+          let n = text(size: TIPO.cuerpo * 0.85, tracking: 0em, fill: black, counter(page).display("1"))
+          if par { align(left, n + h(1.6em) + upper(txt)) } else { align(right, upper(txt) + h(1.6em) + n) }
+        } else { align(if par { left } else { right }, upper(txt)) }
+      })
     },
     footer: context {
       let p = here().page()
       if _pagina-limpia(p) { return }
       let n = counter(page).display("1")
       set text(size: TIPO.cuerpo * 0.85)
-      if ESTILO.folio == "abajo-centro" { align(center, n) }
-      else { align(if calc.even(p) { left } else { right }, n) }
+      // con el folio arriba, abajo solo va en las páginas sin cornisa (aperturas)
+      if ESTILO.folio == "arriba-afuera" and not _es-apertura(p) { if ESTILO.filete_pie { line(length: 100%, stroke: 0.4pt + luma(110)) }; return }
+      let linea = if ESTILO.filete_pie { (top: 0.4pt + luma(110)) } else { none }
+      block(width: 100%, stroke: linea, inset: if linea != none { (top: 3.5pt) } else { 0pt }, {
+        if ESTILO.folio == "abajo-centro" { align(center, n) }
+        else { align(if calc.even(p) { left } else { right }, n) }
+      })
     },
   )
 
+  set columns(gutter: ESTILO.separacion)
+  set text(costs: (
+    hyphenation: if TIPO.cortes == "pocos" { 400% } else { 100% },
+    runt: if TIPO.viudas { 160% } else { 0% },
+    widow: if TIPO.viudas { 100% } else { 0% },
+    orphan: if TIPO.viudas { 100% } else { 0% },
+  ))
   set text(font: (TIPO.fuente, "Libertinus Serif"), size: TIPO.cuerpo, lang: TIPO.idioma, hyphenate: TIPO.guiones,
     top-edge: 0.8em, bottom-edge: -0.2em, number-type: "old-style")
   set par(justify: TIPO.justificado, leading: TIPO.interlineado - TIPO.cuerpo, spacing: TIPO.interlineado - TIPO.cuerpo,
@@ -419,7 +457,7 @@
     set par(justify: false, first-line-indent: 0pt)
     set text(hyphenate: false)
     let cierre-espacio = v(TIPO.interlineado * 3)
-    if ap == "centrada" {
+    let res = if ap == "centrada" {
       block(width: 100%, above: 0pt, below: 0pt, align(center)[
         #v(FORMATO.alto * 0.14)
         #if numerado { text(font: TIPO.titulos, size: TIPO.cuerpo * 1.1, style: "italic", fill: ESTILO.acento)[Capítulo #n]; v(1.1em) }
@@ -524,6 +562,8 @@
         #cierre-espacio
       ]
     }
+    // a dos columnas, la apertura ocupa el ancho de la página
+    if ESTILO.columnas > 1 { place(top, scope: "parent", float: true, clearance: TIPO.interlineado, res) } else { res }
   }
   // Sección
   show heading.where(level: 2): it => {

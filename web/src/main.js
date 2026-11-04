@@ -13,6 +13,7 @@ import { convertir, primerTitulo } from './md2typ.js';
 import { principal, nombreTyp, lomoMm, contarPaginasPdf } from './armado.js';
 import { tomlSet, tomlContenido } from './toml.js';
 import { importarTexto } from './importar.js';
+import { buscarOpenAlex, buscarCrossref, buscarWikipedia, buscarGemini, formatear, ESTILOS_CITA, notasSinEnlace, parecido } from './citas.js';
 import { puntuar, hayDictadoNavegador, dictarNavegador, dictarWhisper } from './dictado.js';
 import { campoMarcas, fijarMarcas, quitarMarca, listarMarcas, revisarLanguageTool, PEDIDO_REVISION, marcasDesdeIA, ortografiaNavegador } from './revision.js';
 import { iniciarMotor, cargarTextos, cargarBinarios, yaCargado, compilar, aSvg } from './motor.js';
@@ -205,7 +206,9 @@ function armarApp() {
           <div class="cab">
             <div class="segmento" role="group">
               <button data-lado="paginas" aria-pressed="true">Páginas</button>
+              <button data-lado="indice" aria-pressed="false">Índice</button>
               <button data-lado="revision" aria-pressed="false">Revisión</button>
+              <button data-lado="citas" aria-pressed="false">Citas</button>
               <button data-lado="asistente" aria-pressed="false">Asistente</button>
             </div>
             <span class="info" id="p-info"></span>
@@ -216,7 +219,9 @@ function armarApp() {
             </div>
           </div>
           <div class="mesa" id="mesa"><div class="vacio"><h3>Las páginas aparecen acá</h3>Elegí un capítulo del índice.</div></div>
+          <div class="asistente" id="indice-vivo" hidden></div>
           <div class="asistente" id="revision" hidden></div>
+          <div class="asistente" id="citas" hidden></div>
           <div class="asistente" id="asistente" hidden></div>
         </section>
       </section>
@@ -261,10 +266,14 @@ function verLado(l) {
   $('#mesa').hidden = l !== 'paginas';
   $('#asistente').hidden = l !== 'asistente';
   $('#revision').hidden = l !== 'revision';
+  $('#indice-vivo').hidden = l !== 'indice';
+  $('#citas').hidden = l !== 'citas';
   $('#p-der').style.visibility = l === 'paginas' ? 'visible' : 'hidden';
   $('#p-info').style.visibility = l === 'paginas' ? 'visible' : 'hidden';
   if (l === 'asistente') pintarAsistente();
   if (l === 'revision') pintarRevision();
+  if (l === 'indice') pintarIndice();
+  if (l === 'citas') pintarCitas();
 }
 
 /* ═════════ libro ═════════ */
@@ -279,6 +288,7 @@ async function abrirLibro(slug) {
     S.cfg = tomlParse(S.cfgTexto);
     const tieneIndice = S.arbol.some((e) => e.path === rutaLibro('indice.toml'));
     S.indiceToml = tieneIndice ? await S.gh.texto(rutaLibro('indice.toml')) : '# sin términos\n';
+    S.originales.set('indice.toml', tieneIndice ? S.indiceToml : null);
     // títulos de todos los capítulos (también sirven para avisos y para armar)
     const archivos = new Set((S.cfg.contenido || []).filter((c) => c.archivo).map((c) => c.archivo));
     const t = S.cfg.tapa || {};
@@ -309,7 +319,7 @@ async function enviarConfig() {
 function hayCambios() {
   if (!S.cfg) return false;
   for (const [k, v] of S.textos) if (S.originales.get(k) !== v) return true;
-  return S.cfgTexto !== S.originales.get('libro.toml');
+  return S.cfgTexto !== S.originales.get('libro.toml') || (S.originales.has('indice.toml') && S.indiceToml !== S.originales.get('indice.toml'));
 }
 function marcarEstado() {
   const e = $('#estado'); if (!e) return;
@@ -440,6 +450,7 @@ function abrirTexto(archivo) {
   programarPrevia(0);
   if (S.vista === 'asistente') pintarAsistente();
   if (S.vista === 'revision') pintarRevision();
+  if (S.vista === 'citas') pintarCitas();
 }
 function contarPalabras() {
   const t = S.textos.get(S.actual) || '';
@@ -577,11 +588,12 @@ async function guardarTodo() {
   const cambios = [];
   for (const [k, v] of S.textos) if (S.originales.get(k) !== v) cambios.push([k, v]);
   if (S.cfgTexto !== S.originales.get('libro.toml')) cambios.push(['libro.toml', S.cfgTexto]);
+  if (S.indiceToml && S.originales.has('indice.toml') && S.indiceToml !== S.originales.get('indice.toml')) cambios.push(['indice.toml', S.indiceToml]);
   if (!cambios.length) return toast('No hay cambios para guardar.');
   const b = $('#b-guardar'); b.disabled = true; b.innerHTML = '<span class="spin"></span> Guardando…';
   try {
     for (const [k, v] of cambios) {
-      const nombre = k === 'libro.toml' ? 'configuración del libro' : (primerTitulo(v) || k);
+      const nombre = k === 'libro.toml' ? 'configuración del libro' : k === 'indice.toml' ? 'índice analítico' : (primerTitulo(v) || k);
       await S.gh.guardar(rutaLibro(k), v, `Taller: ${nombre}`);
       S.originales.set(k, v);
       if (!S.arbol.some((e) => e.path === rutaLibro(k))) S.arbol.push({ path: rutaLibro(k) });
@@ -626,7 +638,7 @@ function campo(ruta, etiqueta, tipo = 'text', extra = '', pista = '') {
   return `<label class="campo ${extra}"><span>${etiqueta}</span><input class="entrada" ${tipo === 'number' ? 'type="number" step="any"' : ''} data-c="${ruta}" value="${esc(v ?? '')}" ${pista ? `placeholder="${esc(pista)}"` : ''}></label>`;
 }
 function opciones(ruta, etiqueta, lista) {
-  const v = val(ruta);
+  const v = val(ruta) == null ? val(ruta) : String(val(ruta));
   return `<label class="campo"><span>${etiqueta}</span><select class="entrada" data-c="${ruta}">${lista.map(([k, n]) => `<option value="${esc(k)}" ${k === v ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>`;
 }
 function leerForm(raiz) {
@@ -638,6 +650,7 @@ function leerForm(raiz) {
     else if (el.type === 'checkbox') v = el.checked;
     else if (el.type === 'number') v = el.value === '' ? (val(el.dataset.c) === undefined ? undefined : 0) : Number(el.value);
     else v = el.value.trim();
+    if (el.dataset.c === 'estilo.columnas' || el.dataset.c === 'estilo.indice_profundidad') v = Number(v);
     if (v === undefined) return;
     (cambios[s] ||= {})[k] = v;
   });
@@ -681,12 +694,18 @@ function pintarEstilos() {
       <div class="campo ancho"><span>Apoyo: cornisas, pies y tablas</span>${selectorLetra('tipografia.fuente_apoyo', 'Fuente: ACNUR, 2024')}</div>
       ${campo('tipografia.cuerpo', 'Cuerpo')}${campo('tipografia.interlineado', 'Interlineado')}
       ${campo('tipografia.notas', 'Notas al pie')}${campo('tipografia.sangria', 'Sangría')}
+      ${opciones('tipografia.cortes', 'Cortes de palabra en el margen', [['normales', 'Normales'], ['pocos', 'Pocos (menos guiones)'], ['ninguno', 'Ninguno (sin partir palabras)']])}
+      <div class="campo"><span>Viudas y huérfanas</span>${campo('tipografia.viudas', 'Evitar renglones sueltos', 'check')}</div>
       <div class="ancho">${campo('tipografia.justificado', 'Texto justificado', 'check')}${campo('tipografia.guiones', 'Partición silábica en castellano', 'check')}</div>
     </div></div>
     <div class="grupo"><h3>Página y capítulos</h3><div class="grilla">
       ${opciones('estilo.cornisa_par', 'Cornisa en página par', [['autor', 'Autor'], ['titulo', 'Título del libro'], ['capitulo', 'Capítulo'], ['nada', 'Nada']])}
       ${opciones('estilo.cornisa_impar', 'Cornisa en página impar', [['capitulo', 'Capítulo'], ['titulo', 'Título del libro'], ['autor', 'Autor'], ['nada', 'Nada']])}
-      ${opciones('estilo.folio', 'Número de página', [['abajo-afuera', 'Abajo, hacia afuera'], ['abajo-centro', 'Abajo, al centro']])}
+      ${opciones('estilo.folio', 'Número de página', [['abajo-afuera', 'Abajo, hacia afuera'], ['abajo-centro', 'Abajo, al centro'], ['arriba-afuera', 'Arriba, junto a la cornisa']])}
+      ${opciones('estilo.indice_profundidad', 'El índice muestra', [['1', 'Solo capítulos'], ['2', 'Capítulos y secciones'], ['3', 'Hasta subsecciones']])}
+      ${opciones('estilo.columnas', 'Columnas de texto', [['1', 'Una'], ['2', 'Dos'], ['3', 'Tres']])}
+      ${campo('estilo.separacion_columnas', 'Separación entre columnas', 'text', '', '6mm')}
+      <div class="ancho fila-checks">${campo('estilo.filete_cornisa', 'Línea bajo la cornisa', 'check')}${campo('estilo.filete_pie', 'Línea sobre el pie', 'check')}</div>
       ${opciones('estilo.apertura', 'Apertura de capítulo', APERTURAS)}
       ${campo('estilo.color_acento', 'Color de acento', 'color')}
       <div class="ancho">
@@ -695,17 +714,27 @@ function pintarEstilos() {
         ${campo('estilo.numerar_secciones', 'Numerar secciones (1.1, 1.2…)', 'check')}
         ${campo('estilo.notas_por_capitulo', 'Las notas vuelven a 1 en cada capítulo', 'check')}
         ${campo('estilo.indice_analitico', 'Índice analítico al final', 'check')}
+        ${campo('estilo.indice_puntos', 'Puntos guía en el índice', 'check')}
         ${campo('estilo.colofon', 'Colofón', 'check')}
       </div>
     </div></div>
     <div class="guardar"><button class="btn prim" id="b-ver-estilos">Ver cómo queda</button><button class="btn" id="b-guardar-estilos">${I.subir}Guardar en GitHub</button></div>
   </div>
-  <section class="lado-der"><div class="cab"><span class="info" id="pe-info">Capítulo abierto: ${esc($('#e-titulo').textContent)}</span></div><div class="mesa" id="mesa-estilos"><div class="vacio"><h3>Probá un cambio</h3>Tocá «Ver cómo queda» para componer el capítulo abierto con estos estilos.</div></div></section>`;
+  <section class="lado-der"><div class="cab"><div class="segmento" role="group"><button data-ve="plano" aria-pressed="true">Plano de página</button><button data-ve="paginas" aria-pressed="false">Páginas</button></div><span class="info" id="pe-info">Arrastrá los bordes del texto para cambiar los márgenes</span></div><div class="mesa" id="plano-estilos"></div><div class="mesa" id="mesa-estilos" hidden><div class="vacio"><h3>Probá un cambio</h3>Tocá «Ver cómo queda» para componer el capítulo abierto con estos estilos.</div></div></section>`;
   const f = $('#f-estilos');
   const aplicar = () => { try { aplicarCambiosConfig(leerForm(f)); } catch (e) { toast('Hay un valor inválido: ' + e.message); return false; } return true; };
   activarSelectoresLetra(f, aplicar);
   $$('input, select', f).forEach((el) => el.addEventListener('change', aplicar));
+  const verLadoEstilos = (cual) => {
+    $$('[data-ve]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.ve === cual)));
+    $('#plano-estilos').hidden = cual !== 'plano'; $('#mesa-estilos').hidden = cual !== 'paginas';
+    $('#pe-info').textContent = cual === 'plano' ? 'Arrastrá los bordes del texto para cambiar los márgenes' : 'Capítulo abierto: ' + $('#e-titulo').textContent;
+  };
+  $$('[data-ve]').forEach((b) => (b.onclick = () => verLadoEstilos(b.dataset.ve)));
+  $$('input, select', f).forEach((el) => el.addEventListener('change', () => pintarPlano(f, aplicar)));
+  pintarPlano(f, aplicar);
   $('#b-ver-estilos').onclick = async () => {
+    verLadoEstilos('paginas');
     if (!aplicar()) return;
     const m = $('#mesa-estilos'); m.innerHTML = '<div class="vacio"><span class="spin"></span></div>';
     const vieja = $('#mesa'); const tmp = S.vista; S.vista = 'paginas';
@@ -723,6 +752,96 @@ function pintarEstilos() {
     const scroll = f.scrollTop; pintarEstilos(); $('#f-estilos').scrollTop = scroll; $('#b-ver-estilos').click();
   }));
   miniaturasInterior();
+}
+// Plano de página: par e impar lado a lado, con márgenes, columnas, cornisa, pie y folio.
+function pintarPlano(f, aplicar) {
+  const caja = $('#plano-estilos'); if (!caja) return;
+  const fo = S.cfg.formato || {}, ti = S.cfg.tipografia || {}, es = S.cfg.estilo || {};
+  const pre = S.presets.formatos[fo.preset] || S.presets.formatos['15x23'];
+  const W = aMm(fo.ancho || pre.ancho), H = aMm(fo.alto || pre.alto);
+  const m = { interior: aMm(fo.margen_interior, 20), exterior: aMm(fo.margen_exterior, 16), superior: aMm(fo.margen_superior, 18), inferior: aMm(fo.margen_inferior, 22) };
+  const cols = Number(es.columnas || 1), gut = aMm(es.separacion_columnas, 6);
+  const cuerpo = aMm(ti.cuerpo || '11pt'), inter = aMm(ti.interlineado || '14.5pt');
+  const folio = es.folio || 'abajo-afuera';
+  const disp = Math.max(320, caja.clientWidth - 60);
+  const k = Math.min(disp / (2 * W + 6), (Math.max(380, caja.clientHeight - 140)) / H); // px por mm
+  const ox = 30, oy = 34, gap = 6 * k;
+  const X = (p) => ox + (p === 'impar' ? W * k + gap : 0);
+  const pagina = (lado) => {
+    const x0 = X(lado);
+    const izq = lado === 'par' ? m.exterior : m.interior, der = lado === 'par' ? m.interior : m.exterior;
+    const tx = x0 + izq * k, ty = oy + m.superior * k, tw = (W - izq - der) * k, th = (H - m.superior - m.inferior) * k;
+    const cw = (tw - (cols - 1) * gut * k) / cols;
+    const lineas = Math.max(0, Math.floor((H - m.superior - m.inferior) / inter));
+    let g = `<rect x="${x0}" y="${oy}" width="${W * k}" height="${H * k}" class="pl-hoja"/>`;
+    g += `<rect x="${x0}" y="${oy}" width="${W * k}" height="${H * k}" class="pl-margen"/>`;
+    // columnas con renglones simulados
+    for (let c = 0; c < cols; c++) {
+      const cx = tx + c * (cw + gut * k);
+      g += `<rect x="${cx}" y="${ty}" width="${cw}" height="${th}" class="pl-texto"/>`;
+      const paso = Math.max(inter * k, 2.2);
+      for (let y = ty + paso * 0.8; y < ty + th - 1; y += paso) g += `<line x1="${cx + 1}" x2="${cx + cw - 1}" y1="${y}" y2="${y}" class="pl-renglon"/>`;
+    }
+    if (cols > 1) for (let c = 1; c < cols; c++) { const gx = tx + c * cw + (c - 0.5) * gut * k; g += `<line x1="${gx}" x2="${gx}" y1="${ty}" y2="${ty + th}" class="pl-medianil"/>`; }
+    // cornisa y pie
+    const yc = oy + m.superior * k * 0.6, yp = oy + (H - m.inferior * 0.65) * k;
+    const alinIzq = lado === 'par';
+    const corn = (lado === 'par' ? es.cornisa_par : es.cornisa_impar) || (lado === 'par' ? 'autor' : 'capitulo');
+    const textoCorn = { autor: S.cfg.libro?.autor || 'Autor', titulo: S.cfg.libro?.titulo || 'Título', capitulo: 'Capítulo', nada: '' }[corn] || '';
+    const n = lado === 'par' ? '24' : '25';
+    const cornTxt = folio === 'arriba-afuera' ? (alinIzq ? `${n}   ${textoCorn.toUpperCase()}` : `${textoCorn.toUpperCase()}   ${n}`) : textoCorn.toUpperCase();
+    g += `<text x="${alinIzq ? tx : tx + tw}" y="${yc - 3}" text-anchor="${alinIzq ? 'start' : 'end'}" class="pl-cornisa">${esc(cornTxt)}</text>`;
+    if (es.filete_cornisa) g += `<line x1="${tx}" x2="${tx + tw}" y1="${yc}" y2="${yc}" class="pl-filete"/>`;
+    if (es.filete_pie) g += `<line x1="${tx}" x2="${tx + tw}" y1="${yp - 9}" y2="${yp - 9}" class="pl-filete"/>`;
+    if (folio !== 'arriba-afuera') g += `<text x="${folio === 'abajo-centro' ? tx + tw / 2 : alinIzq ? tx : tx + tw}" y="${yp}" text-anchor="${folio === 'abajo-centro' ? 'middle' : alinIzq ? 'start' : 'end'}" class="pl-folio">${n}</text>`;
+    // cotas de los márgenes
+    const cota = (x, y, t, anc = 'middle') => `<text x="${x}" y="${y}" text-anchor="${anc}" class="pl-cota">${t}</text>`;
+    g += cota(x0 + izq * k / 2, oy + H * k / 2, `${+izq.toFixed(1)}`) + cota(tx + tw + der * k / 2, oy + H * k / 2, `${+der.toFixed(1)}`);
+    g += cota(tx + tw / 2, oy + m.superior * k * 0.32 + 4, `${+m.superior.toFixed(1)}`) + cota(tx + tw / 2, oy + H * k - m.inferior * k * 0.25, `${+m.inferior.toFixed(1)}`);
+    g += `<text x="${x0 + W * k / 2}" y="${oy - 12}" text-anchor="middle" class="pl-titulo">Página ${lado} · ${lineas} líneas</text>`;
+    // tiradores (solo en la impar; la par se espeja)
+    if (lado === 'impar') {
+      const t = (cual, x, y, w, h, cursor) => `<rect data-borde="${cual}" x="${x}" y="${y}" width="${w}" height="${h}" class="pl-tirador" style="cursor:${cursor}"/>`;
+      g += t('interior', tx - 5, ty, 10, th, 'ew-resize') + t('exterior', tx + tw - 5, ty, 10, th, 'ew-resize');
+      g += t('superior', tx, ty - 5, tw, 10, 'ns-resize') + t('inferior', tx, ty + th - 5, tw, 10, 'ns-resize');
+    }
+    return g;
+  };
+  const anchoTexto = W - m.interior - m.exterior;
+  const colMm = (anchoTexto - (cols - 1) * gut) / cols;
+  const cpl = Math.round(colMm / (cuerpo * 0.3528 * 0.47));
+  const alto = 2 * oy + H * k + 30;
+  caja.innerHTML = `<div class="plano">
+    <svg width="${2 * ox + 2 * W * k + gap}" height="${alto}" class="plano-svg">
+      <line x1="${X('impar') - gap / 2}" x2="${X('impar') - gap / 2}" y1="${oy - 4}" y2="${oy + H * k + 4}" class="pl-lomo"/>
+      ${pagina('par')}${pagina('impar')}
+    </svg>
+    <div class="plano-datos">
+      <div><b>${+W.toFixed(1)} × ${+H.toFixed(1)} mm</b><span>página</span></div>
+      <div><b>${+anchoTexto.toFixed(1)} × ${+(H - m.superior - m.inferior).toFixed(1)} mm</b><span>caja de texto</span></div>
+      <div><b>${cols} × ${+colMm.toFixed(1)} mm</b><span>${cols === 1 ? 'columna' : 'columnas'}${cols > 1 ? ` · medianil ${gut} mm` : ''}</span></div>
+      <div class="${cpl < 45 || cpl > 80 ? 'fuera' : ''}"><b>≈ ${cpl}</b><span>caracteres por línea${cpl < 45 ? ' (pocos: subí el ancho o bajá el cuerpo)' : cpl > 80 ? ' (muchos: mejor 2 columnas o más margen)' : ' (cómodo: 45 a 75)'}</span></div>
+      <div><b>${Math.floor((H - m.superior - m.inferior) / inter)}</b><span>líneas por página · cuerpo ${ti.cuerpo || '11pt'} / ${ti.interlineado || '14.5pt'}</span></div>
+    </div>
+    <p class="sutil">Las medidas están en milímetros. El margen interior es el del lomo: conviene que sea un poco mayor que el exterior para que el texto no se pierda en la encuadernación.</p>
+  </div>`;
+  // arrastrar los bordes
+  const svg = $('.plano-svg', caja);
+  $$('[data-borde]', svg).forEach((t) => t.addEventListener('pointerdown', (ev) => {
+    ev.preventDefault(); t.setPointerCapture(ev.pointerId);
+    const cual = t.dataset.borde, x0 = ev.clientX, y0 = ev.clientY, base = m[cual];
+    const signo = { interior: 1, exterior: -1, superior: 1, inferior: -1 }[cual];
+    const vertical = cual === 'superior' || cual === 'inferior';
+    let nuevo = base;
+    const mover = (e2) => {
+      const d = ((vertical ? e2.clientY - y0 : e2.clientX - x0) / k) * signo;
+      nuevo = Math.max(5, Math.min((vertical ? H : W) / 2 - 10, Math.round((base + d) * 2) / 2));
+      $('#pe-info').textContent = `Margen ${cual}: ${nuevo} mm`;
+      const inp = $(`[data-c="formato.margen_${cual}"]`, f); if (inp) inp.value = nuevo + 'mm';
+    };
+    t.addEventListener('pointermove', mover);
+    t.addEventListener('pointerup', () => { t.removeEventListener('pointermove', mover); if (nuevo !== base && aplicar()) pintarPlano(f, aplicar); }, { once: true });
+  }));
 }
 function marcarDisenoInterior() {
   const t = S.cfg.tipografia || {}, e = S.cfg.estilo || {};
@@ -1529,6 +1648,185 @@ function pintarListaRevision() {
     }));
     el.querySelector('[data-ign]').onclick = () => { v.dispatch({ effects: quitarMarca.of(m.id) }); pintarListaRevision(); };
   });
+}
+
+/* ═════════ índice en vivo ═════════ */
+function pintarIndice() {
+  const a = $('#indice-vivo');
+  const prof = Number(S.cfg.estilo?.indice_profundidad || 2);
+  const fo = S.cfg.formato || {}, ti = S.cfg.tipografia || {};
+  const pre = S.presets.formatos[fo.preset] || S.presets.formatos['15x23'];
+  const W = aMm(fo.ancho || pre.ancho), H = aMm(fo.alto || pre.alto);
+  const anchoT = W - aMm(fo.margen_interior, 20) - aMm(fo.margen_exterior, 16), altoT = H - aMm(fo.margen_superior, 18) - aMm(fo.margen_inferior, 22);
+  // palabras por página aproximadas: caracteres por línea × líneas ÷ 6,2 (palabra media del castellano con espacio)
+  const ppp = Math.max(120, (anchoT / (aMm(ti.cuerpo || '11pt') * 0.3528 * 0.47)) * Math.floor(altoT / aMm(ti.interlineado || '14.5pt')) / 6.2 * 0.93);
+  const ult = leer('taller.paginas.' + S.slug, null);
+  let pag = 9, n = 0, filas = '';
+  for (const c of S.cfg.contenido || []) {
+    if (c.tipo === 'parte') { filas += `<div class="ind-parte">${esc(c.titulo)}</div>`; pag += pag % 2 ? 2 : 1; continue; }
+    const md = S.textos.get(c.archivo); if (md == null) continue;
+    if (pag % 2 === 0) pag++;
+    const titulo = primerTitulo(md) || c.archivo;
+    const num = c.tipo === 'capitulo' ? `${++n}. ` : '';
+    filas += `<button class="ind-cap" data-a="${esc(c.archivo)}"><span>${esc(num + titulo)}</span><b>${pag}</b></button>`;
+    if (prof >= 2) {
+      let acum = pag;
+      const lineas = md.split('\n'); let pal = 0;
+      for (const l of lineas) {
+        pal += l.split(/\s+/).filter(Boolean).length;
+        const m = l.match(/^(#{2,3})\s+(.+)/);
+        if (m && (m[1].length === 2 || prof >= 3)) filas += `<div class="ind-sec n${m[1].length}"><span>${esc(m[2].replace(/\{.*\}$/, ''))}</span><b>${acum + Math.floor(pal / ppp)}</b></div>`;
+      }
+    }
+    pag += Math.max(1, Math.ceil(md.split(/\s+/).length / ppp));
+  }
+  a.innerHTML = `<div class="nota">El índice se arma solo con los títulos (#) y secciones (##) de cada capítulo, en el orden del libro. Las páginas son aproximadas${ult ? ` (el último armado dio ${ult.paginas})` : ''}; las exactas salen al armar.</div>
+    <div class="ind-vista">${filas || '<p class="sutil">Todavía no hay capítulos.</p>'}</div>
+    <div class="grupo-ind"><h3>Índice analítico</h3><p class="sutil" style="margin:0 0 8px">Nombres, lugares y organismos con las páginas donde aparecen. Hoy tiene ${(S.indiceToml.match(/\[\[termino\]\]/g) || []).length} términos.</p>
+      <button class="btn chico" id="b-sugerir">Sugerir términos del texto</button><div id="sugeridos"></div></div>`;
+  $$('.ind-cap', a).forEach((b) => (b.onclick = () => abrirTexto(b.dataset.a)));
+  $('#b-sugerir').onclick = sugerirTerminos;
+}
+// Busca nombres propios que se repiten (Ana Pérez, Naciones Unidas, ACNUR) y no están en el índice.
+function sugerirTerminos() {
+  const ya = new Set([...S.indiceToml.matchAll(/buscar\s*=\s*\[([^\]]*)\]/g)].flatMap((m) => [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1].replace(/\\\\w\*|\\w\*/g, '').toLowerCase())));
+  const cuenta = new Map();
+  const comunes = new Set('El La Los Las Un Una En Por Para Con Sin Desde Hasta Entre Como Cuando Donde Pero Este Esta Estos Estas Ese Esa Eso Hay Sus Su Al Del Que Qué Se No Sí Ya Más Lo Le Les Mi Nos Otro Otra Cada Todo Toda Según Durante Tras Ante Aunque Sobre También Incluso Así Además Luego Entonces Primero Hoy Ayer Allí Ahí Aquí Fuente Notas Capítulo Parte Tabla Mapa Gráfico Figura Ver Cf'.split(' '));
+  for (const c of S.cfg.contenido || []) {
+    const md = S.textos.get(c.archivo || ''); if (!md) continue;
+    const cuerpo = md.replace(/^\[\^[^\]]+\]:.*$/gm, '').replace(/^#.*$/gm, '').replace(/https?:\/\/\S+/g, '');
+    for (const m of cuerpo.matchAll(/(?<![.!?¿¡]\s|^|\n)\b(\p{Lu}[\p{L}'-]+(?:\s+(?:de|del|la|las|los|y|e)?\s*\p{Lu}[\p{L}'-]+){0,3}|\p{Lu}{2,}[\p{Lu}0-9]*)\b/gu)) {
+      const t = m[1].trim().replace(/\s+(de|del|la|las|los|y|e)$/, '');
+      if (t.length < 3 || comunes.has(t) || comunes.has(t.split(' ')[0]) && !t.includes(' ')) continue;
+      cuenta.set(t, (cuenta.get(t) || 0) + 1);
+    }
+  }
+  // una palabra suelta que también aparece en minúscula («Estado» / «estado») no es un nombre propio
+  const todo = (S.cfg.contenido || []).map((c) => S.textos.get(c.archivo || '') || '').join('\n');
+  const minus = (w) => (todo.match(new RegExp(`\\b${w.toLowerCase()}\\b`, 'g')) || []).length;
+  const multis = [...cuenta].filter(([t, n]) => t.includes(' ') && n >= 3);
+  const parte = (t, n) => !t.includes(' ') && multis.some(([m, k]) => m.split(' ').includes(t) && k >= n * 0.4);
+  const lista = [...cuenta].filter(([t, n]) => (t.includes(' ') || t === t.toUpperCase() || minus(t) < n / 3) && !parte(t, n) && n >= 3 && ![...ya].some((y) => y && t.toLowerCase().includes(y))).sort((a, b) => b[1] - a[1]).slice(0, 60);
+  const caja = $('#sugeridos');
+  if (!lista.length) { caja.innerHTML = '<p class="sutil">No encontré nombres nuevos que se repitan.</p>'; return; }
+  caja.innerHTML = `<div class="sug-lista">${lista.map(([t, n], i) => `<label class="check"><input type="checkbox" data-t="${i}" ${n >= 5 ? 'checked' : ''}>${esc(t)} <small>${n}</small></label>`).join('')}</div>
+    <button class="btn prim chico" id="b-agregar-terminos">Agregar al índice analítico</button>`;
+  $('#b-agregar-terminos').onclick = () => {
+    const elegidos = $$('[data-t]', caja).filter((x) => x.checked).map((x) => lista[+x.dataset.t][0]);
+    if (!elegidos.length) return;
+    const esc2 = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
+    S.indiceToml = S.indiceToml.replace(/\s*$/, '\n') + elegidos.map((t) => `\n[[termino]]\nentrada = "${t.replace(/"/g, '\\"')}"\nbuscar  = ["${esc2(t).replace(/"/g, '\\"')}"]\n`).join('');
+    enviarConfig(); marcarEstado();
+    toast(`${elegidos.length} términos agregados. Guardá para subirlos; las páginas salen al armar.`);
+    pintarIndice();
+  };
+}
+
+/* ═════════ citas: buscar la fuente y armar la nota ═════════ */
+let citasRes = [];
+function pintarCitas() {
+  const a = $('#citas'); if (!a) return;
+  const v = S.editor; const { from, to } = v.state.selection.main;
+  const sel = to > from ? v.state.sliceDoc(from, to).replace(/\s+/g, ' ').trim() : '';
+  const estilo = S.conf.estiloCita || 'apa';
+  const hayGemini = !!S.conf.gemini;
+  a.innerHTML = `<div class="nota">Marcá en el editor una frase, un dato o un título, y buscá de dónde sale. Elegí la fuente y se inserta como nota al pie con su enlace.</div>
+    <label class="campo"><span>Buscar</span><textarea class="entrada" id="ci-q" rows="2" placeholder="Ej.: 120 millones de personas desplazadas ACNUR 2024">${esc(sel.slice(0, 400))}</textarea></label>
+    <div class="acciones">
+      <button class="btn prim chico" data-buscar="academico">Libros y artículos</button>
+      <button class="btn chico" data-buscar="wikipedia">Wikipedia</button>
+      <button class="btn chico" data-buscar="google" ${hayGemini ? '' : 'disabled title="Activá Gemini en el Asistente"'}>Google (con Gemini)</button>
+      <select class="entrada" id="ci-estilo" style="width:auto;height:30px;font-size:12.5px">${Object.entries(ESTILOS_CITA).map(([k, n]) => `<option value="${k}" ${k === estilo ? 'selected' : ''}>${n}</option>`).join('')}</select>
+    </div>
+    <div id="ci-res"></div>
+    <div class="grupo-ind"><h3>Notas sin enlace</h3><p class="sutil" style="margin:0 0 8px">Revisa las notas del capítulo que no tienen link ni DOI y busca el artículo o libro que citan.</p>
+      <button class="btn chico" id="ci-completar">Buscar enlaces para las notas</button><div id="ci-notas"></div></div>`;
+  $('#ci-estilo').onchange = (e) => { S.conf.estiloCita = e.target.value; escribir('taller.conf', S.conf); if (citasRes.length) mostrarCitas(); };
+  $$('[data-buscar]', a).forEach((b) => (b.onclick = () => buscarCita(b.dataset.buscar)));
+  $('#ci-completar').onclick = completarNotas;
+  if (citasRes.length) mostrarCitas();
+}
+async function buscarCita(donde) {
+  const q = $('#ci-q').value.trim(); if (!q) return toast('Escribí o marcá qué buscar.');
+  const out = $('#ci-res'); out.innerHTML = '<div class="nota"><span class="spin"></span> Buscando…</div>';
+  try {
+    if (donde === 'academico') {
+      const [oa, cr] = await Promise.allSettled([buscarOpenAlex(q), buscarCrossref(q)]);
+      const lista = [...(oa.value || []), ...(cr.value || [])];
+      const vistos = new Set();
+      citasRes = lista.filter((x) => { const k = (x.doi || x.titulo).toLowerCase(); if (vistos.has(k)) return false; vistos.add(k); return true; })
+        .sort((x, y) => parecido(y.titulo, q) - parecido(x.titulo, q) || (y.citas || 0) - (x.citas || 0)).slice(0, 10);
+      if (!citasRes.length && oa.reason) throw oa.reason;
+    } else if (donde === 'wikipedia') citasRes = await buscarWikipedia(q);
+    else citasRes = await buscarGemini(q, S.conf.gemini);
+    mostrarCitas();
+  } catch (e) { out.innerHTML = `<div class="error">${esc(e.message)}</div>`; }
+}
+function mostrarCitas() {
+  const out = $('#ci-res'); if (!out) return;
+  const estilo = S.conf.estiloCita || 'apa';
+  if (!citasRes.length) { out.innerHTML = '<div class="nota">No encontré nada. Probá con menos palabras: un nombre, un organismo, un título.</div>'; return; }
+  out.innerHTML = citasRes.map((x, i) => `<div class="rev-item">
+    <div class="rev-msg">${esc(x.titulo)} <small>${esc(x.origen)}${x.anio ? ' · ' + x.anio : ''}</small></div>
+    ${x.resumen ? `<div class="rev-ctx">${esc(x.resumen.slice(0, 360))}</div>` : ''}
+    <div class="ci-ref">${esc(formatear(x, estilo)).replace(/\*([^*]+)\*/g, '<i>$1</i>')}</div>
+    <div class="respuesta-acc"><button class="btn chico prim-suave" data-nota="${i}">Insertar como nota</button><button class="btn chico" data-bib="${i}">Nota + bibliografía</button><button class="btn chico" data-copiar="${i}">Copiar</button>${x.url || x.doi ? `<a class="btn chico" href="${esc(x.doi ? 'https://doi.org/' + x.doi : x.url)}" target="_blank" rel="noopener">Abrir</a>` : ''}</div>
+  </div>`).join('');
+  $$('[data-nota]', out).forEach((b) => (b.onclick = () => insertarCita(citasRes[+b.dataset.nota], false)));
+  $$('[data-bib]', out).forEach((b) => (b.onclick = () => insertarCita(citasRes[+b.dataset.bib], true)));
+  $$('[data-copiar]', out).forEach((b) => (b.onclick = () => { navigator.clipboard?.writeText(formatear(citasRes[+b.dataset.copiar], estilo)); toast('Copiado.'); }));
+}
+function insertarCita(x, conBiblio) {
+  if (!S.actual) return toast('Abrí un capítulo primero.');
+  const v = S.editor; const estilo = S.conf.estiloCita || 'apa';
+  const doc = v.state.doc.toString();
+  const n = siguienteNota(doc);
+  const pos = v.state.selection.main.to;
+  // la llamada va pegada a la palabra (después del punto si lo hay)
+  let at = pos; while (at < doc.length && /[.,;:»"”)]/.test(doc[at])) at++;
+  const ref = formatear(x, estilo);
+  const cambios = [{ from: at, insert: `[^${n}]` }, { from: doc.length, insert: `${doc.endsWith('\n') ? '' : '\n'}\n[^${n}]: ${ref}\n` }];
+  if (conBiblio) {
+    const apa = formatear(x, 'apa');
+    const m = doc.match(/::: bibliografia\n[\s\S]*?\n:::/);
+    if (m) cambios.push({ from: m.index + m[0].length - 3, insert: `${apa}\n\n` });
+    else cambios.push({ from: doc.length, insert: `\n## Bibliografía\n\n::: bibliografia\n${apa}\n:::\n` });
+  }
+  v.dispatch({ changes: cambios, selection: { anchor: at + `[^${n}]`.length } });
+  toast(`Nota ${n} insertada${conBiblio ? ' y sumada a la bibliografía' : ''}.`);
+}
+async function completarNotas() {
+  if (!S.actual) return;
+  const caja = $('#ci-notas');
+  const notas = notasSinEnlace(S.editor.state.doc.toString());
+  if (!notas.length) { caja.innerHTML = '<p class="sutil">Todas las notas de este capítulo ya tienen enlace (o son muy cortas para buscarlas).</p>'; return; }
+  const props = [];
+  for (let i = 0; i < notas.length; i++) {
+    caja.innerHTML = `<div class="nota"><span class="spin"></span> Nota ${i + 1} de ${notas.length}…</div>`;
+    const nt = notas[i];
+    try {
+      const res = await buscarOpenAlex(nt.texto.replace(/\*|«|»/g, ''), 3);
+      const mejor = res.map((x) => ({ x, p: parecido(x.titulo, nt.texto) })).sort((a, b) => b.p - a.p)[0];
+      if (mejor && mejor.p >= 0.7 && (mejor.x.doi || mejor.x.url)) props.push({ nt, x: mejor.x, p: mejor.p });
+    } catch {}
+    await new Promise((ok) => setTimeout(ok, 150));
+  }
+  if (!props.length) { caja.innerHTML = `<p class="sutil">Revisé ${notas.length} notas y no encontré enlaces seguros. Probá buscarlas una por una arriba.</p>`; return; }
+  caja.innerHTML = `<p class="sutil" style="margin:0 0 6px">Encontré ${props.length} de ${notas.length}. Revisá que sea la misma obra antes de aceptar.</p>` + props.map((r, i) => `<div class="rev-item">
+    <div class="rev-msg">Nota ${esc(r.nt.id)} <small>${Math.round(r.p * 100)} % parecido</small></div>
+    <div class="rev-ctx">${esc(r.nt.texto.slice(0, 220))}</div>
+    <div class="ci-ref">→ ${esc(r.x.titulo)} (${esc(String(r.x.anio))}) · ${esc(r.x.doi ? 'doi.org/' + r.x.doi : r.x.url)}</div>
+    <div class="respuesta-acc"><button class="btn chico prim-suave" data-ok="${i}">Agregar el enlace</button></div></div>`).join('') + (props.length > 1 ? '<button class="btn prim chico" id="ci-todos">Agregar todos</button>' : '');
+  const aplicar = (r) => {
+    const doc = S.editor.state.doc.toString();
+    const re = new RegExp(`^\\[\\^${r.nt.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]:.*$`, 'm');
+    const m = doc.match(re); if (!m) return;
+    const enl = r.x.doi ? `https://doi.org/${r.x.doi}` : r.x.url;
+    const linea = m[0].replace(/\s*$/, '') + (/[.]$/.test(m[0].trim()) ? ' ' : '. ') + enl;
+    S.editor.dispatch({ changes: { from: m.index, to: m.index + m[0].length, insert: linea } });
+  };
+  $$('[data-ok]', caja).forEach((b) => (b.onclick = () => { aplicar(props[+b.dataset.ok]); b.disabled = true; b.textContent = 'Agregado'; }));
+  const t = $('#ci-todos'); if (t) t.onclick = () => { props.forEach(aplicar); $$('[data-ok]', caja).forEach((b) => { b.disabled = true; b.textContent = 'Agregado'; }); toast('Enlaces agregados.'); };
 }
 
 /* ═════════ pegar texto: del bloc de notas al libro ═════════ */

@@ -136,6 +136,30 @@ Las fotos y mapas flotan arriba o abajo de la página más cercana para no dejar
 - **Código de barras**: EAN-13 del ISBN con verificación del dígito de control (la web avisa si está mal y convierte un ISBN de 10 cifras), agregado EAN-5 opcional para el precio (`codigo_precio`, `90000` = sin precio), precio impreso y posición (derecha, izquierda o centro).
 - Sin solapas: `solapa = "0mm"`. Con foto: `imagen = "tapa/foto.jpg"`. Si cargás el ISBN, el código de barras EAN-13 se genera solo.
 
+## Plano de página
+
+En **Estilos**, el panel derecho muestra el **plano**: la página par y la impar lado a lado, con los cuatro márgenes (interior, exterior, superior, inferior) acotados en milímetros, las columnas y su medianil, la cornisa con su línea, el pie y el número de página. Los bordes de la caja de texto se **arrastran con el mouse** y los márgenes cambian en los dos lados (espejados). Abajo muestra la caja de texto, el ancho de columna, los **caracteres por línea** (lo cómodo es entre 45 y 75) y las líneas por página.
+
+Opciones de página: una, dos o tres columnas; separación entre columnas; línea bajo la cornisa y sobre el pie; número de página abajo afuera, abajo al centro o arriba junto a la cornisa.
+
+**Cortes de palabra**: normales, pocos (Typst penaliza más los guiones) o ninguno. **Viudas y huérfanas**: evita renglones sueltos al pie o al tope de una página y finales de párrafo de una sola palabra.
+
+## Índice
+
+- **Índice general**: se arma solo con los títulos (`#`) y secciones (`##`, y `###` si se elige) de cada capítulo, en el orden del libro, con puntos guía opcionales. El título no se corta en sílabas y el número de página queda alineado.
+- **Índice en vivo**: en la pestaña Texto, el panel «Índice» muestra cómo va quedando, con páginas aproximadas; un clic abre el capítulo.
+- **Índice analítico**: «Sugerir términos del texto» encuentra nombres propios, lugares y organismos que se repiten y no están en `indice.toml`; se eligen y se agregan con un clic.
+
+## Citas
+
+En la pestaña Texto, el panel **Citas** busca la fuente de lo que marques en el editor:
+
+- **Libros y artículos**: OpenAlex y Crossref (bases abiertas y gratuitas de publicaciones académicas, con DOI).
+- **Wikipedia**.
+- **Google (con Gemini)**: busca la fuente original de un dato (organismos, estudios, diarios) y devuelve los enlaces.
+
+La referencia sale en APA 7, Chicago o ISO 690 y se inserta como **nota al pie** (y, si se quiere, también en la bibliografía del capítulo). «Buscar enlaces para las notas» revisa las notas que no tienen link ni DOI, busca la obra que citan y propone agregar el enlace.
+
 ## PDF, impresión e imprenta
 
 - **Capítulo suelto**: el botón «PDF» arriba de las páginas descarga o imprime el capítulo abierto, con la medida real del libro (para revisar en papel, imprimir en A4 con «Tamaño real»).
