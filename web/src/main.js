@@ -14,6 +14,7 @@ import { principal, nombreTyp, lomoMm, contarPaginasPdf } from './armado.js';
 import { tomlSet, tomlContenido } from './toml.js';
 import { importarTexto } from './importar.js';
 import { abrirPdf, marcadores, dibujarPagina } from './compaginar.js';
+import { ESTILOS_IMAGEN, ENCUADRES, armarPrompt, generarPollinations, generarGemini } from './imagenia.js';
 import { buscarOpenAlex, buscarCrossref, buscarWikipedia, buscarGemini, formatear, ESTILOS_CITA, notasSinEnlace, parecido, NORMAS, revisarNorma, pedidoNorma } from './citas.js';
 import { puntuar, hayDictadoNavegador, dictarNavegador, dictarWhisper } from './dictado.js';
 import { campoMarcas, fijarMarcas, quitarMarca, listarMarcas, revisarLanguageTool, PEDIDO_REVISION, marcasDesdeIA, ortografiaNavegador, revisarParrafos } from './revision.js';
@@ -461,6 +462,36 @@ function contarPalabras() {
   $('#e-palabras').textContent = `${numero(t.split(/\s+/).filter(Boolean).length)} palabras`;
 }
 function siguienteNota(t) { const ns = [...t.matchAll(/\[\^(\d+)\]/g)].map((m) => +m[1]); return ns.length ? Math.max(...ns) + 1 : 1; }
+// Foto, mapa o gráfico en el interior: subir o elegir una imagen del libro, con pie, fuente y tamaño.
+function dialogoFoto(sel = '') {
+  const v = S.editor; const { from, to } = v.state.selection.main;
+  const ya = S.arbol.map((e) => e.path).filter((p) => p.startsWith(rutaLibro('')) && /\.(jpe?g|png|svg|gif|webp)$/i.test(p) && !/\/tapa\//.test(p)).map((p) => p.slice(rutaLibro('').length));
+  const d = dialogo(`<h2>Imagen en el texto</h2>
+    <div class="subida"><button type="button" class="btn prim" id="fo-subir">${I.subir}Subir una foto, mapa o gráfico</button><span class="sutil" id="fo-elegida">${ya.length ? `o elegí una de las ${ya.length} del libro:` : ''}</span></div>
+    ${ya.length ? `<select class="entrada" id="fo-lista"><option value="">—</option>${ya.map((p) => `<option>${esc(p)}</option>`).join('')}</select>` : ''}
+    <div class="grilla">
+      <label class="campo ancho"><span>Pie (texto debajo de la imagen)</span><input class="entrada" id="fo-pie" value="${esc(sel)}" placeholder="Ej.: Migrantes cruzando el río Bravo, 2023"></label>
+      <label class="campo"><span>Fuente o crédito</span><input class="entrada" id="fo-fuente" placeholder="Ej.: ACNUR / Foto: Ana Pérez"></label>
+      <label class="campo"><span>Qué es</span><select class="entrada" id="fo-tipo"><option value="foto">Foto</option><option value="mapa">Mapa</option><option value="grafico">Gráfico</option><option value="ilustracion">Ilustración</option></select></label>
+      <label class="campo ancho"><span>Tamaño y lugar</span><select class="entrada" id="fo-tam">
+        <option value="ancho=50%">Chica, media caja</option><option value="ancho=80%" selected>Mediana</option><option value="ancho=100%">Todo el ancho del texto</option>
+        <option value="pagina=completa">Página completa (dentro de los márgenes)</option><option value="sangrado=si">Página a sangre (sin márgenes)</option><option value="apaisado=si">Apaisada (girada, ocupa una página)</option></select></label>
+    </div>
+    <p class="sutil" style="margin:0">Para imprimir conviene que la foto tenga al menos 1.800 px de ancho (300 ppp en 15 cm).</p>`, [['Cancelar'], ['Insertar', 'prim']]);
+  let ruta = null;
+  $('#fo-subir', d).onclick = async () => { const r = await subirFoto('imagenes'); if (r) { ruta = r; $('#fo-elegida', d).textContent = 'Subida: ' + r; } };
+  const lista = $('#fo-lista', d); if (lista) lista.onchange = () => { ruta = lista.value || null; };
+  d.addEventListener('close', () => {
+    if (d.returnValue !== '1') return;
+    if (!ruta) return toast('Elegí o subí una imagen.');
+    const tipo = $('#fo-tipo', d).value, fuente = $('#fo-fuente', d).value.trim().replace(/"/g, "'");
+    const attrs = [tipo !== 'foto' ? '.' + tipo : '', $('#fo-tam', d).value, fuente ? `fuente="${fuente}"` : ''].filter(Boolean).join(' ');
+    const md = `![${$('#fo-pie', d).value.trim()}](${ruta}){${attrs}}`;
+    const antes = from > 0 && v.state.sliceDoc(from - 1, from) !== '\n' ? '\n\n' : '';
+    v.dispatch({ changes: { from, to, insert: antes + md + '\n\n' } });
+    programarPrevia(300);
+  });
+}
 function insertar(tipo) {
   const v = S.editor; if (!S.actual) return;
   if (tipo === 'buscar') { openSearchPanel(v); return; }
@@ -479,7 +510,7 @@ function insertar(tipo) {
     case 'epigrafe': bloque(`::: epigrafe\n\n${sel || 'Primer verso\\\nsegundo verso\\\nAutor'}\n\n:::`); break;
     case 'recuadro': bloque(`::: recuadro\n\n${sel || 'Texto del recuadro.'}\n\n:::`); break;
     case 'leyenda': bloque(`::: leyenda\n\n${sel || 'Fuente: …'}\n\n:::`); break;
-    case 'foto': bloque(`![${sel || 'Pie de foto'}](imagenes/archivo.jpg){ancho=80%}`); break;
+    case 'foto': dialogoFoto(sel); return;
     case 'mapa': bloque(`![${sel || 'Título del mapa'}](mapas/archivo.svg){.mapa fuente="Elaboración propia"}`); break;
     case 'tabla': bloque('::: tabla\n\n| Columna | Columna |\n|---|---|\n| dato | dato |\n\n:::'); break;
   }
@@ -958,8 +989,11 @@ function pintarTapa() {
       ${[['contratapa', 'Contratapa'], ['solapa_delantera', 'Solapa delantera'], ['solapa_trasera', 'Solapa trasera']].filter(([k]) => t[k]).map(([k, n]) => `<label class="campo" style="margin-top:12px"><span>${n}</span><textarea class="entrada texto-tapa" rows="${k === 'contratapa' ? 7 : 5}" data-texto="${esc(t[k])}">${esc(S.textos.get(t[k]) || '')}</textarea></label>`).join('')}
       <small class="sutil" style="margin:6px 0 0">Markdown: *cursiva*, **negrita**. Un renglón en blanco separa párrafos.</small>
     </div>
+    <div class="grupo"><h3>Imagen con IA <small class="sutil">para la tapa, la contratapa o envolvente</small></h3>
+      <div id="ia-tapa"></div>
+    </div>
     <div class="grupo"><h3>Fotos de fondo</h3><div class="grilla">
-      ${['imagen:Foto de tapa (a sangre)', 'imagen_contratapa:Foto de contratapa', 'foto_autor:Foto del autor (solapa)'].map((x) => { const [k, n] = x.split(':'); return `<div class="campo ancho"><span>${n}</span><div class="subida"><input class="entrada" data-c="tapa.${k}" value="${esc(t[k] || '')}" placeholder="sin foto"><button type="button" class="btn chico" data-subir="${k}">${I.subir}Subir</button>${t[k] ? `<button type="button" class="btn chico" data-sacar="${k}">Quitar</button>` : ''}</div></div>`; }).join('')}
+      ${['imagen:Foto de tapa (a sangre)', 'imagen_envolvente:Imagen envolvente (contratapa + lomo + tapa)', 'imagen_contratapa:Foto de contratapa', 'foto_autor:Foto del autor (solapa)'].map((x) => { const [k, n] = x.split(':'); return `<div class="campo ancho"><span>${n}</span><div class="subida"><input class="entrada" data-c="tapa.${k}" value="${esc(t[k] || '')}" placeholder="sin foto"><button type="button" class="btn chico" data-subir="${k}">${I.subir}Subir</button>${t[k] ? `<button type="button" class="btn chico" data-sacar="${k}">Quitar</button>` : ''}</div></div>`; }).join('')}
     </div></div>
     <div class="grupo"><h3>Solapas</h3><div class="grilla">
       ${opciones('tapa.foto_autor_forma', 'Foto del autor', [['rectangular', 'Rectangular'], ['redonda', 'Redonda']])}
@@ -1020,6 +1054,7 @@ function pintarTapa() {
   const bd = $('#b-desarmar', f); if (bd) bd.onclick = desarmarDiseno;
   $('#b-el-foto').onclick = async () => { const ruta = await subirFoto(); if (ruta) agregarElemento({ tipo: 'foto', cara: 'tapa', archivo: ruta, x: 12, y: 55, ancho: 76, alto: 30, ajuste: 'cover' }); };
   pintarElementos();
+  pintarIaTapa();
   const isbnInp = $('[data-c="libro.isbn"]', f);
   const verIsbn = () => { const r = revisarIsbn(isbnInp.value); $('#isbn-estado').innerHTML = r ? `<div class="aviso ${r.ok ? 'bien' : 'mal'}">${esc(r.texto)}</div>` : ''; };
   isbnInp.addEventListener('input', verIsbn); verIsbn();
@@ -1057,6 +1092,86 @@ function revisarIsbn(v) {
   const c = ctl13(d);
   return +d[12] === c ? { ok: true, texto: 'ISBN válido. El código de barras se genera solo.' } : { ok: false, texto: `El último dígito debería ser ${c}, no ${d[12]}. Revisalo con la constancia de la Agencia ISBN.` };
 }
+/* ── imagen de tapa con IA ── */
+let iaTapaRes = [];
+function medidasTapa(encuadre) {
+  const g = geometriaTapa();
+  if (encuadre === 'envolvente') return { ancho: 2 * g.W + (S.lomoTapa || 15) + 2 * g.sg, alto: g.H + 2 * g.sg };
+  return { ancho: g.W + 2 * g.sg, alto: g.H + 2 * g.sg };
+}
+function pintarIaTapa() {
+  const caja = $('#ia-tapa'); if (!caja) return;
+  const t = S.cfg.tapa || {}, L = S.cfg.libro || {};
+  const c = S.iaTapa ||= { idea: `${L.titulo || ''}${L.subtitulo ? ': ' + L.subtitulo : ''}`, estilo: 'documental', encuadre: 'tapa', extra: '' };
+  const m = medidasTapa(c.encuadre);
+  const px = (mm) => Math.round(mm / 25.4 * 300);
+  const prompt = armarPrompt({ ...c, colores: [t.fondo, t.color_acento].filter(Boolean), ancho: m.ancho, alto: m.alto });
+  caja.innerHTML = `
+    <label class="campo"><span>Idea: qué tiene que mostrar (en castellano, como se lo contarías a un fotógrafo)</span><textarea class="entrada" rows="3" id="it-idea">${esc(c.idea)}</textarea></label>
+    <div class="grilla" style="margin-top:10px">
+      <label class="campo"><span>Estilo</span><select class="entrada" id="it-estilo">${Object.keys(ESTILOS_IMAGEN).map((k) => `<option value="${k}" ${k === c.estilo ? 'selected' : ''}>${{ documental: 'Foto documental', cinematografica: 'Foto cinematográfica', ilustracion: 'Ilustración editorial', acuarela: 'Acuarela', grabado: 'Grabado', collage: 'Collage', minimalista: 'Conceptual minimalista', abstracta: 'Abstracta geométrica' }[k]}</option>`).join('')}</select></label>
+      <label class="campo"><span>Para dónde</span><select class="entrada" id="it-encuadre">${Object.entries(ENCUADRES).map(([k, x]) => `<option value="${k}" ${k === c.encuadre ? 'selected' : ''}>${x.nombre}</option>`).join('')}</select></label>
+    </div>
+    <div class="esquema-ia">
+      <div><b>${m.ancho.toFixed(0)} × ${m.alto.toFixed(0)} mm</b><span>con 3 mm de sangrado</span></div>
+      <div><b>${px(m.ancho)} × ${px(m.alto)} px</b><span>lo ideal para imprimir (300 ppp)</span></div>
+      <div><b>Sin letras</b><span>los textos los pone el taller</span></div>
+    </div>
+    <details class="prompt-ia"><summary>Ver y editar el prompt</summary><textarea class="entrada" rows="6" id="it-prompt">${esc(prompt)}</textarea>
+      <label class="campo" style="margin-top:8px"><span>Algo más para agregar (en inglés o castellano)</span><input class="entrada" id="it-extra" value="${esc(c.extra)}" placeholder="Ej.: dusk light, a river, a long line of people walking"></label></details>
+    <div class="acciones" style="margin-top:10px">
+      <button type="button" class="btn prim chico" id="it-poll">Generar gratis (Pollinations)</button>
+      <button type="button" class="btn chico" id="it-gem" ${S.conf.gemini ? '' : 'disabled title="Activá Gemini en Texto → Asistente"'}>Generar con Gemini</button>
+      <button type="button" class="btn chico" id="it-copiar">Copiar prompt</button>
+      <a class="btn chico fant" href="https://chatgpt.com/" target="_blank" rel="noopener">Abrir ChatGPT</a>
+      <a class="btn chico fant" href="https://gemini.google.com/app" target="_blank" rel="noopener">Abrir Gemini</a>
+      <button type="button" class="btn chico fant" id="it-subir">${I.subir}Subir una hecha afuera</button>
+    </div>
+    <div id="it-res" class="ia-res"></div>`;
+  const leerC = () => { c.idea = $('#it-idea').value; c.estilo = $('#it-estilo').value; c.encuadre = $('#it-encuadre').value; c.extra = $('#it-extra').value; };
+  const rehacer = () => { leerC(); pintarIaTapa(); };
+  ['#it-estilo', '#it-encuadre'].forEach((q) => ($(q).onchange = rehacer));
+  $('#it-idea').onchange = rehacer; $('#it-extra').onchange = rehacer;
+  $('#it-copiar').onclick = () => { navigator.clipboard?.writeText($('#it-prompt').value); toast('Prompt copiado. Pegalo en ChatGPT o Gemini y pedí la imagen en la proporción indicada.'); };
+  $('#it-subir').onclick = async () => { const r = await subirFoto('tapa'); if (r) usarImagenIa(r, c.encuadre); };
+  const generar = async (con) => {
+    leerC();
+    const pr = $('#it-prompt').value; const med = medidasTapa(c.encuadre);
+    const res = $('#it-res');
+    const cant = con === 'gemini' ? 1 : 2;
+    for (let i = 0; i < cant; i++) {
+      res.insertAdjacentHTML('afterbegin', `<div class="ia-img cargando"><span class="spin"></span><small>${con === 'gemini' ? 'Gemini' : 'Pollinations'} está pintando…${i ? ' (la segunda tarda un poco más)' : ''}</small></div>`);
+      try {
+        if (i) await new Promise((ok) => setTimeout(ok, 16000));
+        const r = con === 'gemini' ? await generarGemini(pr, S.conf.gemini, med) : await generarPollinations(pr, med);
+        iaTapaRes.unshift({ ...r, url: URL.createObjectURL(r.blob), encuadre: c.encuadre });
+      } catch (e) { toast(e.message); }
+      mostrarIaTapa();
+    }
+  };
+  $('#it-poll').onclick = () => generar('pollinations');
+  $('#it-gem').onclick = () => generar('gemini');
+  mostrarIaTapa();
+}
+function mostrarIaTapa() {
+  const res = $('#it-res'); if (!res) return;
+  res.innerHTML = iaTapaRes.slice(0, 8).map((x, i) => `<div class="ia-img"><img src="${x.url}" alt=""><small>${esc(x.origen)}</small>
+    <div class="respuesta-acc"><button type="button" class="btn chico prim-suave" data-usar="${i}">Usar ${x.encuadre === 'envolvente' ? 'envolvente' : x.encuadre === 'contratapa' ? 'en contratapa' : 'en la tapa'}</button><a class="btn chico" href="${x.url}" download="tapa-ia-${i + 1}.png">${I.bajar}</a></div></div>`).join('');
+  $$('[data-usar]', res).forEach((b) => (b.onclick = async () => {
+    const x = iaTapaRes[+b.dataset.usar];
+    const archivo = new File([x.blob], `tapa-ia.${/png/.test(x.blob.type) ? 'png' : 'jpg'}`, { type: x.blob.type || 'image/jpeg' });
+    const r = await subirFoto('tapa', archivo); if (r) usarImagenIa(r, x.encuadre);
+  }));
+}
+function usarImagenIa(ruta, encuadre) {
+  const clave = encuadre === 'envolvente' ? 'imagen_envolvente' : encuadre === 'contratapa' ? 'imagen_contratapa' : 'imagen';
+  const cambios = { tapa: { [clave]: ruta } };
+  if (clave === 'imagen' && !['foto', 'libre'].includes(S.cfg.tapa?.estilo)) cambios.tapa.estilo = 'foto';
+  aplicarCambiosConfig(cambios);
+  toast('Imagen puesta. Guardá para que quede en GitHub.');
+  const f = $('#f-tapa'); const sc = f?.scrollTop; pintarTapa(); if (sc != null) $('#f-tapa').scrollTop = sc;
+}
+
 /* ── textos y fotos libres en la tapa (tapa/elementos.json) ── */
 const CARAS = [['tapa', 'Tapa'], ['contratapa', 'Contratapa'], ['lomo', 'Lomo'], ['solapa-del', 'Solapa delantera'], ['solapa-tras', 'Solapa trasera']];
 function elementosTapa() {
@@ -1162,13 +1277,12 @@ function pintarElementos(abierto = -1) {
   $$('[data-cambiar]', caja).forEach((b) => (b.onclick = async () => { const r = await subirFoto(); if (r) cambiar(+b.dataset.cambiar, 'archivo', r), pintarElementos(+b.dataset.cambiar); }));
 }
 // Elige una foto, la achica si hace falta y la sube a GitHub (libros/<libro>/tapa/).
-function subirFoto() {
+function subirFoto(carpeta = 'tapa', archivoDado = null) {
   return new Promise((listo) => {
     const inp = h('<input type="file" accept="image/jpeg,image/png,image/webp,image/heic" hidden>');
     document.body.append(inp);
-    inp.onchange = async () => {
-      inp.remove();
-      const f = inp.files[0]; if (!f) return listo(null);
+    const procesar = async (f) => {
+      if (!f) return listo(null);
       try {
         toast('Preparando la foto…');
         let bytes = new Uint8Array(await f.arrayBuffer());
@@ -1183,15 +1297,17 @@ function subirFoto() {
         }
         if (Math.min(bmp.width, bmp.height) < 1200) toast('Ojo: la foto es chica para imprimir; puede verse pixelada.');
         const nombre = f.name.replace(/\.[^.]+$/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'foto';
-        const rel = `tapa/${nombre}-${Date.now().toString(36).slice(-4)}.${ext}`;
+        const rel = `${carpeta}/${nombre}-${Date.now().toString(36).slice(-4)}.${ext}`;
         toast('Subiendo la foto a GitHub…');
-        await S.gh.guardar(rutaLibro(rel), bytes, `Taller: foto de tapa ${rel}`);
+        await S.gh.guardar(rutaLibro(rel), bytes, `Taller: imagen ${rel}`);
         S.arbol.push({ path: rutaLibro(rel) });
         await cargarBinarios({ [base() + rel]: bytes });
         toast('Foto subida.');
         listo(rel);
       } catch (e) { toast('No pude subir la foto: ' + e.message); listo(null); }
     };
+    if (archivoDado) { inp.remove(); procesar(archivoDado); return; }
+    inp.onchange = () => { inp.remove(); procesar(inp.files[0]); };
     inp.click();
   });
 }

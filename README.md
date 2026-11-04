@@ -160,6 +160,21 @@ En la pestaña Texto, el panel **Citas** busca la fuente de lo que marques en el
 
 La referencia sale en APA 7, Chicago o ISO 690 y se inserta como **nota al pie** (y, si se quiere, también en la bibliografía del capítulo). «Buscar enlaces para las notas» revisa las notas que no tienen link ni DOI, busca la obra que citan y propone agregar el enlace.
 
+## Imágenes
+
+- **En el interior**: el botón «Foto» del editor abre una ventana para subir una foto, mapa o gráfico (va a `imagenes/` en GitHub) o elegir una que ya esté en el libro, con pie, fuente o crédito, y tamaño: chica, mediana, todo el ancho, página completa, a sangre o apaisada.
+- **En la tapa**: foto de tapa, **imagen envolvente** (una sola imagen para contratapa, lomo y tapa), foto de contratapa y foto del autor.
+
+### Imagen de tapa con IA
+
+En Tapa → «Imagen con IA» se describe la idea en castellano, se elige el estilo (foto documental, cinematográfica, ilustración, acuarela, grabado, collage, conceptual, abstracta) y para dónde es (tapa, envolvente o fondo de contratapa). El taller arma un **prompt** preciso con las medidas reales del libro (con sangrado), la proporción, la zona libre para el título y el lomo, la paleta de la tapa y la orden de **no poner letras** (los textos los compone el taller, en calidad de imprenta). Muestra también los píxeles necesarios para imprimir a 300 ppp.
+
+- **Generar gratis (Pollinations)**: sin clave, una imagen cada unos 15 segundos.
+- **Generar con Gemini**: usa la clave de Gemini, pero la API de Google cobra la generación de imágenes (no entra en el plan gratuito).
+- **Copiar prompt** y abrir **ChatGPT** o **Gemini**: se genera allá y se sube con «Subir una hecha afuera».
+
+Cada resultado se usa con un clic en la tapa, la contratapa o como envolvente.
+
 ## Libro: la compaginación completa
 
 La pestaña **Libro** arma el libro entero con lo último que escribiste y lo muestra de un vistazo: la **tapa completa** arriba y después **todas las páginas en pliegos** (la 1 sola a la derecha, después 2-3, 4-5…), con el comienzo de cada capítulo marcado, las páginas en blanco señaladas y los **pliegos de 16** separados (avisa cuántas páginas faltan para cerrar el último). Los capítulos de arriba llevan directo a su página, y un clic en cualquier página la abre grande, con flechas para pasar.

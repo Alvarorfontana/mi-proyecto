@@ -56,6 +56,14 @@
 #let ext-der = if solapa > 0mm { pliegue } else { sangre }
 
 // ── imagen de tapa (opcional, a sangre) ──
+// imagen envolvente: una sola imagen que cubre contratapa, lomo y tapa (las solapas quedan con el fondo)
+#if _ti("imagen_envolvente", "") != "" and not solo-tapa {
+  let ext-izq = if solapa > 0mm { pliegue } else { sangre }
+  place(top + left, dx: x-contra - ext-izq, dy: 0pt, image(RAIZ + _ti("imagen_envolvente", ""), width: 2 * W + lomo + ext-izq + ext-der, height: alto-total, fit: "cover"))
+} else if _ti("imagen_envolvente", "") != "" {
+  // en la miniatura se ve la mitad derecha (la tapa)
+  place(top + left, dx: -W - lomo, dy: oy, image(RAIZ + _ti("imagen_envolvente", ""), width: 2 * W + lomo + ext-der, height: alto-total, fit: "cover"))
+}
 #if _ti("imagen", "") != "" {
   place(top + left, dx: x-tapa + ox, dy: oy, image(RAIZ + _ti("imagen", ""), width: W + ext-der, height: alto-total, fit: "cover"))
 }

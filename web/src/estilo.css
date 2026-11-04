@@ -450,3 +450,16 @@ dialog h3 { font: 600 13px var(--marca); margin: 0 0 8px; color: var(--tinta); }
 .lb-pag.blanca::after { content: 'blanca'; position: absolute; inset: 0; display: grid; place-items: center; font: 600 10px var(--ui); letter-spacing: .1em; text-transform: uppercase; color: #b0b7bf; }
 .lb-modal .cuerpo { display: grid; place-items: center; }
 .lb-dos.grande canvas { box-shadow: 0 8px 20px -10px rgba(0,0,0,.4); }
+/* imagen con IA */
+.esquema-ia { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+.esquema-ia div { background: var(--blanco); border: 1px solid var(--filete-suave); border-radius: var(--radio-chico); padding: 7px 9px; display: grid; }
+.esquema-ia b { font: 700 13px var(--marca); }
+.esquema-ia span { font-size: 11px; color: var(--tinta-suave); }
+.prompt-ia { margin-top: 10px; }
+.prompt-ia summary { cursor: pointer; font-size: 12.5px; color: var(--tinta-suave); }
+.prompt-ia textarea { margin-top: 6px; font: 12px/1.5 var(--mono); }
+.ia-res { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
+.ia-img { background: var(--blanco); border: 1px solid var(--filete); border-radius: var(--radio-chico); padding: 6px; display: grid; gap: 5px; }
+.ia-img img { width: 100%; border-radius: 3px; display: block; }
+.ia-img small { font-size: 11px; color: var(--tinta-suave); }
+.ia-img.cargando { min-height: 160px; place-items: center; text-align: center; }
