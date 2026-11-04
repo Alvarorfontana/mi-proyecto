@@ -276,3 +276,34 @@ dialog .pie { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 
   .indice { display: none; }
   .grilla { grid-template-columns: 1fr; }
 }
+
+/* revisión */
+.marca-rev { text-decoration: underline wavy; text-decoration-skip-ink: none; text-underline-offset: 3px; text-decoration-thickness: 1.3px; }
+.marca-orto { text-decoration-color: #D7263D; }
+.marca-gram { text-decoration-color: #2F6FDB; }
+.marca-estilo { text-decoration-color: #D99A1E; }
+.rev-lista { display: grid; gap: 8px; }
+.rev-cuenta { font-size: 12.5px; color: var(--tinta-suave); display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.rev-item { background: var(--blanco); border-radius: var(--radio); padding: 11px 13px; box-shadow: var(--sombra-hoja); display: grid; gap: 7px; }
+.rev-msg { font-size: 13px; font-weight: 600; display: flex; align-items: baseline; gap: 6px; }
+.rev-msg small { margin-left: auto; font-weight: 500; color: var(--tinta-suave); font-size: 11px; }
+.rev-ctx { font: 14px/1.55 "Source Serif 4", Georgia, serif; color: var(--tinta-suave); cursor: pointer; }
+.rev-ctx mark { background: #FFE9A8; color: var(--tinta); padding: 0 1px; border-radius: 2px; }
+.punto-orto, .punto-gram, .punto-estilo { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+.punto-orto { background: #D7263D; } .punto-gram { background: #2F6FDB; } .punto-estilo { background: #D99A1E; }
+.btn.prim-suave { border-color: #9BC3A8; background: #EEF6F0; }
+
+/* galerías de diseños */
+.sutil { font-weight: 500; color: var(--tinta-suave); font-size: 11.5px; margin-left: 6px; letter-spacing: 0; text-transform: none; }
+.est-tapa .mini-real, .est-tapa .mini-pag { display: grid; place-items: center; color: var(--tinta-suave); }
+.est-tapa .mini-pag { background: #fff; box-shadow: inset 0 0 0 1px var(--filete-suave); }
+.est-tapa .mini-real > svg, .est-tapa .mini-pag > svg { display: block; width: 100%; height: auto; align-self: start; }
+.est-tapa .mini-real:has(svg), .est-tapa .mini-pag:has(svg) { display: block; }
+.est-tapa:hover { border-color: var(--tinta-suave); }
+.galeria-int { grid-template-columns: repeat(4, 1fr); }
+.paletas { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.paleta { border: 1px solid var(--filete); background: var(--blanco); border-radius: var(--radio-chico); padding: 5px; cursor: pointer; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 0; overflow: hidden; }
+.paleta span { height: 22px; }
+.paleta span:first-child { border-radius: 3px 0 0 3px; } .paleta span:nth-child(4) { border-radius: 0 3px 3px 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+.paleta em { grid-column: 1 / -1; font-style: normal; font-size: 10.5px; color: var(--tinta-suave); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.paleta:hover { border-color: var(--tinta-suave); }

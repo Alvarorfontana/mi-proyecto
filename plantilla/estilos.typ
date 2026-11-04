@@ -50,7 +50,10 @@
   cornisa_par: _e.at("cornisa_par", default: "autor"),
   cornisa_impar: _e.at("cornisa_impar", default: "capitulo"),
   folio: _e.at("folio", default: "abajo-afuera"),
-  acento: rgb(_e.at("color_acento", default: "#000000")),
+  acento: rgb(_in("color_acento", _e.at("color_acento", default: "#000000"))),
+  // diseño de la apertura de capítulo: clasica | centrada | numero | filete | banda | novela
+  apertura: _in("apertura", _e.at("apertura", default: "clasica")),
+  secciones_color: _in("secciones_color", if _e.at("secciones_color", default: false) { "true" } else { "false" }) == "true",
 )
 #let LIB = _cfg.libro
 #let FORMATO = _formato
@@ -404,27 +407,85 @@
   show figure: set block(above: 1.4em, below: 1.4em)
   show quote.where(block: true): it => cita(it.body)
 
-  // Capítulo
+  // Capítulo — seis diseños de apertura (algunos adaptados de ilm, Orange Book y Wonderous Book, MIT-0)
   show heading.where(level: 1): it => {
     let t = plano(it.body)
     let partes = t.split(" — ")
     let titulo = partes.at(0)
     let sub = if partes.len() > 1 { partes.slice(1).join(" — ") } else { none }
+    let numerado = it.numbering != none
+    let n = context counter(heading).display("1")
+    let ap = ESTILO.apertura
     set par(justify: false, first-line-indent: 0pt)
     set text(hyphenate: false)
-    block(width: 100%, above: 0pt, below: 0pt)[
-      #v(FORMATO.alto * 0.11)
-      #if it.numbering != none {
-        text(font: TIPO.apoyo, size: 8.5pt, tracking: 0.25em, weight: "medium", fill: ESTILO.acento)[CAPÍTULO #context counter(heading).display("1")]
-        v(1em)
-      }
-      #text(font: TIPO.titulos, size: TIPO.cuerpo * 2.05, weight: "semibold", top-edge: "cap-height")[#titulo]
-      #if sub != none {
-        v(0.9em)
-        text(font: TIPO.titulos, size: TIPO.cuerpo * 1.25, style: "italic")[#sub]
-      }
-      #v(TIPO.interlineado * 3)
-    ]
+    let cierre-espacio = v(TIPO.interlineado * 3)
+    if ap == "centrada" {
+      block(width: 100%, above: 0pt, below: 0pt, align(center)[
+        #v(FORMATO.alto * 0.14)
+        #if numerado { text(font: TIPO.titulos, size: TIPO.cuerpo * 1.1, style: "italic", fill: ESTILO.acento)[Capítulo #n]; v(1.1em) }
+        #text(font: TIPO.titulos, size: TIPO.cuerpo * 2.1, weight: "regular", tracking: 0.02em)[#titulo]
+        #if sub != none { v(0.8em); block(width: 80%, text(font: TIPO.titulos, size: TIPO.cuerpo * 1.15, style: "italic")[#sub]) }
+        #v(1.2em)
+        #box(width: 1.6em, line(length: 100%, stroke: 0.6pt + ESTILO.acento))
+        #cierre-espacio
+      ])
+    } else if ap == "numero" {
+      block(width: 100%, above: 0pt, below: 0pt)[
+        #v(FORMATO.alto * 0.06)
+        #if numerado { text(font: TIPO.titulos, size: TIPO.cuerpo * 7, weight: "bold", fill: ESTILO.acento, top-edge: "cap-height", bottom-edge: "baseline")[#n]; v(1.2em) } else { v(TIPO.cuerpo * 3) }
+        #text(font: TIPO.titulos, size: TIPO.cuerpo * 2.2, weight: "bold", top-edge: "cap-height")[#titulo]
+        #if sub != none { v(0.8em); text(font: TIPO.titulos, size: TIPO.cuerpo * 1.2)[#sub] }
+        #cierre-espacio
+      ]
+    } else if ap == "filete" {
+      block(width: 100%, above: 0pt, below: 0pt)[
+        #v(FORMATO.alto * 0.09)
+        #line(length: 100%, stroke: 2.2pt + ESTILO.acento)
+        #v(0.7em)
+        #grid(columns: (auto, 1fr), column-gutter: 1em,
+          if numerado { text(font: TIPO.apoyo, size: TIPO.cuerpo * 1.6, weight: "bold", fill: ESTILO.acento)[#n] },
+          {
+            text(font: TIPO.titulos, size: TIPO.cuerpo * 1.9, weight: "semibold", top-edge: "cap-height")[#titulo]
+            if sub != none { v(0.6em); text(font: TIPO.titulos, size: TIPO.cuerpo * 1.1, style: "italic")[#sub] }
+          })
+        #v(0.6em)
+        #line(length: 100%, stroke: 0.4pt + luma(120))
+        #cierre-espacio
+      ]
+    } else if ap == "banda" {
+      // inspirado en Orange Book: banda de color a sangre con el título en una caja
+      block(width: 100%, above: 0pt, below: 0pt)[
+        #place(top + left, dx: -FORMATO.interior - 3mm, dy: -FORMATO.superior - 3mm,
+          rect(width: FORMATO.ancho + 6mm, height: FORMATO.alto * 0.30 + FORMATO.superior + 3mm, fill: ESTILO.acento.lighten(15%), stroke: none))
+        #v(FORMATO.alto * 0.19)
+        #block(fill: white, inset: (x: 1em, y: 0.7em), radius: 3pt, stroke: 0.6pt + ESTILO.acento,
+          text(font: TIPO.apoyo, size: TIPO.cuerpo * 1.55, weight: "bold")[#if numerado [#n. ]#titulo])
+        #if sub != none { v(1.4em); text(font: TIPO.titulos, size: TIPO.cuerpo * 1.15, style: "italic")[#sub] }
+        #cierre-espacio
+      ]
+    } else if ap == "novela" {
+      // inspirado en Wonderous Book: título sobrio, sin número visible
+      block(width: 100%, above: 0pt, below: 0pt)[
+        #v(FORMATO.alto * 0.16)
+        #text(font: TIPO.titulos, size: TIPO.cuerpo * 1.9, weight: "bold")[#titulo]
+        #if sub != none { v(0.5em); text(font: TIPO.titulos, size: TIPO.cuerpo * 1.05, style: "italic")[#sub] }
+        #v(TIPO.interlineado * 2)
+      ]
+    } else {
+      block(width: 100%, above: 0pt, below: 0pt)[
+        #v(FORMATO.alto * 0.11)
+        #if numerado {
+          text(font: TIPO.apoyo, size: 8.5pt, tracking: 0.25em, weight: "medium", fill: ESTILO.acento)[CAPÍTULO #n]
+          v(1em)
+        }
+        #text(font: TIPO.titulos, size: TIPO.cuerpo * 2.05, weight: "semibold", top-edge: "cap-height")[#titulo]
+        #if sub != none {
+          v(0.9em)
+          text(font: TIPO.titulos, size: TIPO.cuerpo * 1.25, style: "italic")[#sub]
+        }
+        #cierre-espacio
+      ]
+    }
   }
   // Sección
   show heading.where(level: 2): it => {
@@ -432,7 +493,7 @@
     set text(hyphenate: false)
     block(above: TIPO.interlineado * 1.8, below: TIPO.interlineado * 0.9, sticky: true)[
       #set text(font: TIPO.titulos, size: TIPO.cuerpo * 1.08, weight: "semibold")
-      #if it.numbering != none and ESTILO.numerar [#context counter(heading).display("1.1")#h(0.6em)]#it.body
+      #if it.numbering != none and ESTILO.numerar [#text(fill: if ESTILO.secciones_color { ESTILO.acento } else { black })[#context counter(heading).display("1.1")]#h(0.6em)]#it.body
     ]
   }
   // Subsección

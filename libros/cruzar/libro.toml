@@ -49,6 +49,8 @@ cornisa_par              = "autor"     # autor | titulo | capitulo | nada
 cornisa_impar            = "capitulo"
 folio                    = "abajo-afuera"  # abajo-afuera | abajo-centro | arriba-afuera
 color_acento             = "#000000"
+apertura                 = "clasica"   # clasica | centrada | numero | filete | banda | novela
+secciones_color          = false     # números de sección en el color de acento
 indice_analitico         = true
 colofon                  = true
 
@@ -198,7 +200,10 @@ indice      = "inicio"   # inicio | final | no
 
 # ── Tapa ─────────────────────────────────────────────────────
 [tapa]
-estilo         = "clasica"   # clasica | editorial | tipografica
+estilo         = "clasica"   # clasica | editorial | tipografica | minimalista | coleccion | dos-tintas | marco | cruce | centrada | foto | suiza | generativa
+color_secundario = "#8a6420" # segundo color (Cruce, Foto, Generativa)
+coleccion      = ""          # nombre de la colección (diseño Colección)
+numero         = ""
 fuente_titulo  = "EB Garamond"
 papel          = "obra-80"   # ver plantilla/presets.toml → [papeles]
 cartulina_mm   = 0.6         # suma de las dos tapas al lomo

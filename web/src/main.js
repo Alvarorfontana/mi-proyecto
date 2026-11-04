@@ -12,8 +12,9 @@ import { GitHub } from './github.js';
 import { convertir, primerTitulo } from './md2typ.js';
 import { principal, nombreTyp, lomoMm, contarPaginasPdf } from './armado.js';
 import { tomlSet, tomlContenido } from './toml.js';
+import { campoMarcas, fijarMarcas, quitarMarca, listarMarcas, revisarLanguageTool, PEDIDO_REVISION, marcasDesdeIA, ortografiaNavegador } from './revision.js';
 import { iniciarMotor, cargarTextos, cargarBinarios, yaCargado, compilar, aSvg } from './motor.js';
-import { MODELOS, ACCIONES, preguntar } from './ia.js';
+import { MODELOS, MODELOS_GEMINI, PROVEEDORES, ACCIONES, preguntar, modelosGemini } from './ia.js';
 
 /* ═════════ utilidades ═════════ */
 const $ = (s, r = document) => r.querySelector(s);
@@ -196,6 +197,7 @@ function armarApp() {
           <div class="cab">
             <div class="segmento" role="group">
               <button data-lado="paginas" aria-pressed="true">Páginas</button>
+              <button data-lado="revision" aria-pressed="false">Revisión</button>
               <button data-lado="asistente" aria-pressed="false">Asistente</button>
             </div>
             <span class="info" id="p-info"></span>
@@ -205,6 +207,7 @@ function armarApp() {
             </div>
           </div>
           <div class="mesa" id="mesa"><div class="vacio"><h3>Las páginas aparecen acá</h3>Elegí un capítulo del índice.</div></div>
+          <div class="asistente" id="revision" hidden></div>
           <div class="asistente" id="asistente" hidden></div>
         </section>
       </section>
@@ -244,9 +247,11 @@ function verLado(l) {
   $$('[data-lado]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lado === l)));
   $('#mesa').hidden = l !== 'paginas';
   $('#asistente').hidden = l !== 'asistente';
+  $('#revision').hidden = l !== 'revision';
   $('#p-der').style.visibility = l === 'paginas' ? 'visible' : 'hidden';
   $('#p-info').style.visibility = l === 'paginas' ? 'visible' : 'hidden';
   if (l === 'asistente') pintarAsistente();
+  if (l === 'revision') pintarRevision();
 }
 
 /* ═════════ libro ═════════ */
@@ -393,6 +398,7 @@ function extensionesEditor() {
   return [
     history(), drawSelection(), highlightActiveLine(), highlightSelectionMatches(),
     EditorView.lineWrapping, markdown(), syntaxHighlighting(resaltado),
+    campoMarcas, ...(S.conf.ortografia === false ? [] : [ortografiaNavegador]),
     EditorState.phrases.of({ 'Find': 'Buscar', 'Replace': 'Reemplazar', 'next': 'siguiente', 'previous': 'anterior', 'all': 'todos', 'match case': 'mayúsculas', 'by word': 'palabra entera', 'replace': 'reemplazar', 'replace all': 'reemplazar todos', 'close': 'cerrar', 'regexp': 'expresión regular' }),
     keymap.of([
       { key: 'Mod-i', run: () => { insertar('cursiva'); return true; } },
@@ -400,6 +406,7 @@ function extensionesEditor() {
       ...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab,
     ]),
     EditorView.updateListener.of((u) => {
+      if (u.docChanged && S.vista === 'revision') programarListaRevision();
       if (!u.docChanged || !S.actual) return;
       S.textos.set(S.actual, u.state.doc.toString());
       marcarEstado(); contarPalabras();
@@ -419,6 +426,7 @@ function abrirTexto(archivo) {
   $('#mesa').scrollTop = 0;
   programarPrevia(0);
   if (S.vista === 'asistente') pintarAsistente();
+  if (S.vista === 'revision') pintarRevision();
 }
 function contarPalabras() {
   const t = S.textos.get(S.actual) || '';
@@ -640,6 +648,9 @@ function pintarEstilos() {
   <div class="form" id="f-estilos">
     <h2>Estilos del libro</h2>
     <p>Los cambios se ven en las páginas de la derecha y se guardan en GitHub con el botón Guardar.</p>
+    <div class="grupo"><h3>Diseño del interior <small class="sutil">${DISENOS_INTERIOR.length} modelos · un clic aplica letras, medidas y apertura</small></h3>
+      <div class="estilos-tapa galeria-int" role="radiogroup">${DISENOS_INTERIOR.map((d) => `<button type="button" class="est-tapa est-int" data-int="${d.id}" title="${esc(d.nota)}"><span class="mini mini-pag" data-mini-int="${d.id}"><span class="spin"></span></span><span>${d.nombre}</span></button>`).join('')}</div>
+    </div>
     <div class="grupo"><h3>Datos del libro</h3><div class="grilla">
       ${campo('libro.titulo', 'Título', 'text', 'ancho')}${campo('libro.subtitulo', 'Subtítulo', 'text', 'ancho')}
       ${campo('libro.autor', 'Autor')}${campo('libro.editorial', 'Editorial')}
@@ -663,8 +674,10 @@ function pintarEstilos() {
       ${opciones('estilo.cornisa_par', 'Cornisa en página par', [['autor', 'Autor'], ['titulo', 'Título del libro'], ['capitulo', 'Capítulo'], ['nada', 'Nada']])}
       ${opciones('estilo.cornisa_impar', 'Cornisa en página impar', [['capitulo', 'Capítulo'], ['titulo', 'Título del libro'], ['autor', 'Autor'], ['nada', 'Nada']])}
       ${opciones('estilo.folio', 'Número de página', [['abajo-afuera', 'Abajo, hacia afuera'], ['abajo-centro', 'Abajo, al centro']])}
+      ${opciones('estilo.apertura', 'Apertura de capítulo', APERTURAS)}
       ${campo('estilo.color_acento', 'Color de acento', 'color')}
       <div class="ancho">
+        ${campo('estilo.secciones_color', 'Números de sección en el color de acento', 'check')}
         ${campo('estilo.capitulo_en_impar', 'Cada capítulo empieza en página impar', 'check')}
         ${campo('estilo.numerar_secciones', 'Numerar secciones (1.1, 1.2…)', 'check')}
         ${campo('estilo.notas_por_capitulo', 'Las notas vuelven a 1 en cada capítulo', 'check')}
@@ -688,36 +701,117 @@ function pintarEstilos() {
     aplicarZoom(m); $('#pe-info').textContent = $('#p-info').textContent;
   };
   $('#b-guardar-estilos').onclick = () => { if (aplicar()) guardarTodo(); };
+  marcarDisenoInterior();
+  $$('.est-int', f).forEach((b) => (b.onclick = () => {
+    const d = DISENOS_INTERIOR.find((x) => x.id === b.dataset.int);
+    const cambios = { tipografia: { fuente: d.fuente, fuente_titulos: d.fuente_titulos, fuente_apoyo: d.fuente_apoyo, cuerpo: d.cuerpo, interlineado: d.interlineado }, estilo: { apertura: d.apertura, color_acento: d.color_acento, secciones_color: d.secciones_color } };
+    try { aplicarCambiosConfig(cambios); } catch (e) { return toast(e.message); }
+    toast(`Diseño «${d.nombre}» aplicado. Guardá para que quede en GitHub.`);
+    const scroll = f.scrollTop; pintarEstilos(); $('#f-estilos').scrollTop = scroll; $('#b-ver-estilos').click();
+  }));
+  miniaturasInterior();
+}
+function marcarDisenoInterior() {
+  const t = S.cfg.tipografia || {}, e = S.cfg.estilo || {};
+  $$('.est-int').forEach((b) => {
+    const d = DISENOS_INTERIOR.find((x) => x.id === b.dataset.int);
+    const igual = d.fuente === (t.fuente || 'EB Garamond') && d.fuente_titulos === (t.fuente_titulos || t.fuente) && d.apertura === (e.apertura || 'clasica');
+    b.setAttribute('aria-checked', String(igual));
+  });
+}
+// Miniaturas reales del interior: la primera página de un capítulo de muestra con cada diseño.
+async function miniaturasInterior() {
+  const n = ++seqInterior;
+  await cargarTextos({ [base() + '_muestra/main.typ']: MUESTRA_INTERIOR });
+  const fmt = S.presets.formatos[S.cfg.formato?.preset];
+  for (const d of DISENOS_INTERIOR) {
+    const caja = $(`[data-mini-int="${d.id}"]`); if (!caja || n !== seqInterior) return;
+    if (fmt) caja.style.aspectRatio = `${parseFloat(fmt.ancho)} / ${parseFloat(fmt.alto)}`;
+    try {
+      const r = await compilar(base() + '_muestra/main.typ', { libro: S.slug, vista: 'si', fuente: d.fuente, fuente_titulos: d.fuente_titulos, fuente_apoyo: d.fuente_apoyo, cuerpo: d.cuerpo, interlineado: d.interlineado, apertura: d.apertura, color_acento: d.color_acento, secciones_color: String(d.secciones_color) });
+      if (n !== seqInterior) return;
+      caja.innerHTML = r.ok ? await aSvg(r.bytes) : '<small>error</small>';
+    } catch { caja.innerHTML = '<small>—</small>'; }
+  }
 }
 
 /* ═════════ tapa ═════════ */
+const DISENOS_INTERIOR = [
+  { id: 'clasico', nombre: 'Clásico', nota: 'Garamond, número arriba y título a la izquierda.', fuente: 'EB Garamond', fuente_titulos: 'EB Garamond', fuente_apoyo: 'Inter', cuerpo: '12pt', interlineado: '16.5pt', apertura: 'clasica', color_acento: '#000000', secciones_color: false },
+  { id: 'literario', nombre: 'Literario', nota: 'Crimson y Cormorant, apertura centrada con versalitas.', fuente: 'Crimson Pro', fuente_titulos: 'Cormorant', fuente_apoyo: 'Inter', cuerpo: '12pt', interlineado: '16.5pt', apertura: 'centrada', color_acento: '#8A2B22', secciones_color: false },
+  { id: 'ensayo', nombre: 'Ensayo moderno', nota: 'Source Serif con filete de color y apoyo en Inter.', fuente: 'Source Serif 4', fuente_titulos: 'Inter', fuente_apoyo: 'Inter', cuerpo: '11pt', interlineado: '15pt', apertura: 'filete', color_acento: '#1F5F8B', secciones_color: true },
+  { id: 'academico', nombre: 'Académico', nota: 'Libertinus compacto, ideal para muchas notas.', fuente: 'Libertinus Serif', fuente_titulos: 'Libertinus Serif', fuente_apoyo: 'Inter', cuerpo: '11pt', interlineado: '14.5pt', apertura: 'clasica', color_acento: '#000000', secciones_color: false },
+  { id: 'periodistico', nombre: 'Periodístico', nota: 'Merriweather y Fraunces, número gigante de color.', fuente: 'Merriweather', fuente_titulos: 'Fraunces', fuente_apoyo: 'Inter', cuerpo: '10.5pt', interlineado: '15pt', apertura: 'numero', color_acento: '#C2410C', secciones_color: true },
+  { id: 'contemporaneo', nombre: 'Contemporáneo', nota: 'Lora y Playfair, número grande y aire.', fuente: 'Lora', fuente_titulos: 'Playfair Display', fuente_apoyo: 'Inter', cuerpo: '11pt', interlineado: '15.5pt', apertura: 'numero', color_acento: '#0F766E', secciones_color: false },
+  { id: 'manual', nombre: 'Manual', nota: 'Banda de color a sangre, al estilo Orange Book.', fuente: 'Source Serif 4', fuente_titulos: 'Inter', fuente_apoyo: 'Inter', cuerpo: '11pt', interlineado: '15pt', apertura: 'banda', color_acento: '#E07B00', secciones_color: true },
+  { id: 'novela', nombre: 'Novela', nota: 'Título en negrita sin número, al estilo Wonderous.', fuente: 'EB Garamond', fuente_titulos: 'EB Garamond', fuente_apoyo: 'EB Garamond', cuerpo: '12pt', interlineado: '16.5pt', apertura: 'novela', color_acento: '#000000', secciones_color: false },
+];
+const APERTURAS = [['clasica', 'Clásica'], ['centrada', 'Centrada'], ['numero', 'Número grande'], ['filete', 'Filete de color'], ['banda', 'Banda a sangre'], ['novela', 'Novela (sin número)']];
+const MUESTRA_INTERIOR = `#import "/plantilla/estilos.typ": *
+#show: libro
+#counter(heading).update(2)
+#modo.update("cuerpo")
+#apertura(impar: false)
+= Rutas del sur
+La frontera no es una línea: es un lugar donde se espera. Hay quien espera días, hay quien espera años, y hay quien ya no sabe qué espera. En el borde de cada país se acumulan historias que nadie escribe.
+
+Durante la última década, los movimientos de población en América Latina cambiaron de escala y de dirección. Lo que antes era una migración de norte a sur se volvió una red de rutas cruzadas.
+
+== Entre dos orillas
+Las cifras ayudan a entender la magnitud, pero no alcanzan. Detrás de cada número hay una decisión tomada a la fuerza, una despedida y un camino que nadie eligió del todo.
+#cierre()
+`;
+let seqInterior = 0;
 const ESTILOS_TAPA = [
   ['clasica', 'Clásica', 'Título sobre una línea que cruza la tapa, el lomo y la contratapa.'],
-  ['editorial', 'Editorial', 'Barra superior, filete de color y autor en el color de acento.'],
+  ['editorial', 'Editorial', 'Filete de color, título grande y autor en el color de acento.'],
   ['tipografica', 'Tipográfica', 'El título ocupa la tapa; bloque de color abajo.'],
+  ['minimalista', 'Minimalista', 'Mucho aire: título chico y un punto de color.'],
+  ['coleccion', 'Colección', 'Franja de color con el sello y el número de la colección.'],
+  ['dos-tintas', 'Dos tintas', 'Mitad de color, mitad fondo; el título apoyado en el corte.'],
+  ['marco', 'Marco', 'Doble filete y composición centrada, de libro de biblioteca.'],
+  ['cruce', 'Cruce', 'Dos franjas diagonales que se cruzan.'],
+  ['centrada', 'Centrada', 'Todo al centro, título grande y un filete.'],
+  ['foto', 'Foto', 'Imagen a sangre con el título abajo sobre una sombra (sin foto, un degradé).'],
+  ['suiza', 'Suiza', 'Grilla, barra vertical de color y título en palo seco muy negro.'],
+  ['generativa', 'Generativa', 'Arte geométrico creado a partir de las letras del título (10PRINT).'],
 ];
+const PALETAS_TAPA = [
+  ['Noche y oro', '#1d2a33', '#f4efe6', '#d9a441', '#8a6420'],
+  ['Papel y tinta', '#f3eee4', '#1b1b1b', '#b8322a', '#6b1d18'],
+  ['Mar', '#0f3b4c', '#eef4f2', '#5cc2b3', '#1f7a7a'],
+  ['Terracota', '#efe3d3', '#2b211c', '#c2562e', '#7a3018'],
+  ['Bosque', '#1f3326', '#f1efe4', '#c9a94d', '#6d8a4f'],
+  ['Rojo editorial', '#a3201d', '#fbf4ea', '#f2c14e', '#5e0f0d'],
+  ['Pizarra', '#2e3238', '#f2f2ef', '#e46a3c', '#8c3a1d'],
+  ['Lavanda', '#e8e3f1', '#231f33', '#5b3fa8', '#b29be0'],
+  ['Arena', '#e9dfc9', '#2a2a2a', '#2f5d8a', '#93a9c0'],
+  ['Negro total', '#111111', '#ffffff', '#ffffff', '#555555'],
+];
+let seqMinis = 0;
 function pintarTapa() {
   const v = $('#v-tapa');
   const t = S.cfg.tapa || {};
   const estilo = t.estilo || 'clasica';
-  const fondo = t.fondo || '#1d2a33', acento = t.color_acento || '#d9a441', tinta = t.color_texto || '#f4efe6';
-  const mini = (k) => ({
-    clasica: `<i style="position:absolute;left:12%;right:0;top:56%;height:1px;background:${acento}"></i><i style="position:absolute;left:12%;top:40%;width:55%;height:9%;background:${tinta};opacity:.9"></i>`,
-    editorial: `<i style="position:absolute;left:12%;top:36%;width:14%;height:2px;background:${acento}"></i><i style="position:absolute;left:12%;top:43%;width:58%;height:8%;background:${tinta};opacity:.9"></i><i style="position:absolute;left:12%;top:66%;width:30%;height:3%;background:${acento}"></i>`,
-    tipografica: `<i style="position:absolute;left:10%;top:10%;width:80%;height:16%;background:${tinta};opacity:.95"></i><i style="position:absolute;left:0;right:0;bottom:0;height:20%;background:${acento}"></i>`,
-  }[k]);
   v.innerHTML = `
   <div class="form" id="f-tapa">
     <h2>Tapa</h2>
-    <p>El lomo se calcula con las páginas del último armado y el papel elegido. Confirmá el espesor con la imprenta.</p>
-    <div class="grupo"><h3>Diseño</h3>
-      <div class="estilos-tapa" role="radiogroup">${ESTILOS_TAPA.map(([k, n, d]) => `<button type="button" class="est-tapa" role="radio" aria-checked="${k === estilo}" data-est="${k}" title="${esc(d)}"><span class="mini" style="background:${fondo}">${mini(k)}</span><span>${n}</span></button>`).join('')}</div>
+    <p>Elegí un diseño y una paleta; después ajustá a mano. El lomo se calcula con las páginas del último armado y el papel elegido.</p>
+    <div class="grupo"><h3>Diseño <small class="sutil">${ESTILOS_TAPA.length} modelos · las miniaturas son tu tapa real</small></h3>
+      <div class="estilos-tapa galeria" role="radiogroup">${ESTILOS_TAPA.map(([k, n, d]) => `<button type="button" class="est-tapa" role="radio" aria-checked="${k === estilo}" data-est="${k}" title="${esc(d)}"><span class="mini mini-real" data-mini="${k}"><span class="spin"></span></span><span>${n}</span></button>`).join('')}</div>
+    </div>
+    <div class="grupo"><h3>Colores</h3>
+      <div class="paletas">${PALETAS_TAPA.map(([n, f, tx, ac, se], i) => `<button type="button" class="paleta" data-pal="${i}" title="${esc(n)}"><span style="background:${f}"></span><span style="background:${ac}"></span><span style="background:${se}"></span><span style="background:${tx}"></span><em>${esc(n)}</em></button>`).join('')}</div>
       <div class="grilla" style="margin-top:14px">
-        <div class="campo ancho"><span>Letra del título de tapa</span>${selectorLetra('tapa.fuente_titulo', S.cfg.libro?.titulo || 'Título')}</div>
         ${campo('tapa.fondo', 'Fondo', 'color')}${campo('tapa.color_texto', 'Texto', 'color')}
-        ${campo('tapa.color_acento', 'Acento', 'color')}${campo('tapa.imagen', 'Imagen de tapa (ruta en el repo)')}
+        ${campo('tapa.color_acento', 'Acento', 'color')}${campo('tapa.color_secundario', 'Segundo color', 'color')}
       </div>
     </div>
+    <div class="grupo"><h3>Título e imagen</h3><div class="grilla">
+        <div class="campo ancho"><span>Letra del título de tapa</span>${selectorLetra('tapa.fuente_titulo', S.cfg.libro?.titulo || 'Título')}</div>
+        ${campo('tapa.imagen', 'Imagen de tapa (ruta en el repo)', 'text', 'ancho')}
+        ${campo('tapa.coleccion', 'Colección (diseño Colección)')}${campo('tapa.numero', 'Número en la colección')}
+    </div></div>
     <div class="grupo"><h3>Papel y medidas</h3><div class="grilla">
       ${opciones('tapa.papel', 'Papel', Object.keys(S.presets.papeles).map((p) => [p, p]))}
       ${campo('tapa.cartulina_mm', 'Cartulina (mm al lomo)', 'number')}
@@ -732,14 +826,36 @@ function pintarTapa() {
   <section class="lado-der"><div class="cab"><span class="info" id="pt-info"></span><div class="der"><label class="check" style="font-size:12.5px"><input type="checkbox" id="c-guias" checked>Guías de corte y pliegue</label></div></div><div class="mesa" id="mesa-tapa"></div></section>`;
   const f = $('#f-tapa');
   const aplicar = () => { try { aplicarCambiosConfig(leerForm(f)); return true; } catch (e) { toast('Hay un valor inválido: ' + e.message); return false; } };
-  activarSelectoresLetra(f, () => { aplicar(); verTapa(); });
+  const todo = () => { verTapa().then(miniaturasTapa); };
+  activarSelectoresLetra(f, () => { aplicar(); todo(); });
   $$('.est-tapa', f).forEach((b) => (b.onclick = () => { $$('.est-tapa', f).forEach((x) => x.setAttribute('aria-checked', String(x === b))); $('[data-c="tapa.estilo"]', f).value = b.dataset.est; aplicar(); verTapa(); }));
-  $$('input, select', f).forEach((el) => el.addEventListener('change', () => { aplicar(); verTapa(); }));
+  $$('.paleta', f).forEach((b) => (b.onclick = () => {
+    const [, fo, tx, ac, se] = PALETAS_TAPA[+b.dataset.pal];
+    $('[data-c="tapa.fondo"]', f).value = fo; $('[data-c="tapa.color_texto"]', f).value = tx;
+    $('[data-c="tapa.color_acento"]', f).value = ac; $('[data-c="tapa.color_secundario"]', f).value = se;
+    if (aplicar()) todo();
+  }));
+  $$('input, select', f).forEach((el) => el.addEventListener('change', () => { if (aplicar()) todo(); }));
   $$('[data-abrir]', f).forEach((b) => (b.onclick = () => { abrirTexto(b.dataset.abrir); verPestana('texto'); }));
   $('#b-ver-tapa').onclick = () => { if (aplicar()) verTapa(); };
   $('#b-guardar-tapa').onclick = () => { if (aplicar()) guardarTodo(); };
   $('#c-guias').onchange = verTapa;
-  verTapa();
+  todo();
+}
+// Miniaturas reales: compila solo el frente de la tapa con cada diseño.
+async function miniaturasTapa() {
+  const n = ++seqMinis;
+  const ult = leer('taller.paginas.' + S.slug, null);
+  const paginas = String(ult?.paginas || estimarPaginas());
+  for (const [k] of ESTILOS_TAPA) {
+    const caja = $(`[data-mini="${k}"]`); if (!caja || n !== seqMinis) return;
+    try {
+      const r = await compilar('/plantilla/tapa.typ', { libro: S.slug, paginas, lomo: '20mm', solo_tapa: 'si', estilo_tapa: k });
+      if (n !== seqMinis) return;
+      if (!r.ok) { caja.innerHTML = '<small>error</small>'; continue; }
+      caja.innerHTML = await aSvg(r.bytes);
+    } catch { caja.innerHTML = '<small>—</small>'; }
+  }
 }
 async function prepararTapa(paginas) {
   const t = S.cfg.tapa || {};
@@ -756,6 +872,7 @@ async function prepararTapa(paginas) {
 }
 async function verTapa() {
   const m = $('#mesa-tapa'); if (!m) return;
+  const f = $('#f-tapa'); if (f) { const fmt = S.presets.formatos[S.cfg.formato?.preset]; const ar = fmt ? `${parseFloat(fmt.ancho)} / ${parseFloat(fmt.alto)}` : '2 / 3'; $$('.mini-real', f).forEach((x) => (x.style.aspectRatio = ar)); }
   const ult = leer('taller.paginas.' + S.slug, null);
   const paginas = ult?.paginas || estimarPaginas();
   m.innerHTML = '<div class="vacio"><span class="spin"></span></div>';
@@ -997,28 +1114,46 @@ async function simular() {
   finally { b.disabled = false; }
 }
 
-/* ═════════ asistente (Groq) ═════════ */
+/* ═════════ asistente (Groq o Gemini) ═════════ */
 let ultimaRespuesta = null;
+let listaGemini = null;
+const provActual = () => S.conf.proveedor || (S.conf.groq || !S.conf.gemini ? 'groq' : 'gemini');
+const claveIA = (p = provActual()) => S.conf[p] || '';
+function modelosDe(p) { return p === 'gemini' ? (listaGemini || MODELOS_GEMINI) : MODELOS; }
 function pintarAsistente() {
   const a = $('#asistente');
-  if (!S.conf.groq) {
-    a.innerHTML = `<div class="vacio" style="margin-top:30px"><h3>Asistente de edición</h3><p>Condensa, corrige y encuentra repeticiones en el texto que marques. Usa Groq, que tiene un plan gratuito.</p>
-      <ol class="pasos" style="text-align:left;margin:14px 0"><li>Entrá a <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> y creá una clave.</li><li>Pegala acá. Queda guardada solo en este navegador.</li></ol>
-      <input class="entrada" id="i-groq" type="password" placeholder="gsk_…" style="margin-bottom:10px"><button class="btn prim" id="b-groq">Activar el asistente</button></div>`;
-    $('#b-groq').onclick = () => { const k = $('#i-groq').value.trim(); if (!k) return; S.conf.groq = k; escribir('taller.conf', S.conf); pintarAsistente(); };
+  const p = provActual();
+  const selProv = `<div class="segmento" role="group" style="align-self:flex-start">${Object.entries(PROVEEDORES).map(([k, x]) => `<button aria-pressed="${k === p}" data-prov="${k}">${x.nombre}${S.conf[k] ? '' : ' ·'}</button>`).join('')}</div>`;
+  const enlazarProv = () => $$('[data-prov]', a).forEach((b) => (b.onclick = () => { S.conf.proveedor = b.dataset.prov; escribir('taller.conf', S.conf); pintarAsistente(); }));
+  if (!claveIA(p)) {
+    const P = PROVEEDORES[p];
+    a.innerHTML = `<div class="vacio" style="margin-top:22px"><h3>Asistente de edición</h3><p>Condensa, corrige y encuentra repeticiones en el texto que marques. Groq y Gemini tienen plan gratuito: podés activar uno o los dos.</p>
+      ${selProv}
+      <ol class="pasos" style="text-align:left;margin:14px 0"><li>Entrá a <a href="${P.claves}" target="_blank" rel="noopener">${P.claves.replace('https://', '')}</a> y creá una clave${p === 'gemini' ? ' («Create API key»)' : ''}.</li><li>Pegala acá. Queda guardada solo en este navegador.</li></ol>
+      <input class="entrada" id="i-clave-ia" type="password" placeholder="${P.pista}" style="margin-bottom:10px"><button class="btn prim" id="b-clave-ia">Activar ${P.nombre}</button></div>`;
+    enlazarProv();
+    $('#b-clave-ia').onclick = () => { const k = $('#i-clave-ia').value.trim(); if (!k) return; S.conf[p] = k; S.conf.proveedor = p; escribir('taller.conf', S.conf); pintarAsistente(); };
     return;
   }
-  a.innerHTML = `
+  if (p === 'gemini' && !listaGemini) modelosGemini(claveIA('gemini')).then((l) => { listaGemini = l; if (S.vista === 'asistente' && provActual() === 'gemini') pintarAsistente(); });
+  const mods = modelosDe(p);
+  const elegido = S.conf['modelo_' + p] || (p === 'groq' ? S.conf.modelo : '') || mods[0].id;
+  a.innerHTML = `${selProv}
     <div class="nota">Marcá un fragmento en el editor y elegí qué hacer. Sin selección, trabaja sobre todo el capítulo.</div>
     <div class="acciones">${Object.entries(ACCIONES).map(([k, x]) => `<button class="btn chico" data-ia="${k}">${x.nombre}</button>`).join('')}</div>
     <label class="campo"><span>O pedile otra cosa</span><textarea class="entrada" id="ia-pedido" rows="2" placeholder="Por ejemplo: ¿qué partes de este capítulo repiten lo que ya dice el capítulo anterior?"></textarea></label>
     <div style="display:flex;gap:8px;align-items:center"><button class="btn" id="b-ia-pedir">Preguntar</button>
-      <select class="entrada" id="ia-modelo" style="width:auto;height:30px;font-size:12.5px">${MODELOS.map((m) => `<option value="${m.id}" ${m.id === (S.conf.modelo || MODELOS[0].id) ? 'selected' : ''}>${m.nombre}</option>`).join('')}</select></div>
+      <select class="entrada" id="ia-modelo" style="width:auto;max-width:210px;height:30px;font-size:12.5px">${mods.map((m) => `<option value="${m.id}" ${m.id === elegido ? 'selected' : ''}>${m.nombre}</option>`).join('')}${mods.some((m) => m.id === elegido) ? '' : `<option value="${esc(elegido)}" selected>${esc(elegido)}</option>`}</select></div>
     <div id="ia-out"></div>`;
-  $('#ia-modelo').onchange = (e) => { S.conf.modelo = e.target.value; escribir('taller.conf', S.conf); };
+  enlazarProv();
+  $('#ia-modelo').onchange = (e) => { S.conf['modelo_' + p] = e.target.value; escribir('taller.conf', S.conf); };
   $$('[data-ia]', a).forEach((b) => (b.onclick = () => consultar(b.dataset.ia)));
-  $('#b-ia-pedir').onclick = () => { const p = $('#ia-pedido').value.trim(); if (p) consultar(null, p); };
+  $('#b-ia-pedir').onclick = () => { const q = $('#ia-pedido').value.trim(); if (q) consultar(null, q); };
   if (ultimaRespuesta) mostrarRespuesta(ultimaRespuesta);
+}
+function opcionesIA() {
+  const p = provActual();
+  return { proveedor: p, clave: claveIA(p), modelo: S.conf['modelo_' + p] || (p === 'groq' ? S.conf.modelo : '') || modelosDe(p)[0].id };
 }
 async function consultar(accion, pedido) {
   const v = S.editor; const { from, to } = v.state.selection.main;
@@ -1027,7 +1162,7 @@ async function consultar(accion, pedido) {
   if (texto.length > 60000) return toast('El capítulo es muy largo para una sola consulta: marcá una parte.');
   const out = $('#ia-out'); out.innerHTML = '<div class="nota"><span class="spin"></span> Pensando…</div>';
   try {
-    const r = await preguntar({ clave: S.conf.groq, modelo: S.conf.modelo, accion, texto, pedido });
+    const r = await preguntar({ ...opcionesIA(), accion, texto, pedido });
     ultimaRespuesta = { r, accion, from, to, conSel, archivo: S.actual };
     mostrarRespuesta(ultimaRespuesta);
   } catch (e) { out.innerHTML = `<div class="error">${esc(e.message)}</div>`; }
@@ -1047,6 +1182,93 @@ function mostrarRespuesta(x) {
     v.dispatch({ changes: { from, to, insert: x.r }, selection: { anchor: from, head: from + x.r.length } });
     ultimaRespuesta = null; toast('Reemplazado. Podés deshacer con Ctrl+Z.'); pintarAsistente();
   };
+}
+
+/* ═════════ revisión: ortografía, gramática y estilo ═════════ */
+const TIPOS_REV = { orto: 'Ortografía', gram: 'Gramática y puntuación', estilo: 'Estilo' };
+let tListaRev;
+function programarListaRevision() { clearTimeout(tListaRev); tListaRev = setTimeout(pintarListaRevision, 300); }
+function pintarRevision() {
+  const a = $('#revision');
+  const hayIA = !!claveIA();
+  a.innerHTML = `
+    <div class="nota">Revisá el capítulo abierto. Las palabras dudosas quedan subrayadas en el editor; acá abajo elegís la corrección. Con un fragmento marcado, revisa solo ese fragmento.</div>
+    <div class="acciones">
+      <button class="btn prim chico" id="rev-lt">Revisar con LanguageTool</button>
+      <button class="btn chico" id="rev-ia" ${hayIA ? '' : 'disabled title="Activá Gemini o Groq en la pestaña Asistente"'}>Revisar con ${PROVEEDORES[provActual()].nombre.replace(' (Google)', '')}</button>
+      <button class="btn chico" id="rev-limpiar">Limpiar marcas</button>
+    </div>
+    <label class="check" style="font-size:12.5px"><input type="checkbox" id="rev-orto" ${S.conf.ortografia === false ? '' : 'checked'}>Subrayado ortográfico del navegador mientras escribo</label>
+    <div id="rev-estado"></div>
+    <div id="rev-lista" class="rev-lista"></div>`;
+  $('#rev-lt').onclick = () => revisar('lt');
+  $('#rev-ia').onclick = () => revisar('ia');
+  $('#rev-limpiar').onclick = () => { S.editor.dispatch({ effects: fijarMarcas.of([]) }); pintarListaRevision(); };
+  $('#rev-orto').onchange = (e) => {
+    S.conf.ortografia = e.target.checked; escribir('taller.conf', S.conf);
+    const marcas = listarMarcas(S.editor.state), sel = S.editor.state.selection;
+    S.editor.setState(EditorState.create({ doc: S.editor.state.doc, selection: sel, extensions: extensionesEditor() }));
+    S.editor.dispatch({ effects: fijarMarcas.of(marcas) });
+  };
+  pintarListaRevision();
+}
+function zonaRevision() {
+  const v = S.editor; const { from, to } = v.state.selection.main;
+  return to > from ? { from, to, texto: v.state.sliceDoc(from, to) } : { from: 0, to: v.state.doc.length, texto: v.state.doc.toString() };
+}
+async function revisar(cual) {
+  if (!S.actual) return toast('Abrí un capítulo primero.');
+  const z = zonaRevision();
+  const est = $('#rev-estado');
+  const botones = $$('#revision .acciones button'); botones.forEach((b) => (b.disabled = true));
+  try {
+    let marcas;
+    if (cual === 'lt') {
+      marcas = await revisarLanguageTool(z.texto, { progreso: (i, n) => { est.innerHTML = `<div class="nota"><span class="spin"></span> Revisando… ${n > 1 ? `parte ${Math.min(i + 1, n)} de ${n}` : ''}</div>`; } });
+    } else {
+      // la IA trabaja mejor por tramos: de a ~6000 caracteres, cortando en párrafos
+      marcas = [];
+      const tramos = []; let ini = 0;
+      while (ini < z.texto.length) { let fin = Math.min(z.texto.length, ini + 6000); if (fin < z.texto.length) { const p = z.texto.lastIndexOf('\n\n', fin); if (p > ini + 1000) fin = p; } tramos.push([ini, fin]); ini = fin; }
+      for (let i = 0; i < tramos.length; i++) {
+        est.innerHTML = `<div class="nota"><span class="spin"></span> ${PROVEEDORES[provActual()].nombre} está leyendo… ${tramos.length > 1 ? `tramo ${i + 1} de ${tramos.length}` : ''}</div>`;
+        const [a, b] = tramos[i];
+        const r = await preguntar({ ...opcionesIA(), pedido: PEDIDO_REVISION, texto: z.texto.slice(a, b), accion: null });
+        marcas.push(...marcasDesdeIA(r, z.texto.slice(a, b), a));
+      }
+    }
+    marcas = marcas.map((m) => ({ ...m, from: m.from + z.from, to: m.to + z.from }));
+    const previas = listarMarcas(S.editor.state).filter((m) => m.to <= z.from || m.from >= z.to);
+    S.editor.dispatch({ effects: fijarMarcas.of([...previas, ...marcas]) });
+    est.innerHTML = marcas.length ? '' : '<div class="nota">No encontré nada para corregir.</div>';
+  } catch (e) { est.innerHTML = `<div class="error">${esc(e.message)}</div>`; }
+  finally { botones.forEach((b) => (b.disabled = false)); if (!claveIA()) $('#rev-ia').disabled = true; pintarListaRevision(); }
+}
+function contexto(doc, m) {
+  const a = Math.max(0, m.from - 40), b = Math.min(doc.length, m.to + 40);
+  return `${a > 0 ? '…' : ''}${esc(doc.sliceString(a, m.from))}<mark>${esc(doc.sliceString(m.from, m.to))}</mark>${esc(doc.sliceString(m.to, b))}${b < doc.length ? '…' : ''}`.replace(/\n+/g, ' ');
+}
+function pintarListaRevision() {
+  const caja = $('#rev-lista'); if (!caja) return;
+  const v = S.editor, marcas = listarMarcas(v.state);
+  if (!marcas.length) { caja.innerHTML = ''; return; }
+  const cuenta = Object.keys(TIPOS_REV).map((t) => [t, marcas.filter((m) => m.tipo === t).length]).filter(([, n]) => n);
+  caja.innerHTML = `<div class="rev-cuenta">${marcas.length} ${marcas.length === 1 ? 'observación' : 'observaciones'} · ${cuenta.map(([t, n]) => `<span class="punto-${t}"></span>${TIPOS_REV[t]} ${n}`).join(' · ')}</div>` +
+    marcas.map((m, i) => `<div class="rev-item" data-i="${i}">
+      <div class="rev-msg"><span class="punto-${m.tipo}"></span>${esc(m.mensaje)} <small>${esc(m.origen)}</small></div>
+      <div class="rev-ctx">${contexto(v.state.doc, m)}</div>
+      <div class="respuesta-acc">${m.sugerencias.map((s, k) => `<button class="btn chico prim-suave" data-s="${k}">${esc(s) || '<i>borrar</i>'}</button>`).join('')}<button class="btn chico" data-ign>Ignorar</button></div>
+    </div>`).join('');
+  $$('.rev-item', caja).forEach((el) => {
+    const m = marcas[+el.dataset.i];
+    el.querySelector('.rev-ctx').onclick = () => { v.dispatch({ selection: { anchor: m.from, head: m.to }, scrollIntoView: true }); v.focus(); };
+    $$('[data-s]', el).forEach((b) => (b.onclick = () => {
+      const actual = listarMarcas(v.state).find((x) => x.id === m.id); if (!actual) return pintarListaRevision();
+      v.dispatch({ changes: { from: actual.from, to: actual.to, insert: m.sugerencias[+b.dataset.s] }, effects: quitarMarca.of(m.id) });
+      pintarListaRevision();
+    }));
+    el.querySelector('[data-ign]').onclick = () => { v.dispatch({ effects: quitarMarca.of(m.id) }); pintarListaRevision(); };
+  });
 }
 
 /* ═════════ diálogos ═════════ */
@@ -1072,13 +1294,14 @@ function dialogoAjustes() {
     <label class="campo"><span>Repositorio</span><input class="entrada" id="a-repo" value="${esc(S.conf.repo)}"></label></div>
     <label class="campo"><span>Clave de GitHub</span><input class="entrada" id="a-token" type="password" value="${esc(S.conf.token)}"></label>
     <label class="campo"><span>Clave de Groq (asistente)</span><input class="entrada" id="a-groq" type="password" value="${esc(S.conf.groq || '')}" placeholder="gsk_…"><small>Se crea gratis en console.groq.com/keys.</small></label>
+    <label class="campo"><span>Clave de Gemini (asistente y revisión)</span><input class="entrada" id="a-gemini" type="password" value="${esc(S.conf.gemini || '')}" placeholder="AIza…"><small>Se crea gratis en aistudio.google.com/apikey.</small></label>
     <p style="margin:0;font-size:12.5px;color:var(--tinta-suave)">Las claves quedan guardadas solo en este navegador.</p>`,
   [['Cerrar sesión'], ['Cancelar'], ['Guardar', 'prim']]);
   d.addEventListener('close', async () => {
     if (d.returnValue === '0') { if (hayCambios() && !confirm('Hay cambios sin guardar. ¿Salir igual?')) return; try { localStorage.removeItem('taller.conf'); } catch {} location.reload(); }
     if (d.returnValue !== '2') return;
     const cambioRepo = $('#a-owner', d).value.trim() !== S.conf.owner || $('#a-repo', d).value.trim() !== S.conf.repo || $('#a-token', d).value.trim() !== S.conf.token;
-    Object.assign(S.conf, { owner: $('#a-owner', d).value.trim(), repo: $('#a-repo', d).value.trim(), token: $('#a-token', d).value.trim(), groq: $('#a-groq', d).value.trim() });
+    Object.assign(S.conf, { owner: $('#a-owner', d).value.trim(), repo: $('#a-repo', d).value.trim(), token: $('#a-token', d).value.trim(), groq: $('#a-groq', d).value.trim(), gemini: $('#a-gemini', d).value.trim() });
     escribir('taller.conf', S.conf);
     if (cambioRepo) location.reload(); else { toast('Ajustes guardados.'); if (S.vista === 'asistente') pintarAsistente(); }
   });

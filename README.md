@@ -115,6 +115,8 @@ Las fotos y mapas flotan arriba o abajo de la página más cercana para no dejar
 
 - **Formato**: `preset = "15x23"` (ver `plantilla/presets.toml`: 11×17, 13×20, 14×21, 15×23, 16×23, 17×24, A5, 6×9 in) o `ancho`/`alto` a mano. Márgenes interior, exterior, superior e inferior.
 - **Tipografía**: fuente de texto, de títulos y de apoyo; cuerpo, interlineado, notas, sangría, justificado, partición en castellano. Incluidas (licencia libre): EB Garamond, Source Serif 4, Libertinus Serif, Inter. Para sumar otra, copiá los `.otf`/`.ttf` a `fuentes/`.
+- **Diseños de interior** (pestaña Estilos de la web): Clásico, Literario, Ensayo moderno, Académico, Periodístico, Contemporáneo, Manual y Novela. Cada uno trae su combinación de letras, cuerpo, interlineado y apertura de capítulo; un clic los aplica y después se ajusta a mano.
+- **Apertura de capítulo** (`apertura`): `clasica`, `centrada`, `numero` (número gigante de color), `filete`, `banda` (banda de color a sangre, al estilo Orange Book) y `novela` (sin número, al estilo Wonderous). `secciones_color = true` pinta los números de sección con el color de acento. Ideas tomadas de plantillas libres de Typst (wonderous-book, ilm, Orange Book; licencia MIT-0).
 - **Estilo**: capítulos en página impar, numeración de secciones, notas que reinician por capítulo, qué va en cada cornisa, posición del folio, color de acento, índice analítico y colofón.
 - **Estructura**: el orden de `[[contenido]]` es el orden del libro. Tipos: `preliminar`, `parte`, `capitulo`, `interludio` (capítulo sin número dentro del cuerpo, como el de Francisco) y `final`. Para **fusionar o mover capítulos** se mueven o borran entradas; los números de capítulo, secciones y notas se recalculan.
 
@@ -124,7 +126,19 @@ Las fotos y mapas flotan arriba o abajo de la página más cercana para no dejar
 
 - `tapa.pdf` es el archivo para imprenta: solapa + contratapa + lomo + tapa + solapa, con 3 mm de sangrado.
 - `tapa-guias.pdf` muestra en colores el corte, los pliegues y la zona segura, con las medidas de cada panel. Es para revisar, no para mandar.
+- **Doce diseños** (`estilo`): `clasica`, `editorial`, `tipografica`, `minimalista`, `coleccion`, `dos-tintas`, `marco`, `cruce`, `centrada`, `foto`, `suiza` y `generativa` (arte geométrico creado con las letras del título, adaptado del generador 10PRINT de la NYPL, `mgiraldo/tenprintcover-py`, MIT). En la web cada diseño muestra una miniatura real de tu tapa, y hay diez paletas de color listas para aplicar.
+- Colores: `fondo`, `color_texto`, `color_acento` y `color_secundario`. Para el diseño Colección: `coleccion` y `numero`.
 - Sin solapas: `solapa = "0mm"`. Con foto: `imagen = "tapa/foto.jpg"`. Si cargás el ISBN, el código de barras EAN-13 se genera solo.
+
+## Corrección del texto
+
+En la pestaña Texto, el panel **Revisión** tiene tres correctores:
+
+- El subrayado ortográfico del navegador mientras escribís (se apaga con una casilla).
+- **LanguageTool** (gratis, sin clave): ortografía, gramática, puntuación y estilo. Subraya en rojo, azul o amarillo y propone la corrección; un clic la aplica.
+- **Revisión con IA** (Gemini o Groq): lee el capítulo como un corrector de estilo y devuelve observaciones con su sugerencia, en la misma lista.
+
+El panel **Asistente** usa Gemini (clave gratis en aistudio.google.com/apikey) o Groq (console.groq.com/keys) para condensar, corregir, mejorar la fluidez, buscar repeticiones, sugerir títulos o resumir. Las claves quedan guardadas solo en tu navegador.
 
 ## Un libro nuevo
 

@@ -1,4 +1,28 @@
-// Asistente de edición con Groq (API compatible con OpenAI, plan gratuito).
+// Asistente de edición: Groq o Gemini (las dos con API compatible con OpenAI y plan gratuito).
+export const PROVEEDORES = {
+  groq: { nombre: 'Groq', url: 'https://api.groq.com/openai/v1', claves: 'https://console.groq.com/keys', pista: 'gsk_…' },
+  gemini: { nombre: 'Gemini (Google)', url: 'https://generativelanguage.googleapis.com/v1beta/openai', claves: 'https://aistudio.google.com/apikey', pista: 'AIza…' },
+};
+// Gemini: la lista real se pide a Google con la clave; esta es la de respaldo.
+export const MODELOS_GEMINI = [
+  { id: 'gemini-2.5-flash', nombre: 'Gemini 2.5 Flash — rápido' },
+  { id: 'gemini-2.5-pro', nombre: 'Gemini 2.5 Pro — más preciso' },
+  { id: 'gemini-2.5-flash-lite', nombre: 'Gemini 2.5 Flash-Lite — instantáneo' },
+];
+export async function modelosGemini(clave) {
+  try {
+    const r = await fetch(PROVEEDORES.gemini.url + '/models', { headers: { Authorization: `Bearer ${clave}` } });
+    if (!r.ok) return MODELOS_GEMINI;
+    const j = await r.json();
+    const ids = (j.data || []).map((m) => String(m.id).replace(/^models\//, ''))
+      .filter((id) => /^gemini-/.test(id) && !/image|embed|tts|audio|live|vision|aqa|computer|robotics/i.test(id));
+    if (!ids.length) return MODELOS_GEMINI;
+    const peso = (id) => (/pro/.test(id) ? 0 : /lite/.test(id) ? 2 : 1) + (/preview|exp/.test(id) ? 0.5 : 0);
+    const ver = (id) => parseFloat((id.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] || 0);
+    ids.sort((a, b) => ver(b) - ver(a) || peso(a) - peso(b) || a.localeCompare(b));
+    return ids.slice(0, 12).map((id) => ({ id, nombre: id.replace(/^gemini-/, 'Gemini ').replace(/-/g, ' ') }));
+  } catch { return MODELOS_GEMINI; }
+}
 export const MODELOS = [
   { id: 'llama-3.3-70b-versatile', nombre: 'Llama 3.3 70B — equilibrado' },
   { id: 'openai/gpt-oss-120b', nombre: 'GPT-OSS 120B — más preciso' },
@@ -20,13 +44,15 @@ export const ACCIONES = {
   resumen: { nombre: 'Resumir', pide: 'Resumí este texto en un párrafo de no más de 120 palabras, útil para una solapa o una contratapa.', reemplaza: false },
 };
 
-export async function preguntar({ clave, modelo, accion, texto, pedido }) {
+export async function preguntar({ proveedor = 'groq', clave, modelo, accion, texto, pedido }) {
   const instr = accion ? ACCIONES[accion].pide : pedido;
-  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const P = PROVEEDORES[proveedor] || PROVEEDORES.groq;
+  const nom = proveedor === 'gemini' ? 'Gemini' : 'Groq';
+  const r = await fetch(P.url + '/chat/completions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${clave}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: modelo || MODELOS[0].id,
+      model: modelo || (proveedor === 'gemini' ? MODELOS_GEMINI[0].id : MODELOS[0].id),
       temperature: accion === 'corregir' ? 0.1 : 0.5,
       messages: [
         { role: 'system', content: SISTEMA },
@@ -37,11 +63,13 @@ export async function preguntar({ clave, modelo, accion, texto, pedido }) {
   if (!r.ok) {
     let msg = r.status;
     try { msg = (await r.json()).error?.message || msg; } catch {}
-    if (r.status === 401) throw new Error('Groq no acepta la clave. Revisala en Ajustes.');
-    if (r.status === 429) throw new Error('Groq pide esperar un momento (límite del plan gratuito).');
+    if (r.status === 401 || r.status === 403 || (r.status === 400 && /api key/i.test(String(msg)))) throw new Error(`${nom} no acepta la clave. Revisala en Ajustes.`);
+    if (r.status === 404) throw new Error(`${nom} no encuentra el modelo elegido. Probá con otro de la lista.`);
+    if (r.status === 429) throw new Error(`${nom} pide esperar un momento (límite del plan gratuito).`);
     if (r.status === 413 || /too large|context/i.test(String(msg))) throw new Error('El fragmento es muy largo para este modelo. Probá con una parte más corta.');
-    throw new Error('Groq respondió: ' + msg);
+    throw new Error(`${nom} respondió: ` + msg);
   }
   const j = await r.json();
+  if (Array.isArray(j)) return j[0]?.choices?.[0]?.message?.content?.trim() || '';
   return j.choices?.[0]?.message?.content?.trim() || '';
 }
