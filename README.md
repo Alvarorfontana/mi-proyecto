@@ -170,7 +170,6 @@ La referencia sale en APA 7, Chicago o ISO 690 y se inserta como **nota al pie**
 En Tapa → «Imagen con IA» se describe la idea en castellano, se elige el estilo (foto documental, cinematográfica, ilustración, acuarela, grabado, collage, conceptual, abstracta) y para dónde es (tapa, envolvente o fondo de contratapa). El taller arma un **prompt** preciso con las medidas reales del libro (con sangrado), la proporción, la zona libre para el título y el lomo, la paleta de la tapa y la orden de **no poner letras** (los textos los compone el taller, en calidad de imprenta). Muestra también los píxeles necesarios para imprimir a 300 ppp.
 
 - **Generar gratis (Pollinations)**: sin clave, una imagen cada unos 15 segundos.
-- **Generar con Gemini**: usa la clave de Gemini, pero la API de Google cobra la generación de imágenes (no entra en el plan gratuito).
 - **Copiar prompt** y abrir **ChatGPT** o **Gemini**: se genera allá y se sube con «Subir una hecha afuera».
 
 Cada resultado se usa con un clic en la tapa, la contratapa o como envolvente.

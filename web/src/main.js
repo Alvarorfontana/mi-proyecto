@@ -1121,7 +1121,6 @@ function pintarIaTapa() {
       <label class="campo" style="margin-top:8px"><span>Algo más para agregar (en inglés o castellano)</span><input class="entrada" id="it-extra" value="${esc(c.extra)}" placeholder="Ej.: dusk light, a river, a long line of people walking"></label></details>
     <div class="acciones" style="margin-top:10px">
       <button type="button" class="btn prim chico" id="it-poll">Generar gratis (Pollinations)</button>
-      <button type="button" class="btn chico" id="it-gem" ${S.conf.gemini ? '' : 'disabled title="Activá Gemini en Texto → Asistente"'}>Generar con Gemini</button>
       <button type="button" class="btn chico" id="it-copiar">Copiar prompt</button>
       <a class="btn chico fant" href="https://chatgpt.com/" target="_blank" rel="noopener">Abrir ChatGPT</a>
       <a class="btn chico fant" href="https://gemini.google.com/app" target="_blank" rel="noopener">Abrir Gemini</a>
@@ -1150,7 +1149,6 @@ function pintarIaTapa() {
     }
   };
   $('#it-poll').onclick = () => generar('pollinations');
-  $('#it-gem').onclick = () => generar('gemini');
   mostrarIaTapa();
 }
 function mostrarIaTapa() {
