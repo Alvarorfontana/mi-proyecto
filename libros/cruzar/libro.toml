@@ -213,6 +213,7 @@ pliegue_solapa = "3mm"       # margen extra que piden algunas imprentas en el do
 fondo          = "#1d2a33"
 color_texto    = "#f4efe6"
 color_acento   = "#d9a441"
+elementos      = ""          # textos y fotos agregados (los arma la web en tapa/elementos.json)
 imagen         = ""          # ej. "tapa/foto-tapa.jpg" (ocupa toda la tapa)
 imagen_contratapa = ""
 contratapa     = "tapa/contratapa.md"

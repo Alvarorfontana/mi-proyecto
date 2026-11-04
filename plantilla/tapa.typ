@@ -56,8 +56,8 @@
 #let ext-der = if solapa > 0mm { pliegue } else { sangre }
 
 // ── imagen de tapa (opcional, a sangre) ──
-#if T.at("imagen", default: "") != "" {
-  place(top + left, dx: x-tapa + ox, dy: oy, image(RAIZ + T.imagen, width: W + pliegue + solapa + sangre, height: alto-total, fit: "cover"))
+#if _ti("imagen", "") != "" {
+  place(top + left, dx: x-tapa + ox, dy: oy, image(RAIZ + _ti("imagen", ""), width: W + ext-der, height: alto-total, fit: "cover"))
 }
 #if T.at("imagen_contratapa", default: "") != "" and not solo-tapa {
   place(top + left, dx: 0pt, dy: 0pt, image(RAIZ + T.imagen_contratapa, width: x-lomo, height: alto-total, fit: "cover"))
@@ -72,18 +72,24 @@
 // ── TAPA ──
 // Once diseños. Ideas tomadas de tapas clásicas de colección, del estilo suizo
 // y del generador 10PRINT de la NYPL (mgiraldo/tenprintcover-py, licencia MIT).
-#let sub = LIB.at("subtitulo", default: "")
-#let ed = LIB.at("editorial", default: "")
+#let _mostrar(k) = _ti("mostrar_" + k, true) in (true, "true", "si")
+#let _o(k, d) = { let v = _ti(k, ""); if v == "" { d } else { v } }   // vacío = el del libro
+#let sub = if _mostrar("subtitulo") { _o("subtitulo", LIB.at("subtitulo", default: "")) } else { "" }
+#let ed = if _mostrar("editorial") { LIB.at("editorial", default: "") } else { "" }
+#let autor-t = if _mostrar("autor") { LIB.autor } else { "" }
 #let anio = str(LIB.at("anio", default: ""))
+// el título de tapa puede cortarse en líneas con «|»
+#let titulo-t = _o("titulo", LIB.titulo)
+#let titulo-c = titulo-t.split("|").map(x => x.trim()).join("\n")
 // tamaño del título según la palabra más larga, para que nunca desborde
 #let tam-titulo(ancho, maximo, factor: 1.55) = {
-  let largo = calc.max(..LIB.titulo.split(" ").map(p => p.clusters().len()), 1)
+  let largo = calc.max(..titulo-t.split(regex("[ |]")).map(p => p.clusters().len()), 1)
   calc.min(maximo, ancho / largo * factor)
 }
 #let titulo(tam, peso: "semibold", fill: tinta, tracking: 0em, estilo: "normal", fuente: fuente-tapa, alin: left) = {
   set par(justify: false, leading: 0.18em)
   set align(alin)
-  text(font: fuente, size: tam, weight: peso, style: estilo, hyphenate: false, tracking: tracking, top-edge: "cap-height", bottom-edge: "baseline", fill: fill)[#LIB.titulo]
+  text(font: fuente, size: tam, weight: peso, style: estilo, hyphenate: false, tracking: tracking, top-edge: "cap-height", bottom-edge: "baseline", fill: fill, titulo-c.split("\n").join(linebreak()))
 }
 #let bajada(tam, fill: tinta, ancho: 100%, alin: left, estilo: "italic", fuente: fuente-tapa) = if sub != "" {
   block(width: ancho, { set par(justify: false, leading: 0.45em); set align(alin); text(font: fuente, size: tam, style: estilo, hyphenate: false, fill: fill)[#sub] })
@@ -108,7 +114,7 @@
     v(12mm)
     line(length: 32mm, stroke: 0.5pt + tinta.transparentize(60%))
     v(6mm)
-    versal(LIB.autor, 9pt, fill: acento, tracking: 0.25em)
+    versal(autor-t, 9pt, fill: acento, tracking: 0.25em)
   }), {
     set text(font: TIPO.apoyo, size: 6.5pt, tracking: 0.08em, fill: tinta.transparentize(45%))
     grid(columns: (1fr, auto), LIB.at("edicion", default: ""), if LIB.at("isbn", default: "") != "" [ISBN #LIB.isbn])
@@ -120,7 +126,7 @@
     v(8mm)
     bajada(17pt)
   }))
-  en-tapa(14mm, H * 0.8 + 12mm, versal(LIB.autor, 10pt, fill: fondo, tracking: 0.25em, peso: "bold"))
+  en-tapa(14mm, H * 0.8 + 12mm, versal(autor-t, 10pt, fill: fondo, tracking: 0.25em, peso: "bold"))
   en-tapa(14mm, H - 14mm, versal(ed, 7pt, fill: fondo, tracking: 0.3em, peso: "regular"))
 } else if estilo-tapa == "minimalista" {
   // mucho aire: título chico en el tercio superior, un punto de color
@@ -131,7 +137,7 @@
     v(7mm)
     block(width: 70%, bajada(11pt, alin: center, fill: tinta.transparentize(20%)))
   })))
-  en-tapa(0pt, H - 30mm, block(width: W, align(center, versal(LIB.autor, 8pt, tracking: 0.35em, peso: "regular"))))
+  en-tapa(0pt, H - 30mm, block(width: W, align(center, versal(autor-t, 8pt, tracking: 0.35em, peso: "regular"))))
   en-tapa(0pt, H - 16mm, block(width: W, align(center, versal(ed, 6pt, tracking: 0.35em, peso: "regular", fill: tinta.transparentize(45%)))))
 } else if estilo-tapa == "coleccion" {
   // tapa de colección: franja de color arriba con sello y número, título en caja
@@ -141,7 +147,7 @@
     versal(if coleccion != "" { coleccion } else { ed }, 8pt, fill: fondo, peso: "bold"),
     if numero-col != "" { text(font: fuente-tapa, size: 26pt, weight: "bold", fill: fondo)[#numero-col] }
   )))
-  en-tapa(14mm, alto-f - 15mm, versal(LIB.autor, 10pt, fill: fondo, peso: "bold", tracking: 0.2em))
+  en-tapa(14mm, alto-f - 15mm, versal(autor-t, 10pt, fill: fondo, peso: "bold", tracking: 0.2em))
   en-tapa(14mm, alto-f + 16mm, block(width: W - 28mm, {
     titulo(tam-titulo(W - 28mm, 54pt), peso: "bold")
     v(7mm)
@@ -154,7 +160,7 @@
   // mitad de color, mitad fondo, con el título montado sobre el corte
   let corte = H * 0.52
   franja(0pt, corte, acento, arriba: true)
-  en-tapa(14mm, 16mm, versal(LIB.autor, 9pt, fill: fondo, peso: "bold"))
+  en-tapa(14mm, 16mm, versal(autor-t, 9pt, fill: fondo, peso: "bold"))
   en-tapa(14mm, 0pt, block(width: W - 28mm, height: corte + 0.5pt, align(bottom + left,
     titulo(tam-titulo(W - 28mm, 80pt, factor: 1.6), peso: "bold", fill: fondo, tracking: -0.01em))))
   en-tapa(14mm, corte + 10mm, block(width: W - 28mm, bajada(16pt, ancho: 90%)))
@@ -163,7 +169,7 @@
   // doble filete y composición centrada, de libro de biblioteca
   en-tapa(9mm, 9mm, rect(width: W - 18mm, height: H - 18mm, stroke: 1.4pt + acento))
   en-tapa(11.5mm, 11.5mm, rect(width: W - 23mm, height: H - 23mm, stroke: 0.5pt + acento))
-  en-tapa(0pt, 30mm, block(width: W, align(center, versal(LIB.autor, 9pt, fill: acento, tracking: 0.3em))))
+  en-tapa(0pt, 30mm, block(width: W, align(center, versal(autor-t, 9pt, fill: acento, tracking: 0.3em))))
   en-tapa(0pt, 0pt, block(width: W, height: H, align(center + horizon, {
     titulo(tam-titulo(W - 44mm, 52pt), peso: "regular", tracking: 0.06em, alin: center)
     v(8mm)
@@ -183,9 +189,9 @@
     box(fill: fondo, inset: (x: 3mm, y: 2.5mm), titulo(tam-titulo(W - 34mm, 60pt), peso: "bold"))
   }))
   en-tapa(14mm, H - 44mm, block(width: W * 0.72, box(fill: fondo, inset: (x: 3mm, y: 2.5mm), bajada(13pt))))
-  en-tapa(14mm, H - 16mm, box(fill: fondo, inset: (x: 3mm, y: 1.6mm), versal(LIB.autor, 9pt, peso: "bold")))
+  en-tapa(14mm, H - 16mm, box(fill: fondo, inset: (x: 3mm, y: 1.6mm), versal(autor-t, 9pt, peso: "bold")))
 } else if estilo-tapa == "centrada" {
-  en-tapa(0pt, 22mm, block(width: W, align(center, versal(LIB.autor, 10pt, tracking: 0.3em))))
+  en-tapa(0pt, 22mm, block(width: W, align(center, versal(autor-t, 10pt, tracking: 0.3em))))
   en-tapa(0pt, 0pt, block(width: W, height: H * 0.9, align(center + horizon, {
     titulo(tam-titulo(W - 30mm, 70pt), peso: "bold", alin: center, tracking: 0.02em)
     v(9mm)
@@ -196,13 +202,13 @@
   en-tapa(0pt, H - 18mm, block(width: W, align(center, versal(ed, 7pt, fill: acento, peso: "regular"))))
 } else if estilo-tapa == "foto" {
   // imagen a sangre (o un degradé si todavía no hay foto) y texto abajo sobre sombra
-  if T.at("imagen", default: "") == "" {
+  if _ti("imagen", "") == "" {
     en-tapa(0pt, -sangre, rect(width: W + ext-der, height: H + 2 * sangre, stroke: none,
       fill: gradient.linear(acento, segundo, fondo, angle: 70deg)))
   }
   en-tapa(0pt, H * 0.45, rect(width: W + ext-der, height: H * 0.55 + sangre, stroke: none,
     fill: gradient.linear(fondo.transparentize(100%), fondo.transparentize(10%), angle: 90deg)))
-  en-tapa(14mm, 16mm, versal(LIB.autor, 9.5pt, peso: "bold"))
+  en-tapa(14mm, 16mm, versal(autor-t, 9.5pt, peso: "bold"))
   en-tapa(14mm, 0pt, block(width: W - 28mm, height: H - 18mm, align(bottom + left, {
     titulo(tam-titulo(W - 28mm, 64pt), peso: "bold")
     v(6mm)
@@ -214,7 +220,7 @@
   // grilla suiza: barra vertical de color, todo en palo seco, alineado a la izquierda
   en-tapa(0pt, -sangre, rect(width: 11mm, height: H + 2 * sangre, fill: acento, stroke: none))
   en-tapa(22mm, 18mm, block(width: W - 36mm, grid(columns: (1fr, auto),
-    text(font: TIPO.apoyo, size: 10pt, weight: "bold")[#LIB.autor],
+    text(font: TIPO.apoyo, size: 10pt, weight: "bold")[#autor-t],
     text(font: TIPO.apoyo, size: 10pt, fill: acento, weight: "bold")[#anio])))
   en-tapa(22mm, 26mm, line(length: W - 36mm, stroke: 0.6pt + tinta))
   en-tapa(22mm, 0pt, block(width: W - 36mm, height: H - 40mm, align(bottom + left, {
@@ -229,7 +235,7 @@
   let alto-arte = calc.min(W, H * 0.62)
   let y-arte = H - alto-arte
   franja(y-arte, alto-arte, acento, abajo: true)
-  let letras = LIB.titulo.clusters()
+  let letras = titulo-t.replace("|", " ").clusters()
   let n = calc.clamp(int(2 + (letras.len() - 2) * 9 / 58), 3, 11)
   let s = W / n
   let g = s * 0.12
@@ -257,7 +263,7 @@
     }
   }))
   en-tapa(14mm, 16mm, block(width: W - 28mm, height: y-arte - 24mm, {
-    versal(LIB.autor, 9pt, peso: "bold")
+    versal(autor-t, 9pt, peso: "bold")
     v(1fr)
     titulo(tam-titulo(W - 28mm, 58pt), peso: "bold")
     v(5mm)
@@ -267,7 +273,7 @@
   // clásica: autor arriba, título sobre la línea que cruza todo el libro
   panel(x-tapa, W, {
     let mx = 16mm
-    place(top + left, dx: mx, dy: 22mm, versal(LIB.autor, 9pt, tracking: 0.3em))
+    place(top + left, dx: mx, dy: 22mm, versal(autor-t, 9pt, tracking: 0.3em))
     place(top + left, dx: mx, dy: 0pt, block(width: W - 2 * mx, height: H * 0.56 - 7mm,
       align(bottom + left, titulo(tam-titulo(W - 2 * mx, 58pt), tracking: 0.04em))))
     place(top + left, dx: mx, dy: H * 0.56 + 8mm, bajada(17pt, ancho: (W - 2 * mx) * 0.85))
@@ -348,6 +354,53 @@
     #set par(justify: false, leading: 0.6em)
     #_bloque("tapa-solapa-trasera.typ")
   ])
+}
+
+// ── TEXTOS Y FOTOS AGREGADOS (tapa/elementos.json) ──
+// Cada elemento va en una cara (tapa, contratapa, lomo, solapa-del, solapa-tras)
+// con posición y ancho en % de esa cara. Los pinta la web; también se pueden escribir a mano.
+#let _elementos = if _ti("elementos", "") != "" { json(RAIZ + _ti("elementos", "")) } else { () }
+#let _caras = (tapa: (x-tapa, W), contratapa: (x-contra, W), lomo: (x-lomo, lomo), solapa-del: (x-solapa-del, solapa), solapa-tras: (x-solapa-tras, solapa))
+#for e in _elementos {
+  let cara = e.at("cara", default: "tapa")
+  if cara not in _caras { continue }
+  if solo-tapa and cara != "tapa" { continue }
+  if cara.starts-with("solapa") and solapa == 0mm { continue }
+  let (x0, ac) = _caras.at(cara)
+  let pc(k, d) = float(e.at(k, default: d)) / 100
+  let px = ac * pc("x", 10)
+  let py = H * pc("y", 10)
+  let w = ac * pc("ancho", 80)
+  let giro = float(e.at("giro", default: 0)) * 1deg
+  let cuerpo = if e.at("tipo", default: "texto") == "foto" {
+    if e.at("archivo", default: "") == "" { none } else {
+      let h = H * pc("alto", 30)
+      let sang = e.at("sangre", default: false)
+      // a sangre: si toca un borde exterior, se estira hasta el sangrado
+      let (izq, der, arr, aba) = if sang { (if px <= 0.5mm and cara != "tapa" { sangre } else { 0pt }, if px + w >= ac - 0.5mm and cara != "contratapa" { sangre } else { 0pt }, if py <= 0.5mm { sangre } else { 0pt }, if py + h >= H - 0.5mm { sangre } else { 0pt }) } else { (0pt, 0pt, 0pt, 0pt) }
+      px = px - izq; py = py - arr
+      box(width: w + izq + der, height: h + arr + aba, clip: true, radius: float(e.at("redondeo", default: 0)) * 1mm,
+        stroke: if e.at("borde", default: "") != "" { 0.8pt + rgb(e.borde) } else { none },
+        image(RAIZ + e.archivo, width: 100%, height: 100%, fit: e.at("ajuste", default: "cover")))
+    }
+  } else {
+    let t = e.at("texto", default: "")
+    if e.at("mayusculas", default: false) { t = upper(t) }
+    let caja = e.at("fondo", default: "")
+    block(width: w, fill: if caja != "" { rgb(caja) } else { none }, inset: if caja != "" { 2.5mm } else { 0pt }, {
+      set par(justify: false, leading: float(e.at("interlineado", default: 0.45)) * 1em)
+      set align(eval(e.at("alineacion", default: "left")))
+      text(font: (e.at("fuente", default: TIPO.titulos), "Libertinus Serif"), size: float(e.at("tam", default: 14)) * 1pt,
+        weight: if e.at("negrita", default: false) { "bold" } else { "regular" },
+        style: if e.at("cursiva", default: false) { "italic" } else { "normal" },
+        tracking: float(e.at("espaciado", default: 0)) * 0.01em, hyphenate: false,
+        fill: rgb(e.at("color", default: tinta.to-hex())),
+        t.split("\n").join(linebreak()))
+    })
+  }
+  if cuerpo != none {
+    place(top + left, dx: x0 + px + ox, dy: sangre + py + oy, if giro != 0deg { rotate(giro, origin: top + left, reflow: false, cuerpo) } else { cuerpo })
+  }
 }
 
 // ── GUÍAS (solo en tapa-guias.pdf) ──

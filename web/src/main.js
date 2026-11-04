@@ -269,7 +269,7 @@ async function abrirLibro(slug) {
     // títulos de todos los capítulos (también sirven para avisos y para armar)
     const archivos = new Set((S.cfg.contenido || []).filter((c) => c.archivo).map((c) => c.archivo));
     const t = S.cfg.tapa || {};
-    for (const k of ['contratapa', 'solapa_delantera', 'solapa_trasera']) if (t[k]) archivos.add(t[k]);
+    for (const k of ['contratapa', 'solapa_delantera', 'solapa_trasera', 'elementos']) if (t[k]) archivos.add(t[k]);
     if (S.cfg.preliminares?.dedicatoria) archivos.add(S.cfg.preliminares.dedicatoria);
     const lista = [...archivos].filter((a) => S.arbol.some((e) => e.path === rutaLibro(a)));
     let hechos = 0;
@@ -606,11 +606,11 @@ function activarSelectoresLetra(raiz, alCambiar) {
 }
 document.addEventListener('click', (e) => { if (!e.target.closest('.desplegable')) $$('.desplegable .opciones').forEach((o) => o.remove()); });
 
-function campo(ruta, etiqueta, tipo = 'text', extra = '') {
+function campo(ruta, etiqueta, tipo = 'text', extra = '', pista = '') {
   const v = val(ruta);
   if (tipo === 'check') return `<label class="check"><input type="checkbox" data-c="${ruta}" ${v ?? true ? 'checked' : ''}>${etiqueta}</label>`;
   if (tipo === 'color') return `<label class="campo"><span>${etiqueta}</span><input class="entrada" type="color" data-c="${ruta}" value="${esc(/^#[0-9a-f]{6}$/i.test(v || '') ? v : '#000000')}"></label>`;
-  return `<label class="campo ${extra}"><span>${etiqueta}</span><input class="entrada" ${tipo === 'number' ? 'type="number" step="any"' : ''} data-c="${ruta}" value="${esc(v ?? '')}"></label>`;
+  return `<label class="campo ${extra}"><span>${etiqueta}</span><input class="entrada" ${tipo === 'number' ? 'type="number" step="any"' : ''} data-c="${ruta}" value="${esc(v ?? '')}" ${pista ? `placeholder="${esc(pista)}"` : ''}></label>`;
 }
 function opciones(ruta, etiqueta, lista) {
   const v = val(ruta);
@@ -807,18 +807,27 @@ function pintarTapa() {
         ${campo('tapa.color_acento', 'Acento', 'color')}${campo('tapa.color_secundario', 'Segundo color', 'color')}
       </div>
     </div>
-    <div class="grupo"><h3>Título e imagen</h3><div class="grilla">
+    <div class="grupo"><h3>Textos de la tapa</h3><div class="grilla">
+        ${campo('tapa.titulo', 'Título en la tapa (usá | para cortar la línea)', 'text', 'ancho', S.cfg.libro?.titulo || '')}
+        ${campo('tapa.subtitulo', 'Subtítulo en la tapa', 'text', 'ancho', S.cfg.libro?.subtitulo || '')}
         <div class="campo ancho"><span>Letra del título de tapa</span>${selectorLetra('tapa.fuente_titulo', S.cfg.libro?.titulo || 'Título')}</div>
-        ${campo('tapa.imagen', 'Imagen de tapa (ruta en el repo)', 'text', 'ancho')}
+        <div class="ancho fila-checks">${campo('tapa.mostrar_subtitulo', 'Subtítulo', 'check')}${campo('tapa.mostrar_autor', 'Autor', 'check')}${campo('tapa.mostrar_editorial', 'Editorial', 'check')}</div>
         ${campo('tapa.coleccion', 'Colección (diseño Colección)')}${campo('tapa.numero', 'Número en la colección')}
+      </div>
+      ${[['contratapa', 'Contratapa'], ['solapa_delantera', 'Solapa delantera'], ['solapa_trasera', 'Solapa trasera']].filter(([k]) => t[k]).map(([k, n]) => `<label class="campo" style="margin-top:12px"><span>${n}</span><textarea class="entrada texto-tapa" rows="${k === 'contratapa' ? 7 : 5}" data-texto="${esc(t[k])}">${esc(S.textos.get(t[k]) || '')}</textarea></label>`).join('')}
+      <small class="sutil" style="margin:6px 0 0">Markdown: *cursiva*, **negrita**. Un renglón en blanco separa párrafos.</small>
+    </div>
+    <div class="grupo"><h3>Fotos de fondo</h3><div class="grilla">
+      ${['imagen:Foto de tapa (a sangre)', 'imagen_contratapa:Foto de contratapa', 'foto_autor:Foto del autor (solapa)'].map((x) => { const [k, n] = x.split(':'); return `<div class="campo ancho"><span>${n}</span><div class="subida"><input class="entrada" data-c="tapa.${k}" value="${esc(t[k] || '')}" placeholder="sin foto"><button type="button" class="btn chico" data-subir="${k}">${I.subir}Subir</button>${t[k] ? `<button type="button" class="btn chico" data-sacar="${k}">Quitar</button>` : ''}</div></div>`; }).join('')}
     </div></div>
+    <div class="grupo"><h3>Textos y fotos libres <small class="sutil">en cualquier cara: tapa, contratapa, lomo o solapas</small></h3>
+      <div id="elementos"></div>
+      <div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="btn chico" id="b-el-texto">${I.mas}Texto</button><button type="button" class="btn chico" id="b-el-foto">${I.mas}Foto</button></div>
+    </div>
     <div class="grupo"><h3>Papel y medidas</h3><div class="grilla">
       ${opciones('tapa.papel', 'Papel', Object.keys(S.presets.papeles).map((p) => [p, p]))}
       ${campo('tapa.cartulina_mm', 'Cartulina (mm al lomo)', 'number')}
       ${campo('tapa.solapa', 'Solapas (0mm = sin solapas)')}${campo('tapa.sangrado', 'Sangrado')}
-    </div></div>
-    <div class="grupo"><h3>Textos de tapa</h3><div style="display:flex;gap:8px;flex-wrap:wrap">
-      ${[['contratapa', 'Contratapa'], ['solapa_delantera', 'Solapa delantera'], ['solapa_trasera', 'Solapa trasera']].filter(([k]) => t[k]).map(([k, n]) => `<button class="btn chico" data-abrir="${esc(t[k])}">Editar ${n.toLowerCase()}</button>`).join('')}
     </div></div>
     <input type="hidden" data-c="tapa.estilo" value="${esc(estilo)}">
     <div class="guardar"><button class="btn prim" id="b-ver-tapa">Ver la tapa</button><button class="btn" id="b-guardar-tapa">${I.subir}Guardar en GitHub</button></div>
@@ -836,7 +845,17 @@ function pintarTapa() {
     if (aplicar()) todo();
   }));
   $$('input, select', f).forEach((el) => el.addEventListener('change', () => { if (aplicar()) todo(); }));
-  $$('[data-abrir]', f).forEach((b) => (b.onclick = () => { abrirTexto(b.dataset.abrir); verPestana('texto'); }));
+  $$('.texto-tapa', f).forEach((ta) => ta.addEventListener('input', () => { S.textos.set(ta.dataset.texto, ta.value); marcarEstado(); programarTapa(); }));
+  $$('[data-subir]', f).forEach((b) => (b.onclick = async () => {
+    const ruta = await subirFoto(); if (!ruta) return;
+    $(`[data-c="tapa.${b.dataset.subir}"]`, f).value = ruta;
+    if (b.dataset.subir === 'imagen' && $('[data-c="tapa.estilo"]', f).value !== 'foto') toast('Foto cargada. El diseño «Foto» es el que mejor la aprovecha.');
+    if (aplicar()) { const sc = f.scrollTop; pintarTapa(); $('#f-tapa').scrollTop = sc; }
+  }));
+  $$('[data-sacar]', f).forEach((b) => (b.onclick = () => { $(`[data-c="tapa.${b.dataset.sacar}"]`, f).value = ''; if (aplicar()) { const sc = f.scrollTop; pintarTapa(); $('#f-tapa').scrollTop = sc; } }));
+  $('#b-el-texto').onclick = () => agregarElemento({ tipo: 'texto', cara: 'tapa', texto: 'Texto nuevo', x: 12, y: 45, ancho: 76, tam: 14, color: (S.cfg.tapa?.color_texto || '#ffffff'), alineacion: 'left' });
+  $('#b-el-foto').onclick = async () => { const ruta = await subirFoto(); if (ruta) agregarElemento({ tipo: 'foto', cara: 'tapa', archivo: ruta, x: 12, y: 55, ancho: 76, alto: 30, ajuste: 'cover' }); };
+  pintarElementos();
   $('#b-ver-tapa').onclick = () => { if (aplicar()) verTapa(); };
   $('#b-guardar-tapa').onclick = () => { if (aplicar()) guardarTodo(); };
   $('#c-guias').onchange = verTapa;
@@ -857,6 +876,106 @@ async function miniaturasTapa() {
     } catch { caja.innerHTML = '<small>—</small>'; }
   }
 }
+/* ── textos y fotos libres en la tapa (tapa/elementos.json) ── */
+const CARAS = [['tapa', 'Tapa'], ['contratapa', 'Contratapa'], ['lomo', 'Lomo'], ['solapa-del', 'Solapa delantera'], ['solapa-tras', 'Solapa trasera']];
+function elementosTapa() {
+  const r = S.cfg?.tapa?.elementos; if (!r) return [];
+  try { return JSON.parse(S.textos.get(r) || '[]'); } catch { return []; }
+}
+function guardarElementos(lista) {
+  let r = S.cfg.tapa?.elementos;
+  if (!r) { r = 'tapa/elementos.json'; aplicarCambiosConfig({ tapa: { elementos: r } }); }
+  S.textos.set(r, JSON.stringify(lista, null, 1) + '\n');
+  marcarEstado();
+}
+function agregarElemento(e) { const l = elementosTapa(); l.push(e); guardarElementos(l); pintarElementos(l.length - 1); verTapa(); }
+let tTapa;
+function programarTapa() { clearTimeout(tTapa); tTapa = setTimeout(verTapa, 450); }
+function pintarElementos(abierto = -1) {
+  const caja = $('#elementos'); if (!caja) return;
+  const l = elementosTapa();
+  if (!l.length) { caja.innerHTML = '<p class="sutil" style="margin:0">Sumá una frase, un sello, «Prólogo de…», un logo o una foto, y ubicalos con los deslizadores.</p>'; return; }
+  const deslizador = (i, k, n, min, max, v) => `<label class="desl"><span>${n} <b>${v}</b></span><input type="range" min="${min}" max="${max}" step="0.5" value="${v}" data-i="${i}" data-k="${k}"></label>`;
+  const fams = [...new Set([...familias(), 'Inter'])].sort();
+  caja.innerHTML = l.map((e, i) => `<details class="elem" ${i === abierto ? 'open' : ''}>
+    <summary><span class="elem-tipo">${e.tipo === 'foto' ? 'Foto' : 'Texto'}</span><span class="elem-nombre">${esc(e.tipo === 'foto' ? e.archivo.split('/').pop() : (e.texto || '').split('\n')[0].slice(0, 40))}</span><span class="elem-cara">${CARAS.find(([k]) => k === e.cara)?.[1] || ''}</span>
+      <button type="button" class="ico" data-mov="${i}:-1" title="Más atrás">${I.arriba}</button><button type="button" class="ico" data-mov="${i}:1" title="Más adelante">${I.abajo}</button><button type="button" class="ico" data-borrar="${i}" title="Quitar">${I.quitar}</button></summary>
+    <div class="elem-cuerpo">
+      <label class="campo"><span>Dónde va</span><select class="entrada" data-i="${i}" data-k="cara">${CARAS.map(([k, n]) => `<option value="${k}" ${k === e.cara ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+      ${e.tipo === 'foto' ? `
+        <label class="campo"><span>Cómo entra</span><select class="entrada" data-i="${i}" data-k="ajuste">${[['cover', 'Llena el recuadro (recorta)'], ['contain', 'Entera (sin recortar)'], ['stretch', 'Estirada']].map(([k, n]) => `<option value="${k}" ${k === (e.ajuste || 'cover') ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        <div class="ancho fila-checks"><label class="check"><input type="checkbox" data-i="${i}" data-k="sangre" ${e.sangre ? 'checked' : ''}>A sangre si toca el borde</label><button type="button" class="btn chico" data-cambiar="${i}">Cambiar foto</button></div>
+        ${deslizador(i, 'x', 'Izquierda %', -20, 100, e.x ?? 0)}${deslizador(i, 'y', 'Arriba %', -20, 100, e.y ?? 0)}
+        ${deslizador(i, 'ancho', 'Ancho %', 5, 140, e.ancho ?? 80)}${deslizador(i, 'alto', 'Alto %', 5, 140, e.alto ?? 30)}
+        ${deslizador(i, 'redondeo', 'Esquinas (mm)', 0, 20, e.redondeo ?? 0)}${deslizador(i, 'giro', 'Giro °', -45, 45, e.giro ?? 0)}` : `
+        <label class="campo ancho"><span>Texto</span><textarea class="entrada" rows="2" data-i="${i}" data-k="texto">${esc(e.texto || '')}</textarea></label>
+        <label class="campo"><span>Letra</span><select class="entrada" data-i="${i}" data-k="fuente">${fams.map((f) => `<option ${f === (e.fuente || S.cfg.tapa?.fuente_titulo || 'EB Garamond') ? 'selected' : ''} style="font-family:'${f}'">${f}</option>`).join('')}</select></label>
+        <label class="campo"><span>Alineación</span><select class="entrada" data-i="${i}" data-k="alineacion">${[['left', 'Izquierda'], ['center', 'Centro'], ['right', 'Derecha']].map(([k, n]) => `<option value="${k}" ${k === (e.alineacion || 'left') ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        <label class="campo"><span>Color</span><input class="entrada" type="color" data-i="${i}" data-k="color" value="${esc(e.color || '#ffffff')}"></label>
+        <label class="campo"><span>Recuadro de color</span><div class="subida"><input class="entrada" type="color" data-i="${i}" data-k="fondo" value="${esc(e.fondo || '#000000')}" ${e.fondo ? '' : 'style="opacity:.35"'}><label class="check"><input type="checkbox" data-i="${i}" data-k="con_fondo" ${e.fondo ? 'checked' : ''}>usar</label></div></label>
+        <div class="ancho fila-checks"><label class="check"><input type="checkbox" data-i="${i}" data-k="negrita" ${e.negrita ? 'checked' : ''}>Negrita</label><label class="check"><input type="checkbox" data-i="${i}" data-k="cursiva" ${e.cursiva ? 'checked' : ''}>Cursiva</label><label class="check"><input type="checkbox" data-i="${i}" data-k="mayusculas" ${e.mayusculas ? 'checked' : ''}>Mayúsculas</label></div>
+        ${deslizador(i, 'tam', 'Tamaño (pt)', 5, 120, e.tam ?? 14)}${deslizador(i, 'espaciado', 'Espaciado', -5, 60, e.espaciado ?? 0)}
+        ${deslizador(i, 'x', 'Izquierda %', -10, 100, e.x ?? 10)}${deslizador(i, 'y', 'Arriba %', -5, 100, e.y ?? 10)}
+        ${deslizador(i, 'ancho', 'Ancho %', 5, 120, e.ancho ?? 80)}${deslizador(i, 'giro', 'Giro °', -90, 90, e.giro ?? 0)}`}
+    </div></details>`).join('');
+  const cambiar = (i, k, v) => {
+    const lista = elementosTapa();
+    if (k === 'con_fondo') { if (v) lista[i].fondo = lista[i].fondo || '#000000'; else delete lista[i].fondo; }
+    else if (k === 'fondo' && !lista[i].fondo) return;
+    else lista[i][k] = v;
+    guardarElementos(lista); programarTapa();
+  };
+  $$('[data-k]', caja).forEach((el) => {
+    const ev = el.type === 'range' || el.tagName === 'TEXTAREA' || el.type === 'color' ? 'input' : 'change';
+    el.addEventListener(ev, () => {
+      const v = el.type === 'checkbox' ? el.checked : el.type === 'range' ? Number(el.value) : el.value;
+      if (el.type === 'range') el.previousElementSibling.querySelector('b').textContent = el.value;
+      if (el.dataset.k === 'con_fondo') { cambiar(+el.dataset.i, 'con_fondo', v); return pintarElementos(+el.dataset.i); }
+      cambiar(+el.dataset.i, el.dataset.k, v);
+      if (el.dataset.k === 'cara' || el.dataset.k === 'texto') { const s = el.closest('details').querySelector('.elem-nombre, .elem-cara'); if (el.dataset.k === 'cara') el.closest('details').querySelector('.elem-cara').textContent = CARAS.find(([k]) => k === v)[1]; else el.closest('details').querySelector('.elem-nombre').textContent = String(v).split('\n')[0].slice(0, 40); }
+    });
+  });
+  $$('[data-borrar]', caja).forEach((b) => (b.onclick = (ev) => { ev.preventDefault(); const lista = elementosTapa(); lista.splice(+b.dataset.borrar, 1); guardarElementos(lista); pintarElementos(); verTapa(); }));
+  $$('[data-mov]', caja).forEach((b) => (b.onclick = (ev) => {
+    ev.preventDefault(); const [i, d] = b.dataset.mov.split(':').map(Number); const lista = elementosTapa(); const j = i + d;
+    if (j < 0 || j >= lista.length) return; [lista[i], lista[j]] = [lista[j], lista[i]]; guardarElementos(lista); pintarElementos(j); verTapa();
+  }));
+  $$('[data-cambiar]', caja).forEach((b) => (b.onclick = async () => { const r = await subirFoto(); if (r) cambiar(+b.dataset.cambiar, 'archivo', r), pintarElementos(+b.dataset.cambiar); }));
+}
+// Elige una foto, la achica si hace falta y la sube a GitHub (libros/<libro>/tapa/).
+function subirFoto() {
+  return new Promise((listo) => {
+    const inp = h('<input type="file" accept="image/jpeg,image/png,image/webp,image/heic" hidden>');
+    document.body.append(inp);
+    inp.onchange = async () => {
+      inp.remove();
+      const f = inp.files[0]; if (!f) return listo(null);
+      try {
+        toast('Preparando la foto…');
+        let bytes = new Uint8Array(await f.arrayBuffer());
+        let ext = f.type === 'image/png' ? 'png' : 'jpg';
+        const bmp = await createImageBitmap(f);
+        const lado = Math.max(bmp.width, bmp.height);
+        if (lado > 4200 || bytes.length > 7e6 || !['image/jpeg', 'image/png'].includes(f.type)) {
+          const k = Math.min(1, 4200 / lado);
+          const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+          c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+          bytes = new Uint8Array(await (await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.9))).arrayBuffer()); ext = 'jpg';
+        }
+        if (Math.min(bmp.width, bmp.height) < 1200) toast('Ojo: la foto es chica para imprimir; puede verse pixelada.');
+        const nombre = f.name.replace(/\.[^.]+$/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'foto';
+        const rel = `tapa/${nombre}-${Date.now().toString(36).slice(-4)}.${ext}`;
+        toast('Subiendo la foto a GitHub…');
+        await S.gh.guardar(rutaLibro(rel), bytes, `Taller: foto de tapa ${rel}`);
+        S.arbol.push({ path: rutaLibro(rel) });
+        await cargarBinarios({ [base() + rel]: bytes });
+        toast('Foto subida.');
+        listo(rel);
+      } catch (e) { toast('No pude subir la foto: ' + e.message); listo(null); }
+    };
+    inp.click();
+  });
+}
 async function prepararTapa(paginas) {
   const t = S.cfg.tapa || {};
   const arch = {};
@@ -865,7 +984,9 @@ async function prepararTapa(paginas) {
     arch[destino] = t[k] && S.textos.has(t[k]) ? convertir(S.textos.get(t[k]), { sinNumero: true, base: base() }) : '';
   }
   await cargarTextos(arch);
-  const img = [t.imagen, t.imagen_contratapa, t.foto_autor].filter(Boolean).map((p) => `#figura("${base()}${p}"`).join('\n');
+  const elems = elementosTapa();
+  if (t.elementos) await cargarTextos({ [base() + t.elementos]: JSON.stringify(elems, null, 1) });
+  const img = [t.imagen, t.imagen_contratapa, t.foto_autor, ...elems.filter((e) => e.tipo === 'foto').map((e) => e.archivo)].filter(Boolean).map((p) => `#figura("${base()}${p}"`).join('\n');
   if (img) await asegurarImagenes(img);
   const lomo = lomoMm(S.cfg, S.presets, paginas);
   return { lomo };

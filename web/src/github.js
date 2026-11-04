@@ -2,7 +2,7 @@
 const API = 'https://api.github.com';
 
 function b64(texto) {
-  const bytes = new TextEncoder().encode(texto);
+  const bytes = typeof texto === 'string' ? new TextEncoder().encode(texto) : texto;
   let s = '';
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(s);
@@ -55,6 +55,7 @@ export class GitHub {
   bytes(p) {
     return this.req(`${this.base}/contents/${ruta(p)}?ref=${encodeURIComponent(this.rama)}`, { accept: 'application/vnd.github.raw', tipo: 'bytes' });
   }
+  // contenido puede ser texto o bytes (Uint8Array, para fotos)
   async guardar(p, contenido, mensaje) {
     const body = { message: mensaje || `Edición desde el taller: ${p}`, content: b64(contenido), branch: this.rama };
     const sha = this.shas.get(p);

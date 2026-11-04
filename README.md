@@ -128,6 +128,9 @@ Las fotos y mapas flotan arriba o abajo de la página más cercana para no dejar
 - `tapa-guias.pdf` muestra en colores el corte, los pliegues y la zona segura, con las medidas de cada panel. Es para revisar, no para mandar.
 - **Doce diseños** (`estilo`): `clasica`, `editorial`, `tipografica`, `minimalista`, `coleccion`, `dos-tintas`, `marco`, `cruce`, `centrada`, `foto`, `suiza` y `generativa` (arte geométrico creado con las letras del título, adaptado del generador 10PRINT de la NYPL, `mgiraldo/tenprintcover-py`, MIT). En la web cada diseño muestra una miniatura real de tu tapa, y hay diez paletas de color listas para aplicar.
 - Colores: `fondo`, `color_texto`, `color_acento` y `color_secundario`. Para el diseño Colección: `coleccion` y `numero`.
+- **Textos de tapa**: en la web se editan el título de tapa (con `|` para cortar la línea), el subtítulo, y los textos de contratapa y solapas, sin salir de la pestaña. Se puede ocultar el subtítulo, el autor o la editorial.
+- **Fotos**: el botón «Subir» manda la foto a `libros/<libro>/tapa/` en GitHub (si es muy grande la achica a 4200 px). Sirve para la foto de tapa, la de contratapa y la del autor.
+- **Textos y fotos libres**: frases, sellos («Nuevo», «Prólogo de…»), logos o fotos en cualquier cara (tapa, contratapa, lomo o solapas), con posición, tamaño, letra, color, recuadro, giro y esquinas redondeadas. Quedan en `tapa/elementos.json`.
 - Sin solapas: `solapa = "0mm"`. Con foto: `imagen = "tapa/foto.jpg"`. Si cargás el ISBN, el código de barras EAN-13 se genera solo.
 
 ## Corrección del texto
