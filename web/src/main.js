@@ -13,7 +13,8 @@ import { convertir, primerTitulo } from './md2typ.js';
 import { principal, nombreTyp, lomoMm, contarPaginasPdf } from './armado.js';
 import { tomlSet, tomlContenido } from './toml.js';
 import { importarTexto } from './importar.js';
-import { buscarOpenAlex, buscarCrossref, buscarWikipedia, buscarGemini, formatear, ESTILOS_CITA, notasSinEnlace, parecido } from './citas.js';
+import { abrirPdf, marcadores, dibujarPagina } from './compaginar.js';
+import { buscarOpenAlex, buscarCrossref, buscarWikipedia, buscarGemini, formatear, ESTILOS_CITA, notasSinEnlace, parecido, NORMAS, revisarNorma, pedidoNorma } from './citas.js';
 import { puntuar, hayDictadoNavegador, dictarNavegador, dictarWhisper } from './dictado.js';
 import { campoMarcas, fijarMarcas, quitarMarca, listarMarcas, revisarLanguageTool, PEDIDO_REVISION, marcasDesdeIA, ortografiaNavegador, revisarParrafos } from './revision.js';
 import { iniciarMotor, cargarTextos, cargarBinarios, yaCargado, compilar, aSvg } from './motor.js';
@@ -153,6 +154,7 @@ function armarApp() {
           <button role="tab" data-v="texto" aria-selected="true">Texto</button>
           <button role="tab" data-v="estilos" aria-selected="false">Estilos</button>
           <button role="tab" data-v="tapa" aria-selected="false">Tapa</button>
+          <button role="tab" data-v="libro" aria-selected="false">Libro</button>
           <button role="tab" data-v="produccion" aria-selected="false">Producción</button>
         </nav>
         <div class="der">
@@ -227,6 +229,7 @@ function armarApp() {
       </section>
       <section class="vista" id="v-estilos"></section>
       <section class="vista" id="v-tapa"></section>
+      <section class="vista" id="v-libro"></section>
       <section class="vista" id="v-produccion"></section>
     </main>
   </div>`;
@@ -259,6 +262,7 @@ function verPestana(v) {
   if (v === 'estilos') pintarEstilos();
   if (v === 'tapa') pintarTapa();
   if (v === 'produccion') pintarProduccion();
+  if (v === 'libro') pintarLibro();
 }
 function verLado(l) {
   S.vista = l;
@@ -702,6 +706,7 @@ function pintarEstilos() {
       ${opciones('estilo.cornisa_par', 'Cornisa en página par', [['autor', 'Autor'], ['titulo', 'Título del libro'], ['capitulo', 'Capítulo'], ['nada', 'Nada']])}
       ${opciones('estilo.cornisa_impar', 'Cornisa en página impar', [['capitulo', 'Capítulo'], ['titulo', 'Título del libro'], ['autor', 'Autor'], ['nada', 'Nada']])}
       ${opciones('estilo.folio', 'Número de página', [['abajo-afuera', 'Abajo, hacia afuera'], ['abajo-centro', 'Abajo, al centro'], ['arriba-afuera', 'Arriba, junto a la cornisa']])}
+      ${opciones('estilo.norma_citas', 'Norma de citas', [['apa', 'APA 7'], ['chicago', 'Chicago (notas)'], ['iso', 'ISO 690']])}
       ${opciones('estilo.indice_profundidad', 'El índice muestra', [['1', 'Solo capítulos'], ['2', 'Capítulos y secciones'], ['3', 'Hasta subsecciones']])}
       ${opciones('estilo.columnas', 'Columnas de texto', [['1', 'Una'], ['2', 'Dos'], ['3', 'Tres']])}
       ${campo('estilo.separacion_columnas', 'Separación entre columnas', 'text', '', '6mm')}
@@ -1413,6 +1418,12 @@ function avisos() {
   const isbn = revisarIsbn(S.cfg.libro?.isbn);
   if (isbn && !isbn.ok) out.push('ISBN: ' + isbn.texto);
   if (!S.cfg.libro?.isbn) out.push('Falta el ISBN: la contratapa sale con un recuadro «ISBN pendiente».');
+  {
+    const norma = S.cfg.estilo?.norma_citas || 'apa';
+    let mal = 0, caps = 0;
+    for (const c of S.cfg.contenido || []) { const md = S.textos.get(c.archivo || ''); if (!md) continue; const n = revisarNorma(md, norma).length; if (n) { mal += n; caps++; } }
+    if (mal) out.push(`Norma de citas (${NORMAS[norma].nombre}): ${mal} notas en ${caps} capítulos no la siguen. Se corrigen en Texto → Citas.`);
+  }
   for (const c of S.cfg.contenido || []) {
     if (!c.archivo) continue;
     const s = S.textos.get(c.archivo);
@@ -1528,6 +1539,7 @@ async function armarAca() {
     urls = [[blob(r.bytes), 'Interior para imprenta', `${nombre}-interior.pdf`]];
     if (rt.ok) urls.push([blob(rt.bytes), 'Tapa para imprenta', `${nombre}-tapa.pdf`]);
     if (rg.ok) urls.push([blob(rg.bytes), 'Tapa con guías', `${nombre}-tapa-guias.pdf`]);
+    S.libroArmado = { interior: r.bytes, tapa: rt.ok ? rt.bytes : null, fecha: Date.now() };
     const ult = { paginas, lomo, fecha: Date.now() };
     escribir('taller.paginas.' + S.slug, ult);
     $('#cifras').innerHTML = cifras(ult);
@@ -1890,7 +1902,7 @@ function pintarCitas() {
   const a = $('#citas'); if (!a) return;
   const v = S.editor; const { from, to } = v.state.selection.main;
   const sel = to > from ? v.state.sliceDoc(from, to).replace(/\s+/g, ' ').trim() : '';
-  const estilo = S.conf.estiloCita || 'apa';
+  const estilo = S.cfg.estilo?.norma_citas || S.conf.estiloCita || 'apa';
   const hayGemini = !!S.conf.gemini;
   a.innerHTML = `<div class="nota">Marcá en el editor una frase, un dato o un título, y buscá de dónde sale. Elegí la fuente y se inserta como nota al pie con su enlace.</div>
     <label class="campo"><span>Buscar</span><textarea class="entrada" id="ci-q" rows="2" placeholder="Ej.: 120 millones de personas desplazadas ACNUR 2024">${esc(sel.slice(0, 400))}</textarea></label>
@@ -1901,12 +1913,49 @@ function pintarCitas() {
       <select class="entrada" id="ci-estilo" style="width:auto;height:30px;font-size:12.5px">${Object.entries(ESTILOS_CITA).map(([k, n]) => `<option value="${k}" ${k === estilo ? 'selected' : ''}>${n}</option>`).join('')}</select>
     </div>
     <div id="ci-res"></div>
+    <div class="grupo-ind"><h3>Norma de citas del libro</h3><div id="ci-norma"></div></div>
     <div class="grupo-ind"><h3>Notas sin enlace</h3><p class="sutil" style="margin:0 0 8px">Revisa las notas del capítulo que no tienen link ni DOI y busca el artículo o libro que citan.</p>
       <button class="btn chico" id="ci-completar">Buscar enlaces para las notas</button><div id="ci-notas"></div></div>`;
-  $('#ci-estilo').onchange = (e) => { S.conf.estiloCita = e.target.value; escribir('taller.conf', S.conf); if (citasRes.length) mostrarCitas(); };
+  $('#ci-estilo').onchange = (e) => { try { aplicarCambiosConfig({ estilo: { norma_citas: e.target.value } }); } catch {} if (citasRes.length) mostrarCitas(); pintarNorma(); };
   $$('[data-buscar]', a).forEach((b) => (b.onclick = () => buscarCita(b.dataset.buscar)));
   $('#ci-completar').onclick = completarNotas;
+  pintarNorma();
   if (citasRes.length) mostrarCitas();
+}
+// Revisa las notas del capítulo contra la norma elegida y, con IA, las reescribe para que la cumplan.
+function pintarNorma() {
+  const caja = $('#ci-norma'); if (!caja || !S.actual) return;
+  const norma = S.cfg.estilo?.norma_citas || 'apa';
+  const probs = revisarNorma(S.editor.state.doc.toString(), norma);
+  const total = [...S.editor.state.doc.toString().matchAll(/^\[\^[^\]]+\]:/gm)].length;
+  caja.innerHTML = `<p class="sutil" style="margin:0 0 8px">Norma: <b>${NORMAS[norma].nombre}</b> (se cambia en el selector de arriba o en Estilos). Ejemplo: <i>${esc(NORMAS[norma].ejemplo).replace(/\*([^*]+)\*/g, '<i>$1</i>')}</i></p>
+    <div class="aviso ${probs.length ? 'mal' : 'bien'}">${total} notas en este capítulo · ${probs.length ? `${probs.length} no siguen la norma` : 'todas parecen seguir la norma'}</div>
+    ${probs.length ? `<details class="lista-norma"><summary>Ver cuáles</summary>${probs.slice(0, 40).map((p) => `<div class="rev-item"><div class="rev-msg">Nota ${esc(p.id)} <small>${esc(p.problemas.join(' · '))}</small></div><div class="rev-ctx">${esc(p.texto.slice(0, 200))}</div></div>`).join('')}</details>
+      <div class="acciones" style="margin-top:8px"><button class="btn prim chico" id="ci-aplicar-norma" ${claveIA() ? '' : 'disabled title="Activá Gemini o Groq en el Asistente"'}>Pasar las notas a ${NORMAS[norma].nombre} con IA</button></div><div id="ci-norma-res"></div>` : ''}`;
+  const b = $('#ci-aplicar-norma', caja); if (b) b.onclick = () => aplicarNorma(probs, norma);
+}
+async function aplicarNorma(probs, norma) {
+  const out = $('#ci-norma-res');
+  const lotes = []; for (let i = 0; i < probs.length; i += 15) lotes.push(probs.slice(i, i + 15));
+  const nuevas = [];
+  try {
+    for (let i = 0; i < lotes.length; i++) {
+      out.innerHTML = `<div class="nota"><span class="spin"></span> Reescribiendo ${lotes.length > 1 ? `tanda ${i + 1} de ${lotes.length}` : 'las notas'}…</div>`;
+      const r = await preguntar({ ...opcionesIA(), pedido: pedidoNorma(norma), texto: JSON.stringify(lotes[i].map((p) => ({ id: p.id, nota: p.texto }))), accion: null });
+      const m = r.match(/\[[\s\S]*\]/); if (!m) throw new Error('La IA no devolvió la lista. Probá de nuevo.');
+      for (const x of JSON.parse(m[0])) { const p = lotes[i].find((q) => q.id === String(x.id)); if (p && x.nota && x.nota.trim() !== p.texto) nuevas.push({ id: p.id, antes: p.texto, despues: x.nota.trim() }); }
+    }
+  } catch (e) { out.innerHTML = `<div class="error">${esc(e.message)}</div>`; return; }
+  if (!nuevas.length) { out.innerHTML = '<div class="nota">La IA no propuso cambios.</div>'; return; }
+  const cursiva = (t) => esc(t).replace(/\*([^*]+)\*/g, '<i>$1</i>');
+  out.innerHTML = `<p class="sutil" style="margin:8px 0 6px">Revisá cada una: la IA no debe agregar datos que no estaban.</p>` + nuevas.map((x, i) => `<div class="rev-item"><div class="rev-msg">Nota ${esc(x.id)}</div><div class="rev-ctx"><s>${cursiva(x.antes)}</s></div><div class="ci-ref">${cursiva(x.despues)}</div><div class="respuesta-acc"><button class="btn chico prim-suave" data-ok-n="${i}">Aplicar</button></div></div>`).join('') + '<button class="btn prim chico" id="ci-norma-todas">Aplicar todas</button>';
+  const aplicar = (x) => {
+    const doc = S.editor.state.doc.toString();
+    const m = doc.match(new RegExp(`^\\[\\^${x.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]:.*$`, 'm')); if (!m) return;
+    S.editor.dispatch({ changes: { from: m.index, to: m.index + m[0].length, insert: `[^${x.id}]: ${x.despues}` } });
+  };
+  $$('[data-ok-n]', out).forEach((b) => (b.onclick = () => { aplicar(nuevas[+b.dataset.okN]); b.disabled = true; b.textContent = 'Aplicada'; }));
+  $('#ci-norma-todas').onclick = () => { nuevas.forEach(aplicar); toast('Notas pasadas a la norma. Podés deshacer con Ctrl+Z.'); pintarNorma(); };
 }
 async function buscarCita(donde) {
   const q = $('#ci-q').value.trim(); if (!q) return toast('Escribí o marcá qué buscar.');
@@ -1926,7 +1975,7 @@ async function buscarCita(donde) {
 }
 function mostrarCitas() {
   const out = $('#ci-res'); if (!out) return;
-  const estilo = S.conf.estiloCita || 'apa';
+  const estilo = S.cfg.estilo?.norma_citas || 'apa';
   if (!citasRes.length) { out.innerHTML = '<div class="nota">No encontré nada. Probá con menos palabras: un nombre, un organismo, un título.</div>'; return; }
   out.innerHTML = citasRes.map((x, i) => `<div class="rev-item">
     <div class="rev-msg">${esc(x.titulo)} <small>${esc(x.origen)}${x.anio ? ' · ' + x.anio : ''}</small></div>
@@ -1936,11 +1985,11 @@ function mostrarCitas() {
   </div>`).join('');
   $$('[data-nota]', out).forEach((b) => (b.onclick = () => insertarCita(citasRes[+b.dataset.nota], false)));
   $$('[data-bib]', out).forEach((b) => (b.onclick = () => insertarCita(citasRes[+b.dataset.bib], true)));
-  $$('[data-copiar]', out).forEach((b) => (b.onclick = () => { navigator.clipboard?.writeText(formatear(citasRes[+b.dataset.copiar], estilo)); toast('Copiado.'); }));
+  $$('[data-copiar]', out).forEach((b) => (b.onclick = () => { navigator.clipboard?.writeText(formatear(citasRes[+b.dataset.copiar], S.cfg.estilo?.norma_citas || 'apa')); toast('Copiado.'); }));
 }
 function insertarCita(x, conBiblio) {
   if (!S.actual) return toast('Abrí un capítulo primero.');
-  const v = S.editor; const estilo = S.conf.estiloCita || 'apa';
+  const v = S.editor; const estilo = S.cfg.estilo?.norma_citas || 'apa';
   const doc = v.state.doc.toString();
   const n = siguienteNota(doc);
   const pos = v.state.selection.main.to;
@@ -2115,6 +2164,111 @@ function alternarDictado() {
   const sel = $('#dic-motor', barra);
   if (sel) sel.onchange = () => { S.conf.dictado = sel.value; escribir('taller.conf', S.conf); const c = dictado.ctrl; dictado.ctrl = null; c.parar(); toast('Cambiá el motor: tocá Dictar de nuevo.'); };
   arrancar(motor);
+}
+
+/* ═════════ libro: compaginación completa ═════════ */
+function pintarLibro() {
+  const v = $('#v-libro');
+  const a = S.libroArmado;
+  v.innerHTML = `<div class="libro-vista">
+    <div class="libro-cab">
+      <div><h2>El libro completo</h2><p class="sutil">Tapa y todas las páginas, en pliegos de par e impar, con cada parte y capítulo marcado. ${a ? `Armado a las ${new Date(a.fecha).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}.` : 'Tocá «Compaginar» para armarlo con lo último que escribiste (tarda medio minuto).'}</p></div>
+      <div class="libro-acc">
+        <label class="check"><input type="checkbox" id="lb-pliegos" ${S.conf.verPliegos !== false ? 'checked' : ''}>Marcar pliegos de 16</label>
+        <select class="entrada" id="lb-tam" style="width:auto;height:32px"><option value="70">Chico</option><option value="110" selected>Mediano</option><option value="170">Grande</option></select>
+        <button class="btn prim" id="lb-armar">${a ? 'Volver a compaginar' : 'Compaginar'}</button>
+      </div>
+    </div>
+    <div id="lb-progreso"></div>
+    <div id="lb-indice" class="lb-indice"></div>
+    <div id="lb-hojas"></div>
+  </div>`;
+  $('#lb-armar').onclick = compaginar;
+  $('#lb-tam').value = String(S.conf.tamPagina || 110);
+  $('#lb-tam').onchange = (e) => { S.conf.tamPagina = +e.target.value; escribir('taller.conf', S.conf); if (S.libroArmado) mostrarLibro(); };
+  $('#lb-pliegos').onchange = (e) => { S.conf.verPliegos = e.target.checked; escribir('taller.conf', S.conf); if (S.libroArmado) mostrarLibro(); };
+  if (a) mostrarLibro();
+}
+async function compaginar() {
+  const b = $('#lb-armar'); b.disabled = true;
+  const pr = $('#lb-progreso');
+  const paso = (t) => { pr.innerHTML = `<div class="nota"><span class="spin"></span> ${esc(t)}</div>`; };
+  try {
+    paso('Preparando los textos…');
+    await prepararLibroCompleto();
+    paso('Componiendo todas las páginas…');
+    const r = await compilar(base() + '_build/libro.typ', { libro: S.slug }, 'pdf');
+    if (!r.ok) throw new Error(r.errores.join('\n'));
+    const paginas = contarPaginasPdf(r.bytes);
+    paso('Componiendo la tapa…');
+    const { lomo } = await prepararTapa(paginas);
+    const rt = await compilar('/plantilla/tapa.typ', { libro: S.slug, paginas: String(paginas), lomo: lomo.toFixed(2) + 'mm', guias: 'no' }, 'pdf');
+    S.libroArmado = { interior: r.bytes, tapa: rt.ok ? rt.bytes : null, fecha: Date.now() };
+    escribir('taller.paginas.' + S.slug, { paginas, lomo, fecha: Date.now() });
+    pr.innerHTML = '';
+    pintarLibro();
+  } catch (e) { pr.innerHTML = `<div class="error">${esc(e.message)}</div>`; }
+  finally { if (b.isConnected) b.disabled = false; }
+}
+async function mostrarLibro() {
+  const caja = $('#lb-hojas'); if (!caja) return;
+  const a = S.libroArmado;
+  const ancho = S.conf.tamPagina || 110;
+  const doc = S.docLibro?.fecha === a.fecha ? S.docLibro.doc : await abrirPdf(a.interior);
+  S.docLibro = { fecha: a.fecha, doc };
+  const n = doc.numPages;
+  const marcas = await marcadores(doc);
+  const inicio = new Map(); for (const m of marcas) if (m.nivel === 0 && !inicio.has(m.pagina)) inicio.set(m.pagina, m);
+  const pliegos = S.conf.verPliegos !== false;
+  // índice de capítulos arriba: salta al pliego
+  $('#lb-indice').innerHTML = `<div class="lb-cifras"><b>${n}</b> páginas · <b>${Math.ceil(n / 16)}</b> pliegos de 16${n % 16 ? ` (faltan ${16 - (n % 16)} para cerrar el último)` : ''} · <b>${marcas.filter((m) => m.nivel === 0).length}</b> entradas</div>` +
+    marcas.filter((m) => m.nivel === 0).map((m) => `<button data-ir="${m.pagina}">${esc(m.titulo.split(' — ')[0])} <span>${m.pagina}</span></button>`).join('');
+  // tapa
+  let html = '';
+  if (a.tapa) html += `<div class="lb-tapa"><div class="lb-etq">Tapa completa</div><canvas id="lb-canvas-tapa"></canvas></div>`;
+  // pliegos: la página 1 va sola a la derecha; después 2-3, 4-5…
+  const pares = [[null, 1]];
+  for (let p = 2; p <= n; p += 2) pares.push([p, p + 1 <= n ? p + 1 : null]);
+  html += '<div class="lb-grilla">';
+  for (const [iz, de] of pares) {
+    const etq = [iz, de].filter(Boolean).map((p) => inicio.get(p)).filter(Boolean);
+    const corte = pliegos && iz && (iz - 1) % 16 === 0 ? `<div class="lb-pliego">Pliego ${Math.floor((iz - 1) / 16) + 1}</div>` : '';
+    const pag = (p, lado) => p ? `<figure class="lb-pag ${lado}" data-p="${p}" style="width:${ancho}px"><canvas></canvas><figcaption>${p}</figcaption></figure>` : `<div class="lb-pag vacia" style="width:${ancho}px"></div>`;
+    html += `${corte}<div class="lb-pliego-par" id="lb-p${iz || 1}">${etq.length ? `<div class="lb-cap">${etq.map((m) => esc(m.titulo.split(' — ')[0])).join(' · ')}</div>` : '<div class="lb-cap vacio"></div>'}<div class="lb-dos">${pag(iz, 'par')}${pag(de, 'impar')}</div></div>`;
+  }
+  html += '</div>';
+  caja.innerHTML = html;
+  $$('#lb-indice [data-ir]').forEach((b) => (b.onclick = () => { const p = +b.dataset.ir; const id = p === 1 ? 1 : p % 2 ? p - 1 : p; document.getElementById('lb-p' + id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }));
+  if (a.tapa) abrirPdf(a.tapa).then((d) => { const c = $('#lb-canvas-tapa'); if (c) dibujarPagina(d, 1, c, Math.min(caja.clientWidth - 40, 1000)); });
+  // las miniaturas se dibujan a medida que aparecen en pantalla
+  const obs = new IntersectionObserver((ents) => {
+    for (const e of ents) if (e.isIntersecting) {
+      obs.unobserve(e.target);
+      const p = +e.target.dataset.p;
+      dibujarPagina(doc, p, $('canvas', e.target), ancho).then((blanca) => { if (blanca) e.target.classList.add('blanca'); });
+    }
+  }, { root: $('#v-libro'), rootMargin: '600px' });
+  $$('.lb-pag[data-p]', caja).forEach((f) => { obs.observe(f); f.onclick = () => verPaginaGrande(doc, +f.dataset.p); });
+}
+function verPaginaGrande(doc, p) {
+  const n = doc.numPages;
+  const d = h(`<dialog class="grande lb-modal"><div class="cuerpo"><div class="lb-dos grande"><canvas></canvas><canvas></canvas></div></div><div class="pie"><button class="btn" data-ant>← Anterior</button><span class="sutil" data-num></span><button class="btn" data-sig>Siguiente →</button><button class="btn prim" data-x>Cerrar</button></div></dialog>`);
+  document.body.append(d); d.addEventListener('close', () => d.remove()); d.showModal();
+  let actual = p;
+  const pintar = async () => {
+    const iz = actual === 1 ? null : actual % 2 ? actual - 1 : actual, de = actual === 1 ? 1 : iz + 1 <= n ? iz + 1 : null;
+    const [c1, c2] = $$('canvas', d);
+    const w = Math.min(420, (window.innerWidth - 160) / 2);
+    c1.style.visibility = iz ? 'visible' : 'hidden'; c2.style.visibility = de ? 'visible' : 'hidden';
+    if (iz) await dibujarPagina(doc, iz, c1, w);
+    if (de) await dibujarPagina(doc, de, c2, w);
+    $('[data-num]', d).textContent = [iz, de].filter(Boolean).join(' – ') + ` de ${n}`;
+  };
+  $('[data-ant]', d).onclick = () => { actual = Math.max(1, (actual % 2 ? actual - 1 : actual) - 1); pintar(); };
+  $('[data-sig]', d).onclick = () => { actual = Math.min(n, (actual % 2 ? actual + 1 : actual + 2)); pintar(); };
+  $('[data-x]', d).onclick = () => d.close();
+  d.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight') $('[data-sig]', d).click(); if (e.key === 'ArrowLeft') $('[data-ant]', d).click(); });
+  pintar();
 }
 
 /* ═════════ PDF: descargar e imprimir ═════════ */

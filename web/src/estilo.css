@@ -420,3 +420,33 @@ dialog h3 { font: 600 13px var(--marca); margin: 0 0 8px; color: var(--tinta); }
 .barra-el .sep { width: 1px; height: 18px; background: rgba(255,255,255,.2); margin: 0 4px; }
 .barra-el .be-nombre { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #9fd8ef; margin: 0 8px 0 4px; }
 .edicion-lugar { position: absolute; z-index: 7; min-height: 60px; font: 15px/1.4 "Source Serif 4", Georgia, serif; padding: 8px 10px; border: 2px solid #00A3E0; border-radius: 6px; box-shadow: 0 10px 24px -10px rgba(0,0,0,.4); resize: both; }
+/* libro: compaginación */
+#v-libro { overflow: auto; background: var(--mesa); }
+.libro-vista { max-width: 1300px; margin: 0 auto; padding: 26px 28px 80px; display: grid; gap: 16px; }
+.libro-cab { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
+.libro-cab h2 { font: 700 22px var(--marca); margin: 0 0 4px; }
+.libro-cab p { margin: 0; max-width: 60ch; }
+.libro-acc { display: flex; align-items: center; gap: 10px; }
+.lb-indice { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0; }
+.lb-cifras { width: 100%; font-size: 13px; color: var(--tinta-suave); margin-bottom: 4px; }
+.lb-cifras b { color: var(--tinta); }
+.lb-indice button { border: 1px solid var(--filete); background: var(--blanco); border-radius: 999px; padding: 4px 10px; font: 500 12px var(--ui); cursor: pointer; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lb-indice button span { color: var(--tinta-suave); margin-left: 4px; }
+.lb-tapa { background: var(--blanco); border-radius: var(--radio); padding: 14px; justify-self: center; box-shadow: var(--sombra-hoja); }
+.lb-tapa canvas { display: block; max-width: 100%; height: auto !important; }
+.lb-etq { font: 600 11px var(--ui); letter-spacing: .1em; text-transform: uppercase; color: var(--tinta-suave); margin-bottom: 8px; }
+.lb-grilla { display: flex; flex-wrap: wrap; gap: 22px 26px; align-items: flex-end; }
+.lb-pliego { width: 100%; font: 600 11px var(--ui); letter-spacing: .12em; text-transform: uppercase; color: #c2185b; border-top: 1px dashed #e89ab8; padding-top: 6px; }
+.lb-pliego-par { display: grid; gap: 4px; }
+.lb-cap { font: 600 11.5px var(--ui); color: var(--tinta); max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 3px solid #00A3E0; padding-left: 6px; }
+.lb-cap.vacio { border: 0; height: 16px; }
+.lb-dos { display: flex; box-shadow: 0 6px 16px -8px rgba(27,36,48,.35); }
+.lb-pag { margin: 0; background: #fff; position: relative; cursor: zoom-in; aspect-ratio: 170 / 240; }
+.lb-pag canvas { display: block; width: 100%; }
+.lb-pag.par { box-shadow: inset -6px 0 8px -6px rgba(0,0,0,.18); }
+.lb-pag.impar { box-shadow: inset 6px 0 8px -6px rgba(0,0,0,.18); }
+.lb-pag.vacia { background: transparent; box-shadow: none; cursor: default; }
+.lb-pag figcaption { position: absolute; bottom: -17px; left: 0; right: 0; text-align: center; font: 500 10.5px var(--ui); color: var(--tinta-suave); }
+.lb-pag.blanca::after { content: 'blanca'; position: absolute; inset: 0; display: grid; place-items: center; font: 600 10px var(--ui); letter-spacing: .1em; text-transform: uppercase; color: #b0b7bf; }
+.lb-modal .cuerpo { display: grid; place-items: center; }
+.lb-dos.grande canvas { box-shadow: 0 8px 20px -10px rgba(0,0,0,.4); }

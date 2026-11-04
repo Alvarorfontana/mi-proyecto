@@ -132,3 +132,41 @@ export function notasSinEnlace(md) {
     .filter((m) => !/https?:\/\/|doi\.org|\bdoi:/i.test(m[2]) && m[2].length > 25)
     .map((m) => ({ id: m[1], texto: m[2], indice: m.index, largo: m[0].length }));
 }
+
+// ── norma de citas del libro ──
+export const NORMAS = {
+  apa: { nombre: 'APA 7', ejemplo: 'Sassen, S. (2015). *Expulsiones*. Katz.' },
+  chicago: { nombre: 'Chicago (notas)', ejemplo: 'Saskia Sassen, *Expulsiones* (Buenos Aires: Katz, 2015), 45.' },
+  iso: { nombre: 'ISO 690', ejemplo: 'SASSEN, Saskia. *Expulsiones*. Buenos Aires: Katz, 2015.' },
+};
+
+// Revisa cada nota contra la norma y devuelve las que tienen problemas.
+export function revisarNorma(md, norma = 'apa') {
+  const out = [];
+  for (const m of md.matchAll(/^\[\^([^\]]+)\]:\s*(.+)$/gm)) {
+    const t = m[2].trim();
+    const prob = [];
+    const anio = /\b(1[5-9]\d\d|20\d\d)\b/.test(t);
+    const url = /https?:\/\/|doi\.org/i.test(t);
+    if (t.length < 25) continue; // aclaraciones breves: no son referencias
+    const esComentario = /^(ver|véase|cf\.|sobre|en este|el autor|la autora|según)/i.test(t) && !anio;
+    if (esComentario) continue;
+    if (!anio) prob.push('falta el año');
+    if (url && !/consult|recuperado|acceso|accedido/i.test(t) && !/doi/i.test(t)) prob.push('un enlace web lleva la fecha de consulta');
+    if (norma === 'apa') {
+      if (anio && !/\((1[5-9]\d\d|20\d\d)[a-z]?\)|\(s\. ?f\.\)/.test(t)) prob.push('en APA el año va entre paréntesis después del autor');
+      if (/^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+ [A-ZÁÉÍÓÚÑ][a-záéíóúñ]+,/.test(t) && !/^[^,]+, [A-Z]\./.test(t)) prob.push('en APA va «Apellido, I.»');
+    }
+    if (norma === 'chicago' && /\((1[5-9]\d\d|20\d\d)\)\./.test(t.slice(0, 60))) prob.push('parece APA: en Chicago el año va al final, con la editorial');
+    if (norma === 'iso' && !/^[A-ZÁÉÍÓÚÑ]{2,}/.test(t)) prob.push('en ISO 690 el apellido va en mayúsculas');
+    if (prob.length) out.push({ id: m[1], texto: t, problemas: prob, indice: m.index, largo: m[0].length });
+  }
+  return out;
+}
+
+export function pedidoNorma(norma) {
+  const n = NORMAS[norma] || NORMAS.apa;
+  return `Sos corrector de una editorial. Reescribí cada referencia según la norma ${n.nombre}, en castellano. Ejemplo de la norma: ${n.ejemplo}
+Reglas: no inventes datos que no estén (si falta el año poné «s. f.»; si falta la editorial, omitila). Conservá los enlaces y DOI tal cual. Si un enlace web no tiene fecha de consulta, no la inventes. Usá *asteriscos* para las cursivas. Si una nota es un comentario y no una referencia, devolvela igual.
+Respondé SOLO con un arreglo JSON con este formato, en el mismo orden: [{"id":"…","nota":"…"}]`;
+}

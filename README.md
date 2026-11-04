@@ -160,7 +160,18 @@ En la pestaña Texto, el panel **Citas** busca la fuente de lo que marques en el
 
 La referencia sale en APA 7, Chicago o ISO 690 y se inserta como **nota al pie** (y, si se quiere, también en la bibliografía del capítulo). «Buscar enlaces para las notas» revisa las notas que no tienen link ni DOI, busca la obra que citan y propone agregar el enlace.
 
-## PDF, impresión e imprenta
+## Libro: la compaginación completa
+
+La pestaña **Libro** arma el libro entero con lo último que escribiste y lo muestra de un vistazo: la **tapa completa** arriba y después **todas las páginas en pliegos** (la 1 sola a la derecha, después 2-3, 4-5…), con el comienzo de cada capítulo marcado, las páginas en blanco señaladas y los **pliegos de 16** separados (avisa cuántas páginas faltan para cerrar el último). Los capítulos de arriba llevan directo a su página, y un clic en cualquier página la abre grande, con flechas para pasar.
+
+## Norma de citas
+
+En Estilos (o en el panel Citas) se elige la **norma del libro**: APA 7, Chicago (notas) o ISO 690. Con eso:
+
+- las citas nuevas que se insertan salen en esa norma;
+- el panel Citas revisa las notas del capítulo y dice cuáles no la siguen y por qué (falta el año, el año no va entre paréntesis, falta la fecha de consulta de un enlace…);
+- «Pasar las notas a APA con IA» las reescribe con Gemini o Groq sin inventar datos, y cada cambio se revisa antes de aplicarlo;
+- Producción avisa cuántas notas del libro no siguen la norma.
 
 - **Capítulo suelto**: el botón «PDF» arriba de las páginas descarga o imprime el capítulo abierto, con la medida real del libro (para revisar en papel, imprimir en A4 con «Tamaño real»).
 - **Libro completo**: en Producción, «Armar acá» da el interior, la tapa y la tapa con guías; cada uno tiene su botón de descargar y de imprimir.
