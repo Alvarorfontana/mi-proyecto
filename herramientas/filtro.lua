@@ -49,9 +49,15 @@ return {
   },
   {
     Str = function(s)
-      if s.text:match("^https?://") or s.text:match("^www%.") then
-        local u, tail = s.text:match("^(.-)([%.,;:%)]*)$")
-        return {pandoc.RawInline("typst", "#url(" .. str(u) .. ")"), pandoc.Str(tail)}
+      local pre, resto = s.text:match("^(.-)(https?://.*)$")
+      if not resto then pre, resto = s.text:match("^(.-)(www%..*)$") end
+      if resto then
+        local u, tail = resto:match("^(.-)([%.,;:%)]*)$")
+        local out = {}
+        if pre ~= "" then table.insert(out, pandoc.Str(pre)) end
+        table.insert(out, pandoc.RawInline("typst", "#url(" .. str(u) .. ")"))
+        if tail ~= "" then table.insert(out, pandoc.Str(tail)) end
+        return out
       end
     end,
 

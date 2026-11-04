@@ -26,7 +26,29 @@ Corregís un `.md`, volvés a armar, y el libro se recompone entero en unos segu
 
 Sin instalar nada: si subís el repo a GitHub, cada cambio arma los PDF solo (pestaña **Actions** → última corrida → **Artifacts**).
 
-## Usarlo online, sin instalar nada (GitHub Codespaces)
+## La página web (sin instalar nada)
+
+En `web/` está el taller como página independiente: corre entera en el navegador, con el mismo motor (Typst) que arma el libro.
+
+- **Ingreso**: con una clave de GitHub (token) que tenga permiso de *Contents* y *Actions* sobre este repo. Queda guardada solo en tu navegador.
+- **Texto**: índice de capítulos y partes, editor con buscar y reemplazar, y las páginas enfrentadas con marcas de corte, actualizadas mientras escribís.
+- **Estilos**: medida, márgenes, letras (con muestra), cuerpo, interlineado, cornisas.
+- **Tapa**: tres diseños (clásica, editorial, tipográfica), colores, letra del título, papel y solapas, con la tapa completa a la vista.
+- **Producción**: arma el PDF de imprenta y la tapa en el navegador (unos 15 segundos para CRUZAR), avisos antes de imprenta, armado en GitHub (con EPUB) y simulador de páginas.
+- **Asistente**: condensa, corrige, mejora la fluidez y busca repeticiones con Groq (plan gratuito; la clave se crea en console.groq.com/keys).
+- **Guardar** sube los cambios directo al repo.
+
+### Publicarla en Vercel (gratis)
+
+1. En vercel.com → **Add New → Project** → importá este repositorio.
+2. En **Root Directory** elegí `web`. Vercel detecta Vite solo.
+3. **Deploy**. Cada cambio que subas al repo vuelve a publicar la página.
+
+Para probarla en una compu: `cd web && npm install && npm run dev`.
+
+Las tipografías se toman de `fuentes/`. Si sumás una, corré `python herramientas/catalogo_fuentes.py` para que la página la reconozca.
+
+## Usarlo en GitHub Codespaces
 
 En la página del repo en GitHub: **Code → Codespaces → Create codespace on main**. La primera vez tarda un par de minutos porque instala Typst y pandoc. Después se abre solo el **panel** en una pestaña nueva; si no se abre, entrá a la pestaña **Ports** y abrí el puerto 8000.
 

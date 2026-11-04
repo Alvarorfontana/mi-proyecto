@@ -198,6 +198,8 @@ indice      = "inicio"   # inicio | final | no
 
 # ── Tapa ─────────────────────────────────────────────────────
 [tapa]
+estilo         = "clasica"   # clasica | editorial | tipografica
+fuente_titulo  = "EB Garamond"
 papel          = "obra-80"   # ver plantilla/presets.toml → [papeles]
 cartulina_mm   = 0.6         # suma de las dos tapas al lomo
 solapa         = "80mm"      # "0mm" = sin solapas

@@ -18,6 +18,8 @@
 #let tinta = rgb(T.at("color_texto", default: "#f4efe6"))
 #let acento = rgb(T.at("color_acento", default: "#d9a441"))
 #let seguro = 6mm   // zona segura: nada importante más cerca del corte
+#let estilo-tapa = sys.inputs.at("estilo_tapa", default: T.at("estilo", default: "clasica"))   // clasica | editorial | tipografica
+#let fuente-tapa = T.at("fuente_titulo", default: TIPO.titulos)
 
 // posiciones horizontales (desde el borde izquierdo del papel, con sangrado)
 #let x-solapa-tras = sangre
@@ -48,20 +50,58 @@
   place(top + left, dx: 0pt, dy: 0pt, image(RAIZ + T.imagen_contratapa, width: x-lomo, height: alto-total, fit: "cover"))
 }
 
-// ── la línea que cruza: atraviesa contratapa, lomo y tapa ──
+// ── la línea que cruza contratapa, lomo y tapa (estilo clásico) ──
 #let y-linea = sangre + H * 0.56
-#place(top + left, dx: x-contra, dy: y-linea, line(length: W * 2 + lomo, stroke: 0.8pt + acento))
+#if estilo-tapa == "clasica" {
+  place(top + left, dx: x-contra, dy: y-linea, line(length: W * 2 + lomo, stroke: 0.8pt + acento))
+}
 
 // ── TAPA ──
-#panel(x-tapa, W, {
-  let mx = 16mm
-  place(top + left, dx: mx, dy: 22mm, text(font: TIPO.apoyo, size: 9pt, tracking: 0.3em, weight: "medium")[#upper(LIB.autor)])
-  place(top + left, dx: mx, dy: 0pt, block(width: W - 2 * mx, height: H * 0.56 - 7mm,
-    align(bottom + left, text(font: TIPO.titulos, size: 58pt, weight: "semibold", tracking: 0.04em, hyphenate: false, top-edge: "cap-height", bottom-edge: "baseline")[#LIB.titulo])))
-  place(top + left, dx: mx, dy: H * 0.56 + 8mm, block(width: (W - 2 * mx) * 0.85,
-    text(font: TIPO.titulos, size: 17pt, style: "italic", hyphenate: false)[#set par(justify: false); #LIB.at("subtitulo", default: "")]))
-  place(bottom + left, dx: mx, dy: -14mm, text(font: TIPO.apoyo, size: 7.5pt, tracking: 0.3em)[#upper(LIB.at("editorial", default: ""))])
-})
+#let sub = LIB.at("subtitulo", default: "")
+#let ed = LIB.at("editorial", default: "")
+#if estilo-tapa == "editorial" {
+  // inspirado en una tapa de catálogo: barra superior, filete de acento, título, autor en versalitas
+  panel(x-tapa, W, pad(x: 16mm, top: 18mm, bottom: 16mm, grid(rows: (auto, 1fr, auto), {
+    set text(font: TIPO.apoyo, size: 7pt, tracking: 0.3em, fill: tinta.transparentize(35%))
+    grid(columns: (1fr, auto), upper(ed), str(LIB.at("anio", default: "")))
+  }, align(horizon, {
+    line(length: 16mm, stroke: 1.2pt + acento)
+    v(10mm)
+    text(font: fuente-tapa, size: 50pt, weight: "semibold", hyphenate: false, top-edge: "cap-height")[#LIB.titulo]
+    v(7mm)
+    block(width: 88%, text(font: fuente-tapa, size: 16pt, style: "italic", fill: tinta.transparentize(15%))[#set par(justify: false); #sub])
+    v(12mm)
+    line(length: 32mm, stroke: 0.5pt + tinta.transparentize(60%))
+    v(6mm)
+    text(font: TIPO.apoyo, size: 9pt, tracking: 0.25em, fill: acento, weight: "medium")[#upper(LIB.autor)]
+  }), {
+    set text(font: TIPO.apoyo, size: 6.5pt, tracking: 0.08em, fill: tinta.transparentize(45%))
+    grid(columns: (1fr, auto), LIB.at("edicion", default: ""), if LIB.at("isbn", default: "") != "" [ISBN #LIB.isbn])
+  })))
+} else if estilo-tapa == "tipografica" {
+  // el título ocupa la tapa; bloque de acento abajo
+  panel(x-tapa, W, {
+    place(top + left, dx: 14mm, dy: 16mm, block(width: W - 28mm, {
+      set par(justify: false, leading: 0.2em)
+      text(font: fuente-tapa, size: calc.min(96pt, (W - 28mm) / calc.max(LIB.titulo.clusters().len(), 1) * 1.55), weight: "bold", hyphenate: false, tracking: -0.01em, top-edge: "cap-height")[#LIB.titulo]
+      v(8mm)
+      text(font: fuente-tapa, size: 18pt, style: "italic")[#sub]
+    }))
+    place(bottom + left, dx: 0pt, dy: 0pt, block(width: W + pliegue + solapa + sangre, height: H * 0.2 + sangre, fill: acento))
+    place(bottom + left, dx: 14mm, dy: -(H * 0.2) + 14mm, text(font: TIPO.apoyo, size: 10pt, tracking: 0.25em, weight: "bold", fill: fondo)[#upper(LIB.autor)])
+    place(bottom + left, dx: 14mm, dy: -10mm, text(font: TIPO.apoyo, size: 7pt, tracking: 0.3em, fill: fondo)[#upper(ed)])
+  })
+} else {
+  panel(x-tapa, W, {
+    let mx = 16mm
+    place(top + left, dx: mx, dy: 22mm, text(font: TIPO.apoyo, size: 9pt, tracking: 0.3em, weight: "medium")[#upper(LIB.autor)])
+    place(top + left, dx: mx, dy: 0pt, block(width: W - 2 * mx, height: H * 0.56 - 7mm,
+      align(bottom + left, text(font: fuente-tapa, size: 58pt, weight: "semibold", tracking: 0.04em, hyphenate: false, top-edge: "cap-height", bottom-edge: "baseline")[#LIB.titulo])))
+    place(top + left, dx: mx, dy: H * 0.56 + 8mm, block(width: (W - 2 * mx) * 0.85,
+      text(font: fuente-tapa, size: 17pt, style: "italic", hyphenate: false)[#set par(justify: false); #sub]))
+    place(bottom + left, dx: mx, dy: -14mm, text(font: TIPO.apoyo, size: 7.5pt, tracking: 0.3em)[#upper(ed)])
+  })
+}
 
 // ── LOMO ──
 #place(top + left, dx: x-lomo, dy: sangre, block(width: lomo, height: H, {

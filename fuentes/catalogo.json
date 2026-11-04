@@ -1,0 +1,356 @@
+[
+ {
+  "archivo": "Cormorant-Bold.ttf",
+  "familia": "Cormorant",
+  "peso": 700,
+  "italica": false
+ },
+ {
+  "archivo": "Cormorant-BoldItalic.ttf",
+  "familia": "Cormorant",
+  "peso": 700,
+  "italica": true
+ },
+ {
+  "archivo": "Cormorant-Italic.ttf",
+  "familia": "Cormorant",
+  "peso": 400,
+  "italica": true
+ },
+ {
+  "archivo": "Cormorant-Regular.ttf",
+  "familia": "Cormorant",
+  "peso": 400,
+  "italica": false
+ },
+ {
+  "archivo": "Cormorant-SemiBold.ttf",
+  "familia": "Cormorant",
+  "peso": 600,
+  "italica": false
+ },
+ {
+  "archivo": "Cormorant-SemiBoldItalic.ttf",
+  "familia": "Cormorant",
+  "peso": 600,
+  "italica": true
+ },
+ {
+  "archivo": "CrimsonPro-Bold.ttf",
+  "familia": "Crimson Pro",
+  "peso": 700,
+  "italica": false
+ },
+ {
+  "archivo": "CrimsonPro-BoldItalic.ttf",
+  "familia": "Crimson Pro",
+  "peso": 700,
+  "italica": true
+ },
+ {
+  "archivo": "CrimsonPro-Italic.ttf",
+  "familia": "Crimson Pro",
+  "peso": 400,
+  "italica": true
+ },
+ {
+  "archivo": "CrimsonPro-Regular.ttf",
+  "familia": "Crimson Pro",
+  "peso": 400,
+  "italica": false
+ },
+ {
+  "archivo": "CrimsonPro-SemiBold.ttf",
+  "familia": "Crimson Pro",
+  "peso": 600,
+  "italica": false
+ },
+ {
+  "archivo": "CrimsonPro-SemiBoldItalic.ttf",
+  "familia": "Crimson Pro",
+  "peso": 600,
+  "italica": true
+ },
+ {
+  "archivo": "EBGaramond-400-italic.ttf",
+  "familia": "EB Garamond",
+  "peso": 400,
+  "italica": true
+ },
+ {
+  "archivo": "EBGaramond-400-normal.ttf",
+  "familia": "EB Garamond",
+  "peso": 400,
+  "italica": false
+ },
+ {
+  "archivo": "EBGaramond-500-italic.ttf",
+  "familia": "EB Garamond",
+  "peso": 500,
+  "italica": true
+ },
+ {
+  "archivo": "EBGaramond-500-normal.ttf",
+  "familia": "EB Garamond",
+  "peso": 500,
+  "italica": false
+ },
+ {
+  "archivo": "EBGaramond-600-italic.ttf",
+  "familia": "EB Garamond",
+  "peso": 600,
+  "italica": true
+ },
+ {
+  "archivo": "EBGaramond-600-normal.ttf",
+  "familia": "EB Garamond",
+  "peso": 600,
+  "italica": false
+ },
+ {
+  "archivo": "EBGaramond-700-italic.ttf",
+  "familia": "EB Garamond",
+  "peso": 700,
+  "italica": true
+ },
+ {
+  "archivo": "EBGaramond-700-normal.ttf",
+  "familia": "EB Garamond",
+  "peso": 700,
+  "italica": false
+ },
+ {
+  "archivo": "Fraunces-Bold.ttf",
+  "familia": "Fraunces",
+  "peso": 700,
+  "italica": false
+ },
+ {
+  "archivo": "Fraunces-BoldItalic.ttf",
+  "familia": "Fraunces",
+  "peso": 700,
+  "italica": true
+ },
+ {
+  "archivo": "Fraunces-Italic.ttf",
+  "familia": "Fraunces",
+  "peso": 400,
+  "italica": true
+ },
+ {
+  "archivo": "Fraunces-Regular.ttf",
+  "familia": "Fraunces",
+  "peso": 400,
+  "italica": false
+ },
+ {
+  "archivo": "Fraunces-SemiBold.ttf",
+  "familia": "Fraunces",
+  "peso": 600,
+  "italica": false
+ },
+ {
+  "archivo": "Fraunces-SemiBoldItalic.ttf",
+  "familia": "Fraunces",
+  "peso": 600,
+  "italica": true
+ },
+ {
+  "archivo": "Inter-Black.otf",
+  "familia": "Inter",
+  "peso": 900,
+  "italica": false
+ },
+ {
+  "archivo": "Inter-Bold.otf",
+  "familia": "Inter",
+  "peso": 700,
+  "italica": false
+ },
+ {
+  "archivo": "Inter-Italic.otf",
+  "familia": "Inter",
+  "peso": 400,
+  "italica": true
+ },
+ {
+  "archivo": "Inter-Medium.otf",
+  "familia": "Inter",
+  "peso": 500,
+  "italica": false
+ },
+ {
+  "archivo": "Inter-Regular.otf",
+  "familia": "Inter",
+  "peso": 400,
+  "italica": false
+ },
+ {
+  "archivo": "Inter-SemiBold.otf",
+  "familia": "Inter",
+  "peso": 600,
+  "italica": false
+ },
+ {
+  "archivo": "LibertinusSerif-Bold.otf",
+  "familia": "Libertinus Serif",
+  "peso": 700,
+  "italica": false
+ },
+ {
+  "archivo": "LibertinusSerif-BoldItalic.otf",
+  "familia": "Libertinus Serif",
+  "peso": 700,
+  "italica": true
+ },
+ {
+  "archivo": "LibertinusSerif-Italic.otf",
+  "familia": "Libertinus Serif",
+  "peso": 400,
+  "italica": true
+ },
+ {
+  "archivo": "LibertinusSerif-Regular.otf",
+  "familia": "Libertinus Serif",
+  "peso": 400,
+  "italica": false
+ },
+ {
+  "archivo": "LibertinusSerif-Semibold.otf",
+  "familia": "Libertinus Serif",
+  "peso": 600,
+  "italica": false
+ },
+ {
+  "archivo": "LibertinusSerif-SemiboldItalic.otf",
+  "familia": "Libertinus Serif",
+  "peso": 600,
+  "italica": false
+ },
+ {
+  "archivo": "Lora-Bold.ttf",
+  "familia": "Lora",
+  "peso": 700,
+  "italica": false
+ },
+ {
+  "archivo": "Lora-BoldItalic.ttf",
+  "familia": "Lora",
+  "peso": 700,
+  "italica": true
+ },
+ {
+  "archivo": "Lora-Italic.ttf",
+  "familia": "Lora",
+  "peso": 400,
+  "italica": true
+ },
+ {
+  "archivo": "Lora-Regular.ttf",
+  "familia": "Lora",
+  "peso": 400,
+  "italica": false
+ },
+ {
+  "archivo": "Lora-SemiBold.ttf",
+  "familia": "Lora",
+  "peso": 600,
+  "italica": false
+ },
+ {
+  "archivo": "Lora-SemiBoldItalic.ttf",
+  "familia": "Lora",
+  "peso": 600,
+  "italica": true
+ },
+ {
+  "archivo": "Merriweather-Bold.ttf",
+  "familia": "Merriweather",
+  "peso": 700,
+  "italica": false
+ },
+ {
+  "archivo": "Merriweather-BoldItalic.ttf",
+  "familia": "Merriweather",
+  "peso": 700,
+  "italica": true
+ },
+ {
+  "archivo": "Merriweather-Italic.ttf",
+  "familia": "Merriweather",
+  "peso": 400,
+  "italica": true
+ },
+ {
+  "archivo": "Merriweather-Regular.ttf",
+  "familia": "Merriweather",
+  "peso": 400,
+  "italica": false
+ },
+ {
+  "archivo": "PlayfairDisplay-Bold.ttf",
+  "familia": "Playfair Display",
+  "peso": 700,
+  "italica": false
+ },
+ {
+  "archivo": "PlayfairDisplay-Italic.ttf",
+  "familia": "Playfair Display",
+  "peso": 400,
+  "italica": true
+ },
+ {
+  "archivo": "PlayfairDisplay-Regular.ttf",
+  "familia": "Playfair Display",
+  "peso": 400,
+  "italica": false
+ },
+ {
+  "archivo": "PlayfairDisplay-SemiBold.ttf",
+  "familia": "Playfair Display",
+  "peso": 600,
+  "italica": false
+ },
+ {
+  "archivo": "PlayfairDisplay-SemiBoldItalic.ttf",
+  "familia": "Playfair Display",
+  "peso": 600,
+  "italica": true
+ },
+ {
+  "archivo": "SourceSerif4-Bold.otf",
+  "familia": "Source Serif 4",
+  "peso": 700,
+  "italica": false
+ },
+ {
+  "archivo": "SourceSerif4-BoldIt.otf",
+  "familia": "Source Serif 4",
+  "peso": 700,
+  "italica": true
+ },
+ {
+  "archivo": "SourceSerif4-It.otf",
+  "familia": "Source Serif 4",
+  "peso": 400,
+  "italica": true
+ },
+ {
+  "archivo": "SourceSerif4-Regular.otf",
+  "familia": "Source Serif 4",
+  "peso": 400,
+  "italica": false
+ },
+ {
+  "archivo": "SourceSerif4-Semibold.otf",
+  "familia": "Source Serif 4",
+  "peso": 600,
+  "italica": false
+ },
+ {
+  "archivo": "SourceSerif4-SemiboldIt.otf",
+  "familia": "Source Serif 4",
+  "peso": 600,
+  "italica": true
+ }
+]
