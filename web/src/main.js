@@ -22,6 +22,7 @@ import { puntuar, hayDictadoNavegador, dictarNavegador, dictarWhisper } from './
 import { campoMarcas, fijarMarcas, quitarMarca, listarMarcas, revisarLanguageTool, PEDIDO_REVISION, marcasDesdeIA, ortografiaNavegador, revisarParrafos } from './revision.js';
 import { iniciarMotor, cargarTextos, cargarBinarios, yaCargado, compilar, aSvg } from './motor.js';
 import { MODELOS, MODELOS_GEMINI, PROVEEDORES, ACCIONES, preguntar, modelosGemini } from './ia.js';
+import { instalarPasamanos, entrarConClave } from './servidor.js';
 
 /* ═════════ utilidades ═════════ */
 const $ = (s, r = document) => r.querySelector(s);
@@ -64,6 +65,7 @@ const rutaLibro = (p) => `libros/${S.slug}/${p}`;
 
 /* ═════════ arranque ═════════ */
 document.body.append(h('<div class="toast" role="status" aria-live="polite"></div>'));
+if (S.conf.modo === 'clave' && S.conf.clave) instalarPasamanos(S.conf.clave);
 if (S.conf.token) conectar().catch((e) => pantallaIngreso(e.message)); else pantallaIngreso();
 
 function pantallaIngreso(error) {
@@ -75,7 +77,7 @@ function pantallaIngreso(error) {
       <div>
         <div class="logo" style="margin-bottom:56px">${I.registro}Taller editorial</div>
         <h1>Del manuscrito al pliego.</h1>
-        <p class="bajada">Escribís y corregís en el navegador, ves cada página como va a salir de imprenta y armás el PDF, la tapa con su lomo y el EPUB. Todo queda guardado en tu repositorio de GitHub.</p>
+        <p class="bajada">Escribís y corregís en el navegador, ves cada página como va a salir de imprenta y armás el PDF, la tapa con su lomo y el EPUB.</p>
         <div class="pliego" aria-hidden="true">${paginas.map((n, i) => `<i data-n="${n}" class="${[1, 2, 5, 6].includes(i) ? 'lleno' : ''}"></i>`).join('')}</div>
         <div class="pliego-pie">Un pliego de 8 páginas, impuesto para imprenta.</div>
       </div>
@@ -84,11 +86,17 @@ function pantallaIngreso(error) {
     <section class="form-lado">
       <div><h2>Entrar al taller</h2><p style="margin-top:6px">Se hace una sola vez en cada navegador: después entra solo.</p></div>
       ${error ? `<div class="aviso mal">${esc(error)}</div>` : ''}
+      <label class="campo"><span>Contraseña del taller</span>
+        <input class="entrada" id="i-clave" type="password" autocomplete="current-password" placeholder="La que te dieron para entrar"></label>
+      <button class="btn prim" id="b-clave" style="height:42px;justify-content:center">Entrar al taller</button>
+      <details style="font-size:12.5px;color:var(--tinta-suave)"><summary style="cursor:pointer">Entrar con una clave de GitHub (avanzado)</summary>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
       <a class="btn" style="height:40px;justify-content:center" href="https://github.com/settings/tokens/new?scopes=repo,workflow&description=Taller%20editorial" target="_blank" rel="noopener">1. Crear la clave en GitHub</a>
       <p style="font-size:13px">Se abre GitHub con todo ya marcado. Elegí <b>No expiration</b> en «Expiration», bajá hasta el final, tocá <b>Generate token</b> y copiá la clave que empieza con <code>ghp_</code>.</p>
       <label class="campo"><span>2. Pegá la clave acá</span>
         <input class="entrada" id="i-token" type="password" autocomplete="off" placeholder="ghp_…"></label>
-      <button class="btn prim" id="b-entrar" style="height:42px;justify-content:center">3. Entrar al taller</button>
+      <button class="btn" id="b-entrar" style="height:42px;justify-content:center">3. Entrar con la clave de GitHub</button>
+      </div></details>
       <details style="font-size:12.5px;color:var(--tinta-suave)"><summary style="cursor:pointer">Otro repositorio</summary>
         <div class="grilla" style="margin-top:10px">
           <label class="campo"><span>Cuenta</span><input class="entrada" id="i-owner" value="${esc(S.conf.owner)}"></label>
@@ -96,7 +104,23 @@ function pantallaIngreso(error) {
         </div></details>
     </section>
   </div>`;
+  const conClave = async () => {
+    const clave = $('#i-clave').value.trim();
+    if (!clave) return toast('Escribí la contraseña del taller.');
+    const b = $('#b-clave'); b.disabled = true; b.innerHTML = '<span class="spin"></span> Entrando…';
+    try {
+      const d = await entrarConClave(clave);
+      Object.assign(S.conf, { modo: 'clave', clave, token: 'servidor', owner: d.owner, repo: d.repo, nombre: d.nombre,
+        gemini: d.ia.gemini ? 'servidor' : S.conf.gemini || '', groq: d.ia.groq ? 'servidor' : S.conf.groq || '',
+        proveedor: d.ia.gemini ? 'gemini' : d.ia.groq ? 'groq' : S.conf.proveedor });
+      instalarPasamanos(clave);
+      await conectar(); escribir('taller.conf', S.conf);
+    } catch (e) { pantallaIngreso(e.message); }
+  };
+  $('#b-clave').onclick = conClave;
+  $('#i-clave').onkeydown = (e) => { if (e.key === 'Enter') conClave(); };
   $('#b-entrar').onclick = async () => {
+    S.conf.modo = ''; S.conf.clave = '';
     S.conf.token = $('#i-token').value.trim(); S.conf.owner = $('#i-owner').value.trim(); S.conf.repo = $('#i-repo').value.trim();
     if (!S.conf.token) return toast('Pegá la clave de GitHub para seguir.');
     const b = $('#b-entrar'); b.disabled = true; b.innerHTML = '<span class="spin"></span> Conectando…';
