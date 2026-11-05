@@ -63,6 +63,7 @@ idioma          = "es"
 # ── Estilo ───────────────────────────────────────────────────
 [estilo]
 norma_citas              = "chicago" # notas al pie al estilo Chicago (habitual en no ficción y periodismo)
+columnas                 = 1         # CRUZAR va a una sola columna, a todo el ancho
 capitulo_en_impar        = true    # cada capítulo arranca en página derecha
 parte_en_impar           = true
 numerar_secciones        = true    # 1.1, 1.2… (se renumera solo si movés o fusionás capítulos)
