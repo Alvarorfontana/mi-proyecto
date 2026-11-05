@@ -49,18 +49,26 @@ export const ACCIONES = {
   resumen: { nombre: 'Resumir', pide: 'Resumí este texto en un párrafo de no más de 120 palabras, útil para una solapa o una contratapa.', reemplaza: false },
 };
 
-// Si Google retira un modelo, se busca solo uno vigente (Flash) y se reintenta.
+// Si Google retira un modelo o el elegido está saturado, se prueba solo con otros de Gemini.
 let modeloVigente = '';
+const RESPALDOS = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-flash-lite-latest', 'gemini-2.5-flash-lite', 'gemini-pro-latest'];
 export async function preguntar(op) {
-  try {
-    return await preguntar0(modeloVigente && op.proveedor === 'gemini' ? { ...op, modelo: modeloVigente } : op);
-  } catch (e) {
-    if (op.proveedor !== 'gemini' || !/no encuentra el modelo/.test(e.message)) throw e;
-    const lista = await modelosGemini(op.clave);
-    const nuevo = (lista.find((m) => /flash/.test(m.id) && !/lite/.test(m.id)) || lista[0] || MODELOS_GEMINI[0]).id;
-    modeloVigente = nuevo === op.modelo ? 'gemini-flash-latest' : nuevo;
-    return preguntar0({ ...op, modelo: modeloVigente });
+  if (op.proveedor !== 'gemini') return preguntar0(op);
+  const primero = modeloVigente || op.modelo || RESPALDOS[0];
+  const orden = [primero, ...RESPALDOS.filter((m) => m !== primero)];
+  let ultimo;
+  for (const [i, modelo] of orden.entries()) {
+    try {
+      const t = await preguntar0({ ...op, modelo });
+      modeloVigente = modelo;
+      return t;
+    } catch (e) {
+      ultimo = e;
+      if (!/no encuentra el modelo|saturado|esperar un momento/.test(e.message)) throw e;
+      if (/saturado|esperar/.test(e.message)) await new Promise((ok) => setTimeout(ok, 1500 + i * 1000));
+    }
   }
+  throw new Error(ultimo?.message.includes('saturado') ? 'Gemini está saturado en este momento (le pasa a todos sus usuarios). Probá de nuevo en unos minutos.' : ultimo?.message || 'Gemini no respondió.');
 }
 
 async function preguntar0({ proveedor = 'groq', clave, modelo, accion, texto, pedido }) {
@@ -84,6 +92,7 @@ async function preguntar0({ proveedor = 'groq', clave, modelo, accion, texto, pe
       if (r.status === 401 || r.status === 403 || (r.status === 400 && /api key|credential/i.test(String(msg)))) throw new Error('Gemini no acepta la clave. Revisala en Ajustes.');
       if (r.status === 404) throw new Error('Gemini no encuentra el modelo elegido. Probá con otro de la lista.');
       if (r.status === 429) throw new Error('Gemini pide esperar un momento (límite del plan gratuito).');
+      if (r.status === 503 || r.status === 500 || /high demand|overloaded|unavailable/i.test(String(msg))) throw new Error('Gemini está saturado en este momento.');
       throw new Error('Gemini respondió: ' + msg);
     }
     const j = await r.json();
