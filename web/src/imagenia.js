@@ -34,13 +34,34 @@ export function armarPrompt({ idea, estilo, encuadre, colores = [], ancho, alto,
 }
 
 // Pollinations: gratis, sin clave, una imagen cada ~15 s. Devuelve un Blob.
-export async function generarPollinations(prompt, { ancho, alto, semilla = Math.floor(Math.random() * 1e6) }) {
+// El plan sin cuenta agrega una marca de agua abajo: se pide la imagen un poco más alta y se recorta esa franja.
+export async function generarPollinations(prompt, { ancho, alto, semilla = Math.floor(Math.random() * 1e6) }, avisar = () => {}) {
   const lado = 1536;
   const w = ancho >= alto ? lado : Math.round(lado * ancho / alto), h = ancho >= alto ? Math.round(lado * alto / ancho) : lado;
-  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${h}&seed=${semilla}&nologo=true&model=flux`;
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(r.status === 429 ? 'Pollinations pide esperar unos segundos entre imágenes.' : 'Pollinations respondió ' + r.status);
-  return { blob: await r.blob(), ancho: w, alto: h, origen: 'Pollinations (FLUX)' };
+  const hPedido = Math.round(h / 0.92);
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${hPedido}&seed=${semilla}&nologo=true&model=flux`;
+  let r, error = '';
+  for (let intento = 0; intento < 4; intento++) {
+    try {
+      r = await fetch(url);
+      if (r.ok) break;
+      error = r.status === 429 ? 'Pollinations pide esperar entre imágenes.' : 'Pollinations respondió ' + r.status;
+    } catch { error = 'No se pudo conectar con Pollinations.'; r = null; }
+    if (intento < 3) { avisar(`${error} Reintento en 20 segundos…`); await new Promise((ok) => setTimeout(ok, 20000)); }
+  }
+  if (!r || !r.ok) throw new Error(error + ' Probá de nuevo en un minuto.');
+  const original = await r.blob();
+  try {
+    const bmp = await createImageBitmap(original);
+    const corte = Math.round(bmp.height * 0.92); // sin la franja de abajo (marca de agua)
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    c.getContext('2d').drawImage(bmp, 0, 0, bmp.width, corte, 0, 0, w, h);
+    const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.93));
+    return { blob: blob || original, ancho: w, alto: h, origen: 'Pollinations (FLUX)' };
+  } catch {
+    return { blob: original, ancho: w, alto: h, origen: 'Pollinations (FLUX)' };
+  }
 }
 
 const PROPORCIONES = [['1:1', 1], ['2:3', 2 / 3], ['3:4', 3 / 4], ['4:5', 4 / 5], ['9:16', 9 / 16], ['3:2', 3 / 2], ['4:3', 4 / 3], ['5:4', 5 / 4], ['16:9', 16 / 9], ['21:9', 21 / 9]];

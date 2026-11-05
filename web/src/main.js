@@ -1289,7 +1289,7 @@ function pintarIaTapa() {
       res.insertAdjacentHTML('afterbegin', `<div class="ia-img cargando"><span class="spin"></span><small>${con === 'gemini' ? 'Gemini' : 'Pollinations'} está pintando…${i ? ' (la segunda tarda un poco más)' : ''}</small></div>`);
       try {
         if (i) await new Promise((ok) => setTimeout(ok, 16000));
-        const r = con === 'gemini' ? await generarGemini(pr, S.conf.gemini, med) : await generarPollinations(pr, med);
+        const r = con === 'gemini' ? await generarGemini(pr, S.conf.gemini, med) : await generarPollinations(pr, med, (m) => toast(m));
         iaTapaRes.unshift({ ...r, url: URL.createObjectURL(r.blob), encuadre: c.encuadre });
       } catch (e) { toast(e.message); }
       mostrarIaTapa();
