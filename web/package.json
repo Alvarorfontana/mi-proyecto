@@ -23,6 +23,7 @@
     "@upscalerjs/esrgan-slim": "^1.0.0",
     "codemirror": "^6.0.2",
     "diff": "^5.2.0",
+    "mammoth": "^1.11.0",
     "markdown-it": "^14.3.3",
     "markdown-it-attrs": "^4.5.0",
     "markdown-it-container": "^4.0.0",

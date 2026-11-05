@@ -23,6 +23,7 @@ import { campoMarcas, fijarMarcas, quitarMarca, listarMarcas, revisarLanguageToo
 import { iniciarMotor, cargarTextos, cargarBinarios, yaCargado, compilar, aSvg } from './motor.js';
 import { MODELOS, MODELOS_GEMINI, PROVEEDORES, ACCIONES, preguntar, modelosGemini } from './ia.js';
 import { instalarPasamanos, entrarConClave, iaDelServidor } from './servidor.js';
+import { leerManuscrito, TIPOS_MANUSCRITO } from './leerarchivo.js';
 import { SupabaseAlmacen, configBase, guardarConfigBase, sesionActual, entrarConGoogle, entrarConCorreo, salir as salirBase, supa } from './almacen-supabase.js';
 
 /* ═════════ utilidades ═════════ */
@@ -504,13 +505,15 @@ async function nuevoLibro() {
     <label class="campo"><span>Medida</span><select class="entrada" id="nl-formato">${formatos.map(([k, f]) => `<option value="${k}" ${k === (S.cfg?.formato?.preset || '15x21') ? 'selected' : ''}>${k.replace('x', ' × ')} cm (${parseFloat(f.ancho)} × ${parseFloat(f.alto)} mm)</option>`).join('')}</select></label>
     <label class="campo"><span>Diseño de partida</span><select class="entrada" id="nl-base">
       <option value="copiar">El mismo diseño que «${esc(S.cfg?.libro?.titulo || S.slug)}» (letras, márgenes, tapa)</option>
-      <option value="limpio">Diseño clásico, desde cero</option></select></label>`,
+      <option value="limpio">Diseño clásico, desde cero</option></select></label>
+    <label class="campo"><span>Manuscrito (opcional)</span><input class="entrada" type="file" id="nl-archivo" accept="${TIPOS_MANUSCRITO}"><small>Word (.docx), PDF o texto. El taller lo corta en capítulos y te muestra cómo queda antes de crear nada.</small></label>`,
     [['Cancelar'], ['Crear el libro', 'prim']]);
   $('#nl-titulo', d).focus();
   d.addEventListener('close', async () => {
     if (d.returnValue !== '1') return;
     const titulo = $('#nl-titulo', d).value.trim();
     if (!titulo) return toast('Escribí el título del libro.');
+    const manuscrito = $('#nl-archivo', d).files?.[0] || null;
     const { slug, archivos } = archivosLibroNuevo({ titulo, sub: $('#nl-sub', d).value.trim(), autor: $('#nl-autor', d).value.trim(), editorial: $('#nl-editorial', d).value.trim(), formato: $('#nl-formato', d).value, copiar: $('#nl-base', d).value === 'copiar' });
     cargando('Creando el libro…');
     try {
@@ -520,7 +523,8 @@ async function nuevoLibro() {
       S.originales.clear(); S.textos.clear();
       await abrirLibro(slug);
       pintarSelectorLibros();
-      toast(`Listo: «${titulo}» creado. Ya podés escribir o importar el texto.`);
+      if (manuscrito) asistenteImportar(manuscrito);
+      else toast(`Listo: «${titulo}» creado. Ya podés escribir o subir el manuscrito.`);
     } catch (e) {
       cargando();
       toast('No se pudo crear el libro: ' + e.message);
@@ -2809,7 +2813,7 @@ async function completarNotas() {
 }
 
 /* ═════════ pegar texto: del bloc de notas al libro ═════════ */
-function asistenteImportar() {
+function asistenteImportar(archivoInicial = null) {
   const fmts = Object.keys(S.presets.formatos);
   const d = h(`<dialog class="grande"><div class="cuerpo">
     <h2>Pegar texto</h2>
@@ -2831,7 +2835,7 @@ function asistenteImportar() {
       <div class="imp-col">
         <h3>2 · Pegá el texto</h3>
         <textarea class="entrada imp-texto" id="im-texto" placeholder="Pegá acá (Ctrl+V)…"></textarea>
-        <div class="imp-pie"><span id="im-cuenta" class="sutil">0 palabras</span><label class="btn chico">${I.subir}Abrir archivo .txt o .md<input type="file" id="im-archivo" accept=".txt,.md,.markdown,text/plain" hidden></label></div>
+        <div class="imp-pie"><span id="im-cuenta" class="sutil">0 palabras</span><label class="btn chico prim">${I.subir}Subir el manuscrito (Word, PDF o texto)<input type="file" id="im-archivo" accept="${TIPOS_MANUSCRITO}" hidden></label></div>
       </div>
     </div>
     <div id="im-vista"></div>
@@ -2841,7 +2845,22 @@ function asistenteImportar() {
   const ta = $('#im-texto', d);
   const cuenta = () => { $('#im-cuenta', d).textContent = `${numero(ta.value.split(/\s+/).filter(Boolean).length)} palabras · ${numero(ta.value.length)} caracteres`; $('#im-crear', d).disabled = true; };
   ta.addEventListener('input', cuenta);
-  $('#im-archivo', d).onchange = async (e) => { const f = e.target.files[0]; if (f) { ta.value = await f.text(); cuenta(); analizar(); } };
+  const cargarArchivo = async (f) => {
+    if (!f) return;
+    ta.value = ''; ta.placeholder = `Leyendo «${f.name}»…`;
+    try {
+      const { texto, tipo } = await leerManuscrito(f);
+      ta.value = texto; cuenta();
+      if (tipo === 'PDF') $('#im-unir', d).checked = true;
+      analizar();
+      toast(tipo === 'Word' ? 'Leí el Word con sus títulos, cursivas y notas al pie.' : tipo === 'PDF' ? 'Leí el texto del PDF. Revisá los títulos: el PDF no guarda los estilos.' : 'Archivo leído.');
+    } catch (e) { ta.placeholder = 'Pegá acá (Ctrl+V)…'; toast(e.message); }
+  };
+  $('#im-archivo', d).onchange = (e) => cargarArchivo(e.target.files[0]);
+  // también se puede arrastrar el archivo encima del recuadro
+  ta.addEventListener('dragover', (e) => e.preventDefault());
+  ta.addEventListener('drop', (e) => { if (e.dataTransfer?.files?.length) { e.preventDefault(); cargarArchivo(e.dataTransfer.files[0]); } });
+  if (archivoInicial) setTimeout(() => cargarArchivo(archivoInicial), 50);
   let resultado = null;
   const analizar = () => {
     if (!ta.value.trim()) return toast('Pegá un texto primero.');
@@ -2876,7 +2895,9 @@ function asistenteImportar() {
       S.editor.dispatch({ changes: { from: 0, to: S.editor.state.doc.length, insert: md } });
       d.close(); toast('Capítulo reemplazado. Podés deshacer con Ctrl+Z.'); return;
     }
-    const l = [...(S.cfg.contenido || [])];
+    // libro recién creado: se saca el capítulo de ejemplo vacío
+    const vacio = (a) => /^# Capítulo 1\s+Escribí, pegá o importá acá el texto del libro\.\s*$/.test(S.textos.get(a) || '');
+    const l = [...(S.cfg.contenido || [])].filter((c) => !(c.archivo && vacio(c.archivo)));
     let n = l.filter((c) => c.archivo).length;
     const usados = new Set(l.map((c) => c.archivo));
     let primero = null;
