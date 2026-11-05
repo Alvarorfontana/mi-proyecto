@@ -22,7 +22,8 @@ import { puntuar, hayDictadoNavegador, dictarNavegador, dictarWhisper } from './
 import { campoMarcas, fijarMarcas, quitarMarca, listarMarcas, revisarLanguageTool, PEDIDO_REVISION, marcasDesdeIA, ortografiaNavegador, revisarParrafos } from './revision.js';
 import { iniciarMotor, cargarTextos, cargarBinarios, yaCargado, compilar, aSvg } from './motor.js';
 import { MODELOS, MODELOS_GEMINI, PROVEEDORES, ACCIONES, preguntar, modelosGemini } from './ia.js';
-import { instalarPasamanos, entrarConClave } from './servidor.js';
+import { instalarPasamanos, entrarConClave, iaDelServidor } from './servidor.js';
+import { SupabaseAlmacen, configBase, guardarConfigBase, sesionActual, entrarConGoogle, entrarConCorreo, salir as salirBase, supa } from './almacen-supabase.js';
 
 /* ═════════ utilidades ═════════ */
 const $ = (s, r = document) => r.querySelector(s);
@@ -65,8 +66,35 @@ const rutaLibro = (p) => `libros/${S.slug}/${p}`;
 
 /* ═════════ arranque ═════════ */
 document.body.append(h('<div class="toast" role="status" aria-live="polite"></div>'));
-if (S.conf.modo === 'clave' && S.conf.clave) instalarPasamanos(S.conf.clave);
-if (S.conf.token) conectar().catch((e) => pantallaIngreso(e.message)); else pantallaIngreso();
+if (S.conf.modo === 'clave' && S.conf.clave) instalarPasamanos(() => ({ 'X-Taller-Clave': S.conf.clave }));
+(async () => {
+  // 1) base propia (Supabase): si hay sesión abierta, entra directo
+  if (configBase() && S.conf.modo !== 'clave' && !(S.conf.token && S.conf.modo !== 'supabase')) {
+    try {
+      const ses = await sesionActual();
+      if (ses) return entrarSupabase(ses);
+    } catch {}
+    return pantallaIngreso();
+  }
+  // 2) contraseña del taller o clave de GitHub
+  if (S.conf.token) conectar().catch((e) => pantallaIngreso(e.message)); else pantallaIngreso();
+})();
+
+async function entrarSupabase(ses) {
+  S.sesion = ses;
+  supa()?.auth.onAuthStateChange((_e, nueva) => { if (nueva) S.sesion = nueva; });
+  Object.assign(S.conf, { modo: 'supabase', token: '' });
+  // IA: si la publicación tiene claves de Gemini o Groq en el servidor, se usan con la sesión del usuario
+  const token = () => S.sesion?.access_token || '';
+  const ia = await iaDelServidor({ 'X-Supabase-Token': token() });
+  if (ia.gemini || ia.groq) {
+    instalarPasamanos(() => ({ 'X-Supabase-Token': token() }), { soloIA: true });
+    if (ia.gemini && !S.conf.gemini) S.conf.gemini = 'servidor';
+    if (ia.groq && !S.conf.groq) S.conf.groq = 'servidor';
+    if (!S.conf.proveedor) S.conf.proveedor = ia.gemini ? 'gemini' : 'groq';
+  }
+  try { await conectar(); } catch (e) { pantallaIngreso(e.message); }
+}
 
 function pantallaIngreso(error) {
   const app = $('#app');
@@ -86,6 +114,11 @@ function pantallaIngreso(error) {
     <section class="form-lado">
       <div><h2>Entrar al taller</h2><p style="margin-top:6px">Se hace una sola vez en cada navegador: después entra solo.</p></div>
       ${error ? `<div class="aviso mal">${esc(error)}</div>` : ''}
+      ${configBase() ? `
+      <button class="btn prim" id="b-google" style="height:44px;justify-content:center;gap:10px"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.3-.4-3.5z"/></svg>Entrar con Google</button>
+      <div style="display:flex;gap:8px"><input class="entrada" id="i-correo" type="email" placeholder="o con tu correo: nombre@ejemplo.com" style="flex:1"><button class="btn" id="b-correo">Enviarme el enlace</button></div>
+      <p class="sutil" style="font-size:12px;margin:0">Tus libros quedan guardados en tu cuenta, privados. Nadie más los ve.</p>
+      <details style="font-size:12.5px;color:var(--tinta-suave)"><summary style="cursor:pointer">Otras formas de entrar</summary><div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">` : ''}
       <label class="campo"><span>Contraseña del taller</span>
         <input class="entrada" id="i-clave" type="password" autocomplete="current-password" placeholder="La que te dieron para entrar"></label>
       <button class="btn prim" id="b-clave" style="height:42px;justify-content:center">Entrar al taller</button>
@@ -102,8 +135,28 @@ function pantallaIngreso(error) {
           <label class="campo"><span>Cuenta</span><input class="entrada" id="i-owner" value="${esc(S.conf.owner)}"></label>
           <label class="campo"><span>Repositorio</span><input class="entrada" id="i-repo" value="${esc(S.conf.repo)}"></label>
         </div></details>
+      ${configBase() ? '</div></details>' : ''}
+      <details style="font-size:12.5px;color:var(--tinta-suave)" ${configBase() ? '' : 'open'}><summary style="cursor:pointer">${configBase() ? 'Usar otra base de datos' : 'Conectar tu base (Supabase) para entrar con Google'}</summary>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+          <p style="font-size:12.5px;margin:0">Creá gratis un proyecto en supabase.com y copiá dos datos de <b>Project Settings → API</b>. La guía completa está en el archivo <code>docs/supabase.md</code> del taller.</p>
+          <label class="campo"><span>Project URL</span><input class="entrada" id="i-base-url" placeholder="https://xxxx.supabase.co" value="${esc(configBase()?.propia ? configBase().url : '')}"></label>
+          <label class="campo"><span>Clave pública (anon / publishable)</span><input class="entrada" id="i-base-clave" placeholder="eyJ… o sb_publishable_…"></label>
+          <div style="display:flex;gap:8px"><button class="btn" id="b-base">Conectar</button>${configBase()?.propia ? '<button class="btn" id="b-base-quitar">Volver a la base del taller</button>' : ''}</div>
+        </div></details>
     </section>
   </div>`;
+  if ($('#b-google')) $('#b-google').onclick = async () => { try { await entrarConGoogle(); } catch (e) { toast(e.message); } };
+  if ($('#b-correo')) $('#b-correo').onclick = async () => {
+    const c = $('#i-correo').value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c)) return toast('Escribí un correo válido.');
+    try { await entrarConCorreo(c); toast('Listo: revisá tu correo y tocá el enlace para entrar.'); } catch (e) { toast(e.message); }
+  };
+  $('#b-base').onclick = () => {
+    const u = $('#i-base-url').value.trim(), k = $('#i-base-clave').value.trim();
+    if (!/^https:\/\/.+/.test(u) || k.length < 20) return toast('Pegá la Project URL y la clave pública.');
+    guardarConfigBase(u, k); Object.assign(S.conf, { modo: '', token: '' }); escribir('taller.conf', S.conf); location.reload();
+  };
+  if ($('#b-base-quitar')) $('#b-base-quitar').onclick = () => { guardarConfigBase(''); location.reload(); };
   const conClave = async () => {
     const clave = $('#i-clave').value.trim();
     if (!clave) return toast('Escribí la contraseña del taller.');
@@ -113,7 +166,7 @@ function pantallaIngreso(error) {
       Object.assign(S.conf, { modo: 'clave', clave, token: 'servidor', owner: d.owner, repo: d.repo, nombre: d.nombre,
         gemini: d.ia.gemini ? 'servidor' : S.conf.gemini || '', groq: d.ia.groq ? 'servidor' : S.conf.groq || '',
         proveedor: d.ia.gemini ? 'gemini' : d.ia.groq ? 'groq' : S.conf.proveedor });
-      instalarPasamanos(clave);
+      instalarPasamanos(() => ({ 'X-Taller-Clave': clave }));
       await conectar(); escribir('taller.conf', S.conf);
     } catch (e) { pantallaIngreso(e.message); }
   };
@@ -138,13 +191,21 @@ function cargando(msg) {
 async function conectar() {
   cargando('Conectando con GitHub…');
   try {
-    S.gh = new GitHub(S.conf);
+    S.gh = S.conf.modo === 'supabase' ? new SupabaseAlmacen(S.sesion) : new GitHub(S.conf);
     S.usuario = await S.gh.usuario();
     const info = await S.gh.infoRepo();
     S.gh.rama = S.conf.rama = info.default_branch || 'main';
     cargando('Leyendo el repositorio…');
     S.arbol = await S.gh.arbol();
     S.libros = S.arbol.map((e) => e.path.match(/^libros\/([^/]+)\/libro\.toml$/)?.[1]).filter(Boolean);
+    if (!S.libros.length && S.gh.esSupabase) {
+      // usuario nuevo: se le crea un primer libro vacío
+      cargando('Preparando tu primer libro…');
+      const { archivos } = archivosLibroNuevo({ titulo: 'Mi primer libro', autor: S.usuario?.name || '', formato: '15x21' });
+      await S.gh.commitVarios(archivos, 'Primer libro');
+      S.arbol = await S.gh.arbol();
+      S.libros = S.arbol.map((e) => e.path.match(/^libros\/([^/]+)\/libro\.toml$/)?.[1]).filter(Boolean);
+    }
     if (!S.libros.length) throw new Error('El repositorio no tiene libros (falta libros/<nombre>/libro.toml).');
     escribir('taller.conf', S.conf);
     cargando('Preparando el motor de composición…');
@@ -347,29 +408,12 @@ function bloqueToml(texto, seccion) {
 }
 const comillas = (t) => '"' + String(t).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 
-async function nuevoLibro() {
-  if (hayCambios() && !confirm('Hay cambios sin guardar en este libro. ¿Seguir igual?')) return;
-  const formatos = Object.entries(S.presets?.formatos || { '15x21': { ancho: '150mm', alto: '210mm' } });
-  const d = dialogo(`<h2>Nuevo libro</h2>
-    <p class="sutil" style="margin-top:4px">Se crea su carpeta en el repositorio con un primer capítulo. Después escribís, pegás o importás el texto.</p>
-    <label class="campo"><span>Título</span><input class="entrada" id="nl-titulo" placeholder="Ej.: La patria grande"></label>
-    <label class="campo"><span>Subtítulo (opcional)</span><input class="entrada" id="nl-sub"></label>
-    <label class="campo"><span>Autor o autora</span><input class="entrada" id="nl-autor" value="${esc(S.cfg?.libro?.autor || '')}"></label>
-    <label class="campo"><span>Editorial (opcional)</span><input class="entrada" id="nl-editorial" value="${esc(S.cfg?.libro?.editorial || '')}"></label>
-    <label class="campo"><span>Medida</span><select class="entrada" id="nl-formato">${formatos.map(([k, f]) => `<option value="${k}" ${k === (S.cfg?.formato?.preset || '15x21') ? 'selected' : ''}>${k.replace('x', ' × ')} cm (${parseFloat(f.ancho)} × ${parseFloat(f.alto)} mm)</option>`).join('')}</select></label>
-    <label class="campo"><span>Diseño de partida</span><select class="entrada" id="nl-base">
-      <option value="copiar">El mismo diseño que «${esc(S.cfg?.libro?.titulo || S.slug)}» (letras, márgenes, tapa)</option>
-      <option value="limpio">Diseño clásico, desde cero</option></select></label>`,
-    [['Cancelar'], ['Crear el libro', 'prim']]);
-  $('#nl-titulo', d).focus();
-  d.addEventListener('close', async () => {
-    if (d.returnValue !== '1') return;
-    const titulo = $('#nl-titulo', d).value.trim();
-    if (!titulo) return toast('Escribí el título del libro.');
-    let slug = titulo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'libro';
-    while (S.libros.includes(slug)) slug += '-2';
-    const v = (id) => $(id, d).value.trim();
-    const copiar = v('#nl-base') === 'copiar' && S.cfgTexto;
+// Arma los archivos de un libro nuevo (configuración, primer capítulo y textos de tapa)
+function archivosLibroNuevo({ titulo, sub = '', autor = '', editorial = '', formato = '15x21', copiar = false }) {
+  let slug = titulo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'libro';
+  while ((S.libros || []).includes(slug)) slug += '-2';
+  copiar = copiar && !!S.cfgTexto;
+  const v = (k) => ({ '#nl-sub': sub, '#nl-autor': autor, '#nl-editorial': editorial, '#nl-formato': formato })[k] || '';
     const limpiarTapa = (b) => b.replace(/^(imagen|imagen_contratapa|foto_autor|elementos)\s*=.*$/gm, (m, k) => `${k.padEnd(14)} = ""`);
     const seccion = (nombre, porDefecto) => (copiar && bloqueToml(S.cfgTexto, nombre)) || porDefecto;
     const toml = `# ${titulo} — configuración del libro (creado desde el taller)
@@ -445,6 +489,29 @@ archivo = "texto/01-capitulo-1.md"
       [base + 'tapa/solapa-delantera.md']: 'Sobre el autor o la autora.\n',
       [base + 'tapa/solapa-trasera.md']: '\n',
     };
+  return { slug, archivos };
+}
+
+async function nuevoLibro() {
+  if (hayCambios() && !confirm('Hay cambios sin guardar en este libro. ¿Seguir igual?')) return;
+  const formatos = Object.entries(S.presets?.formatos || { '15x21': { ancho: '150mm', alto: '210mm' } });
+  const d = dialogo(`<h2>Nuevo libro</h2>
+    <p class="sutil" style="margin-top:4px">Se crea su carpeta en el repositorio con un primer capítulo. Después escribís, pegás o importás el texto.</p>
+    <label class="campo"><span>Título</span><input class="entrada" id="nl-titulo" placeholder="Ej.: La patria grande"></label>
+    <label class="campo"><span>Subtítulo (opcional)</span><input class="entrada" id="nl-sub"></label>
+    <label class="campo"><span>Autor o autora</span><input class="entrada" id="nl-autor" value="${esc(S.cfg?.libro?.autor || '')}"></label>
+    <label class="campo"><span>Editorial (opcional)</span><input class="entrada" id="nl-editorial" value="${esc(S.cfg?.libro?.editorial || '')}"></label>
+    <label class="campo"><span>Medida</span><select class="entrada" id="nl-formato">${formatos.map(([k, f]) => `<option value="${k}" ${k === (S.cfg?.formato?.preset || '15x21') ? 'selected' : ''}>${k.replace('x', ' × ')} cm (${parseFloat(f.ancho)} × ${parseFloat(f.alto)} mm)</option>`).join('')}</select></label>
+    <label class="campo"><span>Diseño de partida</span><select class="entrada" id="nl-base">
+      <option value="copiar">El mismo diseño que «${esc(S.cfg?.libro?.titulo || S.slug)}» (letras, márgenes, tapa)</option>
+      <option value="limpio">Diseño clásico, desde cero</option></select></label>`,
+    [['Cancelar'], ['Crear el libro', 'prim']]);
+  $('#nl-titulo', d).focus();
+  d.addEventListener('close', async () => {
+    if (d.returnValue !== '1') return;
+    const titulo = $('#nl-titulo', d).value.trim();
+    if (!titulo) return toast('Escribí el título del libro.');
+    const { slug, archivos } = archivosLibroNuevo({ titulo, sub: $('#nl-sub', d).value.trim(), autor: $('#nl-autor', d).value.trim(), editorial: $('#nl-editorial', d).value.trim(), formato: $('#nl-formato', d).value, copiar: $('#nl-base', d).value === 'copiar' });
     cargando('Creando el libro…');
     try {
       await S.gh.commitVarios(archivos, `Libro nuevo: ${titulo}`);
@@ -2017,7 +2084,7 @@ function pintarProduccion() {
       <div id="ppp"></div>
       ${lista.length ? `<details style="margin-top:10px"><summary class="sutil" style="cursor:pointer">Otros avisos (${lista.length})</summary><ul class="lista-avisos" style="margin-top:8px">${lista.map((a) => `<li>${esc(a)}</li>`).join('')}</ul></details>` : ''}
     </div>
-    <div class="bloque">
+    ${S.gh?.esSupabase ? '' : `<div class="bloque">
       <h2>Armado en GitHub</h2>
       <p>Arma interior, tapa y EPUB en los servidores de GitHub con lo último que guardaste. Los archivos quedan para descargar en la corrida.</p>
       <button class="btn" id="b-actions">Armar en GitHub</button>
@@ -2036,7 +2103,7 @@ function pintarProduccion() {
       <p>Cuando mandás el libro al autor para revisar, marcá una prueba. Después podés ver qué cambió desde esa prueba, capítulo por capítulo, con lo agregado y lo borrado.</p>
       <div class="acciones"><button class="btn" id="b-prueba">Marcar nueva prueba</button></div>
       <div id="pruebas"><div class="nota" style="font-size:12.5px;color:var(--tinta-suave)"><span class="spin"></span> Buscando pruebas…</div></div>
-    </div>
+    </div>`}
     <div class="bloque">
       <h2>Cerrar pliegos</h2>
       <p>Las imprentas trabajan en pliegos de 16 páginas. El taller prueba cambios mínimos de interlineado (décimas de punto, invisibles a la lectura) hasta que el libro cierre justo. Si no se puede, te dice cuántas páginas en blanco agrega la imprenta al final.</p>
@@ -2058,15 +2125,17 @@ function pintarProduccion() {
   $('#b-armar').onclick = armarAca;
   $('#b-ppp').onclick = revisarResolucion;
   $('#b-ficha').onclick = fichaTecnica;
-  $('#b-actions').onclick = armarGitHub;
   $('#b-simular').onclick = simular;
   $('#b-pliegos').onclick = cerrarPliegos;
-  $('#b-prueba').onclick = marcarPrueba;
-  listarPruebas();
-  $('#b-publicar').onclick = publicarVersion;
-  listarVersiones();
   if (urls.length) $('#descargas').innerHTML = botonesPdf(urls);
-  listarCorridas();
+  if (!S.gh?.esSupabase) {
+    $('#b-actions').onclick = armarGitHub;
+    $('#b-prueba').onclick = marcarPrueba;
+    listarPruebas();
+    $('#b-publicar').onclick = publicarVersion;
+    listarVersiones();
+    listarCorridas();
+  }
 }
 const cifras = (u) => `<div class="cifra"><b>${u.paginas}</b><span>páginas</span></div><div class="cifra"><b>${u.lomo.toFixed(1)}<small style="font-size:16px"> mm</small></b><span>de lomo</span></div><div class="cifra"><b style="font-size:20px;line-height:34px">${new Date(u.fecha).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</b><span>último armado</span></div>`;
 async function armarAca() {

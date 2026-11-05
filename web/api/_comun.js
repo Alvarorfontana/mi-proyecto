@@ -28,3 +28,18 @@ export async function reenviar(r) {
   for (const k of ['content-type', 'content-disposition', 'link', 'etag']) { const v = r.headers.get(k); if (v) h.set(k, v); }
   return new Response(r.status === 204 ? null : await r.arrayBuffer(), { status: r.status, headers: h });
 }
+
+// Usuarios que entran con Google o correo (Supabase): se verifica la sesión con la base de la publicación.
+// Variables: SUPABASE_URL y SUPABASE_ANON (las mismas que VITE_SUPABASE_URL y VITE_SUPABASE_ANON).
+export async function usuarioSupabase(request) {
+  const token = request.headers.get('x-supabase-token');
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const anon = process.env.SUPABASE_ANON || process.env.VITE_SUPABASE_ANON;
+  if (!token || !url || !anon) return null;
+  try {
+    const r = await fetch(url.replace(/\/+$/, '') + '/auth/v1/user', { headers: { apikey: anon, Authorization: `Bearer ${token}` } });
+    if (!r.ok) return null;
+    const u = await r.json();
+    return u?.email || u?.id || null;
+  } catch { return null; }
+}

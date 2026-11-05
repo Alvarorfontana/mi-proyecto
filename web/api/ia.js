@@ -1,10 +1,11 @@
 // Pasamanos a la IA gratuita (Gemini y Groq) con las claves guardadas en el servidor.
-import { quien, json, reenviar } from './_comun.js';
+import { quien, json, reenviar, usuarioSupabase } from './_comun.js';
 
 async function manejar(request) {
-  if (!quien(request)) return json({ error: { message: 'Contraseña incorrecta.' } }, 401);
+  if (!quien(request) && !(await usuarioSupabase(request))) return json({ error: { message: 'Sesión no válida: volvé a entrar.' } }, 401);
   const u = new URL(request.url);
   const prov = u.searchParams.get('prov');
+  if (prov === 'estado') return json({ gemini: !!process.env.GEMINI_CLAVE, groq: !!process.env.GROQ_CLAVE });
   const ruta = (u.searchParams.get('ruta') || '').replace(/^\/+/, '');
   u.searchParams.delete('prov'); u.searchParams.delete('ruta'); u.searchParams.delete('key');
   let destino, auth = {};

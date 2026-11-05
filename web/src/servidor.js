@@ -3,14 +3,16 @@
 // que agrega las claves guardadas en Vercel.
 const BINARIO = /\.(png|jpe?g|webp|gif|tiff?|otf|ttf|woff2?|pdf|zip)$/i;
 
-export function instalarPasamanos(clave) {
+// cabeceras: función que devuelve la credencial ({ 'X-Taller-Clave': … } o { 'X-Supabase-Token': … })
+// soloIA: con base propia, GitHub no se usa; solo pasa la IA por el servidor.
+export function instalarPasamanos(cabeceras, { soloIA = false } = {}) {
   if (window.__pasamanos) return;
   window.__pasamanos = true;
   const original = window.fetch.bind(window);
   window.fetch = (entrada, init = {}) => {
     const url = typeof entrada === 'string' ? entrada : entrada instanceof URL ? entrada.href : entrada.url;
     let nuevo = null;
-    if (url.startsWith('https://api.github.com/')) {
+    if (url.startsWith('https://api.github.com/') && !soloIA) {
       // imágenes y fuentes del repo (público): directo del depósito de GitHub, sin pasar por el servidor
       const m = url.match(/^https:\/\/api\.github\.com\/repos\/([^/]+)\/([^/]+)\/contents\/([^?]+)\?ref=([^&]+)/);
       if (m && (!init.method || init.method === 'GET') && BINARIO.test(decodeURIComponent(m[3]))) {
@@ -23,7 +25,7 @@ export function instalarPasamanos(clave) {
     const headers = new Headers(init.headers || (typeof entrada === 'object' && 'headers' in entrada ? entrada.headers : undefined));
     headers.delete('Authorization');
     headers.delete('x-goog-api-key');
-    headers.set('X-Taller-Clave', clave);
+    for (const [k, v] of Object.entries(cabeceras())) headers.set(k, v);
     return original(nuevo, { ...init, headers });
   };
 }
@@ -33,4 +35,13 @@ export async function entrarConClave(clave) {
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || 'No se pudo entrar.');
   return j; // { nombre, owner, repo, ia: { gemini, groq } }
+}
+
+// ¿La publicación tiene claves de IA en el servidor para este usuario?
+export async function iaDelServidor(cabeceras) {
+  try {
+    const r = await fetch('/api/ia?prov=estado', { headers: cabeceras });
+    if (!r.ok) return {};
+    return await r.json();
+  } catch { return {}; }
 }
