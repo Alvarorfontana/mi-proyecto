@@ -268,7 +268,7 @@ function armarApp() {
           <div class="pie">
             <button class="btn chico" id="b-nuevo">${I.mas}Capítulo</button>
             <button class="btn chico" id="b-parte">${I.mas}Parte</button>
-            <button class="btn chico prim" id="b-importar" title="Pegá el texto de un bloc de notas o Word y el taller lo arma solo">${I.pegar}Pegar texto</button>
+            <button class="btn chico prim" id="b-importar" title="Subí el manuscrito (Word, PDF o texto) o pegalo, y el taller lo arma solo">${I.subir}Subir manuscrito</button>
             <button class="btn chico fant" id="b-otros">Otros textos</button>
           </div>
           <div class="resumen" id="resumen"></div>
@@ -336,7 +336,7 @@ function armarApp() {
   $('#b-guardar').onclick = guardarTodo;
   $('#b-ajustes').onclick = dialogoAjustes;
   $('#b-nuevo').onclick = nuevoCapitulo;
-  $('#b-importar').onclick = asistenteImportar;
+  $('#b-importar').onclick = () => asistenteImportar();
   $('#b-dictar').onclick = alternarDictado;
   $('#b-parte').onclick = nuevaParte;
   $('#b-otros').onclick = otrosTextos;
@@ -2816,7 +2816,7 @@ async function completarNotas() {
 function asistenteImportar(archivoInicial = null) {
   const fmts = Object.keys(S.presets.formatos);
   const d = h(`<dialog class="grande"><div class="cuerpo">
-    <h2>Pegar texto</h2>
+    <h2>Subir o pegar el manuscrito</h2>
     <p class="sutil" style="margin:-8px 0 0">Pegá un capítulo o el libro entero, del largo que sea: no hay límite. El taller reconoce títulos, partes, notas al pie numeradas, bibliografía y epígrafes, y te muestra cómo lo va a armar antes de crear nada.</p>
     <div class="imp-pasos">
       <div class="imp-col">
@@ -2860,7 +2860,7 @@ function asistenteImportar(archivoInicial = null) {
   // también se puede arrastrar el archivo encima del recuadro
   ta.addEventListener('dragover', (e) => e.preventDefault());
   ta.addEventListener('drop', (e) => { if (e.dataTransfer?.files?.length) { e.preventDefault(); cargarArchivo(e.dataTransfer.files[0]); } });
-  if (archivoInicial) setTimeout(() => cargarArchivo(archivoInicial), 50);
+  if (archivoInicial instanceof File) setTimeout(() => cargarArchivo(archivoInicial), 50);
   let resultado = null;
   const analizar = () => {
     if (!ta.value.trim()) return toast('Pegá un texto primero.');
