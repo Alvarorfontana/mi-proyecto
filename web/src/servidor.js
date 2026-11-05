@@ -18,10 +18,11 @@ export function instalarPasamanos(clave) {
       }
       nuevo = '/api/gh/' + url.slice('https://api.github.com/'.length);
     } else if (url.startsWith('https://api.groq.com/openai/v1/')) nuevo = '/api/ia/groq/' + url.slice('https://api.groq.com/openai/v1/'.length);
-    else if (url.startsWith('https://generativelanguage.googleapis.com/')) nuevo = '/api/ia/gemini/' + url.slice('https://generativelanguage.googleapis.com/'.length);
+    else if (url.startsWith('https://generativelanguage.googleapis.com/')) nuevo = '/api/ia/gemini/' + url.slice('https://generativelanguage.googleapis.com/'.length).replace(/([?&])key=[^&]*&?/, '$1').replace(/[?&]$/, '');
     if (!nuevo) return original(entrada, init);
     const headers = new Headers(init.headers || (typeof entrada === 'object' && 'headers' in entrada ? entrada.headers : undefined));
     headers.delete('Authorization');
+    headers.delete('x-goog-api-key');
     headers.set('X-Taller-Clave', clave);
     return original(nuevo, { ...init, headers });
   };

@@ -68,8 +68,8 @@ const PROPORCIONES = [['1:1', 1], ['2:3', 2 / 3], ['3:4', 3 / 4], ['4:5', 4 / 5]
 export async function generarGemini(prompt, clave, { ancho, alto, modelo = 'gemini-2.5-flash-image' }) {
   const r0 = ancho / alto;
   const ar = PROPORCIONES.reduce((a, b) => (Math.abs(b[1] - r0) < Math.abs(a[1] - r0) ? b : a))[0];
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(clave)}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': clave },
     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: ar } } }),
   });
   if (!r.ok) {

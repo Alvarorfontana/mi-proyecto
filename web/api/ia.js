@@ -15,8 +15,7 @@ async function manejar(request) {
   } else if (prov === 'gemini') {
     if (!process.env.GEMINI_CLAVE) return json({ error: { message: 'El taller no tiene clave de Gemini.' } }, 400);
     destino = 'https://generativelanguage.googleapis.com/' + ruta;
-    if (ruta.startsWith('v1beta/openai')) auth = { Authorization: `Bearer ${process.env.GEMINI_CLAVE}` };
-    else u.searchParams.set('key', process.env.GEMINI_CLAVE);
+    auth = { 'x-goog-api-key': process.env.GEMINI_CLAVE }; // una sola credencial (las claves «AQ.» no aceptan dos)
   } else return json({ error: { message: 'Proveedor desconocido.' } }, 400);
   const q = u.searchParams.toString();
   const r = await fetch(destino + (q ? '?' + q : ''), {
