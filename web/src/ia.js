@@ -5,6 +5,8 @@ export const PROVEEDORES = {
 };
 // Gemini: la lista real se pide a Google con la clave; esta es la de respaldo.
 export const MODELOS_GEMINI = [
+  { id: 'gemini-flash-latest', nombre: 'Gemini Flash (el más nuevo) — rápido' },
+  { id: 'gemini-pro-latest', nombre: 'Gemini Pro (el más nuevo) — más preciso' },
   { id: 'gemini-2.5-flash', nombre: 'Gemini 2.5 Flash — rápido' },
   { id: 'gemini-2.5-pro', nombre: 'Gemini 2.5 Pro — más preciso' },
   { id: 'gemini-2.5-flash-lite', nombre: 'Gemini 2.5 Flash-Lite — instantáneo' },
@@ -44,7 +46,21 @@ export const ACCIONES = {
   resumen: { nombre: 'Resumir', pide: 'Resumí este texto en un párrafo de no más de 120 palabras, útil para una solapa o una contratapa.', reemplaza: false },
 };
 
-export async function preguntar({ proveedor = 'groq', clave, modelo, accion, texto, pedido }) {
+// Si Google retira un modelo, se busca solo uno vigente (Flash) y se reintenta.
+let modeloVigente = '';
+export async function preguntar(op) {
+  try {
+    return await preguntar0(modeloVigente && op.proveedor === 'gemini' ? { ...op, modelo: modeloVigente } : op);
+  } catch (e) {
+    if (op.proveedor !== 'gemini' || !/no encuentra el modelo/.test(e.message)) throw e;
+    const lista = await modelosGemini(op.clave);
+    const nuevo = (lista.find((m) => /flash/.test(m.id) && !/lite/.test(m.id)) || lista[0] || MODELOS_GEMINI[0]).id;
+    modeloVigente = nuevo === op.modelo ? 'gemini-flash-latest' : nuevo;
+    return preguntar0({ ...op, modelo: modeloVigente });
+  }
+}
+
+async function preguntar0({ proveedor = 'groq', clave, modelo, accion, texto, pedido }) {
   const instr = accion ? ACCIONES[accion].pide : pedido;
   const P = PROVEEDORES[proveedor] || PROVEEDORES.groq;
   const nom = proveedor === 'gemini' ? 'Gemini' : 'Groq';

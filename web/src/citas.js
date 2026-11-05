@@ -64,7 +64,7 @@ export async function buscarWikipedia(q, n = 5, idioma = 'es') {
 }
 
 // Gemini con búsqueda en Google: pide la fuente original del dato y devuelve los enlaces que usó.
-export async function buscarGemini(q, clave, modelo = 'gemini-2.5-flash') {
+export async function buscarGemini(q, clave, modelo = 'gemini-flash-latest') {
   const pedido = `Encontrá la fuente original y confiable (organismo oficial, estudio, libro, diario reconocido) de esta afirmación o cita. Respondé en castellano, en no más de tres renglones: quién lo dice, en qué documento y en qué año.\n\n«${q.slice(0, 2000)}»`;
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(clave)}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
