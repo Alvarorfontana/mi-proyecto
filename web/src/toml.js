@@ -3,6 +3,7 @@
 export function tomlValor(v) {
   if (typeof v === 'boolean') return v ? 'true' : 'false';
   if (typeof v === 'number') return String(v);
+  if (Array.isArray(v)) return '[' + v.map(tomlValor).join(', ') + ']';
   return '"' + String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 }
 const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

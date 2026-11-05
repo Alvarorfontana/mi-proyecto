@@ -126,6 +126,7 @@ Las fotos y mapas flotan arriba o abajo de la página más cercana para no dejar
 
 - `tapa.pdf` es el archivo para imprenta: solapa + contratapa + lomo + tapa + solapa, con 3 mm de sangrado.
 - `tapa-guias.pdf` muestra en colores el corte, los pliegues y la zona segura, con las medidas de cada panel. Es para revisar, no para mandar.
+- **Patrón** (`estilo = "patron"`): un motivo repetido en toda la cubierta, como una tela estampada (rombos, hojas, estrellas, círculos, ondas, cuadrados, o una imagen propia en `motivo_imagen`), con el título en una etiqueta.
 - **Doce diseños** (`estilo`): `clasica`, `editorial`, `tipografica`, `minimalista`, `coleccion`, `dos-tintas`, `marco`, `cruce`, `centrada`, `foto`, `suiza` y `generativa` (arte geométrico creado con las letras del título, adaptado del generador 10PRINT de la NYPL, `mgiraldo/tenprintcover-py`, MIT). En la web cada diseño muestra una miniatura real de tu tapa, y hay diez paletas de color listas para aplicar.
 - Colores: `fondo`, `color_texto`, `color_acento` y `color_secundario`. Para el diseño Colección: `coleccion` y `numero`.
 - **Textos de tapa**: en la web se editan el título de tapa (con `|` para cortar la línea), el subtítulo, y los textos de contratapa y solapas, sin salir de la pestaña. Se puede ocultar el subtítulo, el autor o la editorial.
@@ -143,6 +144,15 @@ En **Estilos**, el panel derecho muestra el **plano**: la página par y la impar
 Opciones de página: una, dos o tres columnas; separación entre columnas; línea bajo la cornisa y sobre el pie; número de página abajo afuera, abajo al centro o arriba junto a la cornisa.
 
 **Cortes de palabra**: normales, pocos (Typst penaliza más los guiones) o ninguno. **Viudas y huérfanas**: evita renglones sueltos al pie o al tope de una página y finales de párrafo de una sola palabra.
+
+## Letra capital y página de créditos
+
+- **Letra capital**: en Estilos → «Letra capital al empezar cada capítulo», de 2, 3 o 4 renglones, en negro o en el color de acento. Va en el primer párrafo de cada capítulo, aunque haya epígrafe antes. Los diseños Literario y Novela la traen puesta. Usa *droplet* (Eric Biedert, MIT), incluido en `plantilla/terceros/droplet`.
+- **Página de créditos legal**: equipo (edición, corrección, diseño de tapa e interior, foto, ilustraciones), edición y fecha, © del autor y de la editorial, dirección y web, **ficha catalográfica** armada sola en el formato de la Cámara Argentina del Libro (autor, título : subtítulo / autor. - edición - ciudad : editorial, año. páginas ; alto x ancho cm. ISBN. materias. CDD), leyenda del depósito (Ley 11.723), reserva de derechos (leyes 11.723 y 25.446) y pie de imprenta. Se completa en Estilos → «Página de créditos» o en `[creditos]` de `libro.toml`. La ficha oficial la da la Cámara al tramitar el ISBN.
+
+## Diseño completo con IA
+
+En Estilos, **«Diseñar el libro con IA»** lee el comienzo del libro y propone, eligiendo entre los modelos del taller: diseño interior, letra capital, medida, color de acento, diseño de tapa, paleta, letra del título, texto de contratapa (si no hay) e idea para la imagen de tapa, con una explicación. Se aplica con un clic o se pide otra propuesta. Usa Gemini o Groq con su plan gratuito.
 
 ## Índice
 
@@ -189,6 +199,7 @@ En Estilos (o en el panel Citas) se elige la **norma del libro**: APA 7, Chicago
 
 - **Capítulo suelto**: el botón «PDF» arriba de las páginas descarga o imprime el capítulo abierto, con la medida real del libro (para revisar en papel, imprimir en A4 con «Tamaño real»).
 - **Libro completo**: en Producción, «Armar acá» da el interior, la tapa y la tapa con guías; cada uno tiene su botón de descargar y de imprimir.
+- **Word**: el armado en GitHub también da `libro.docx` (con letra Garamond), para editar o mandar el texto. Es para trabajar el texto, no para imprenta.
 - **CMYK**: al armar en GitHub, además de los PDF en RGB salen `interior-cmyk.pdf` y `tapa-cmyk.pdf` (convertidos con Ghostscript), que es lo que suelen pedir las imprentas. Igual conviene pedirle a la imprenta una prueba de color.
 
 ## Pegar texto (del bloc de notas al libro)

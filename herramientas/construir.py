@@ -162,6 +162,7 @@ def main():
     ap.add_argument("libro", help="carpeta dentro de libros/ (ej. cruzar)")
     ap.add_argument("--sin-tapa", action="store_true")
     ap.add_argument("--epub", action="store_true", help="también genera un EPUB con pandoc")
+    ap.add_argument("--docx", action="store_true", help="también genera un Word (.docx) con pandoc, para editar o mandar")
     ap.add_argument("--set", action="append", default=[], metavar="clave=valor",
                     help="pisa un valor sin tocar el .toml (formato, cuerpo, interlineado, fuente, margen_interior…)")
     a = ap.parse_args()
@@ -200,6 +201,17 @@ def main():
             "-M", f"title={lib['titulo']}", "-M", f"subtitle={lib.get('subtitulo', '')}",
             "-M", f"author={lib['autor']}", "-M", "lang=es", "--toc", f"--resource-path={dir_libro}"])
         print(f"✓ EPUB: {ep.relative_to(RAIZ)}")
+
+    if a.docx:
+        lib = cfg["libro"]
+        archivos = [str(dir_libro / it["archivo"]) for it in cfg["contenido"] if it["tipo"] != "parte"]
+        dx = salida / "libro.docx"
+        ref = RAIZ / "plantilla" / "referencia.docx"
+        sh(["pandoc", *archivos, "-f", "markdown-citations", "-o", str(dx),
+            "-M", f"title={lib['titulo']}", "-M", f"subtitle={lib.get('subtitulo', '')}",
+            "-M", f"author={lib['autor']}", "-M", "lang=es", "--toc", f"--resource-path={dir_libro}",
+            *([f"--reference-doc={ref}"] if ref.exists() else [])])
+        print(f"✓ Word: {dx.relative_to(RAIZ)}")
 
 
 if __name__ == "__main__":

@@ -40,7 +40,23 @@ local function figura(img, caption_inlines)
   return pandoc.RawBlock("typst", "#figura(" .. table.concat(args, ", ") .. ")")
 end
 
+-- La primera párrafo de cada capítulo va con letra capital (si el estilo la pide, estilos.typ decide).
+local function capitulares(doc)
+  local pendiente = false
+  local out = {}
+  for _, b in ipairs(doc.blocks) do
+    if b.t == "Header" and b.level == 1 then pendiente = true; table.insert(out, b)
+    elseif pendiente and b.t == "Para" and not (#b.content == 1 and b.content[1].t == "Image") then
+      table.insert(out, pandoc.RawBlock("typst", "#capitular[" .. typst_inlines(b.content) .. "]"))
+      pendiente = false
+    else table.insert(out, b) end
+  end
+  doc.blocks = out
+  return doc
+end
+
 return {
+  { Pandoc = capitulares },
   {
     Meta = function(m)
       if m.sin_numero then sin_numero = pandoc.utils.stringify(m.sin_numero) == "true" end

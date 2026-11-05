@@ -131,7 +131,10 @@ async function conectar() {
     })()]);
     S.catalogo = cat;
     registrarFuentes(cat);
-    await cargarTextos({ '/plantilla/estilos.typ': S.estilosTyp, '/plantilla/tapa.typ': S.tapaTyp, '/plantilla/presets.toml': S.presetsTexto });
+    // bibliotecas de terceros que usa la plantilla (letra capital: droplet, MIT)
+    const terceros = {};
+    for (const e of S.arbol.filter((x) => x.path.startsWith('plantilla/terceros/') && x.path.endsWith('.typ'))) terceros['/' + e.path] = await S.gh.texto(e.path);
+    await cargarTextos({ '/plantilla/estilos.typ': S.estilosTyp, '/plantilla/tapa.typ': S.tapaTyp, '/plantilla/presets.toml': S.presetsTexto, ...terceros });
     armarApp();
     const pref = leer('taller.libro', null);
     await abrirLibro(S.libros.includes(pref) ? pref : S.libros[0]);
@@ -669,12 +672,12 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.desplegable'
 
 function campo(ruta, etiqueta, tipo = 'text', extra = '', pista = '') {
   const v = val(ruta);
-  if (tipo === 'check') return `<label class="check"><input type="checkbox" data-c="${ruta}" ${v ?? true ? 'checked' : ''}>${etiqueta}</label>`;
+  if (tipo === 'check') return `<label class="check"><input type="checkbox" data-c="${ruta}" ${v ?? (extra !== 'no') ? 'checked' : ''}>${etiqueta}</label>`;
   if (tipo === 'color') return `<label class="campo"><span>${etiqueta}</span><input class="entrada" type="color" data-c="${ruta}" value="${esc(/^#[0-9a-f]{6}$/i.test(v || '') ? v : '#000000')}"></label>`;
   return `<label class="campo ${extra}"><span>${etiqueta}</span><input class="entrada" ${tipo === 'number' ? 'type="number" step="any"' : ''} data-c="${ruta}" value="${esc(v ?? '')}" ${pista ? `placeholder="${esc(pista)}"` : ''}></label>`;
 }
-function opciones(ruta, etiqueta, lista) {
-  const v = val(ruta) == null ? val(ruta) : String(val(ruta));
+function opciones(ruta, etiqueta, lista, defecto) {
+  const v = val(ruta) == null ? defecto : String(val(ruta));
   return `<label class="campo"><span>${etiqueta}</span><select class="entrada" data-c="${ruta}">${lista.map(([k, n]) => `<option value="${esc(k)}" ${k === v ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>`;
 }
 function leerForm(raiz) {
@@ -686,7 +689,7 @@ function leerForm(raiz) {
     else if (el.type === 'checkbox') v = el.checked;
     else if (el.type === 'number') v = el.value === '' ? (val(el.dataset.c) === undefined ? undefined : 0) : Number(el.value);
     else v = el.value.trim();
-    if (el.dataset.c === 'estilo.columnas' || el.dataset.c === 'estilo.indice_profundidad') v = Number(v);
+    if (['estilo.columnas', 'estilo.indice_profundidad', 'estilo.capitular_lineas'].includes(el.dataset.c)) v = Number(v);
     if (v === undefined) return;
     (cambios[s] ||= {})[k] = v;
   });
@@ -710,9 +713,25 @@ function pintarEstilos() {
   <div class="form" id="f-estilos">
     <h2>Estilos del libro</h2>
     <p>Los cambios se ven en las páginas de la derecha y se guardan en GitHub con el botón Guardar.</p>
+    <div class="grupo ia-todo"><h3>Diseño completo con IA</h3>
+      <p class="sutil" style="margin:0 0 10px">La IA lee el comienzo del libro y propone todo junto: diseño interior, letra capital, medida, color, diseño de tapa, paleta, letra del título, texto de contratapa e idea para la imagen. Te muestra la propuesta y la aplicás si te gusta. Usa Gemini o Groq gratis (se activan en Texto → Asistente).</p>
+      <button type="button" class="btn prim" id="b-ia-todo" ${claveIA() ? '' : 'disabled title="Activá Gemini o Groq en Texto → Asistente"'}>Diseñar el libro con IA</button>
+      <div id="ia-todo-res"></div>
+    </div>
     <div class="grupo"><h3>Diseño del interior <small class="sutil">${DISENOS_INTERIOR.length} modelos · un clic aplica letras, medidas y apertura</small></h3>
       <div class="estilos-tapa galeria-int" role="radiogroup">${DISENOS_INTERIOR.map((d) => `<button type="button" class="est-tapa est-int" data-int="${d.id}" title="${esc(d.nota)}"><span class="mini mini-pag" data-mini-int="${d.id}"><span class="spin"></span></span><span>${d.nombre}</span></button>`).join('')}</div>
     </div>
+    <div class="grupo"><h3>Página de créditos <small class="sutil">página legal: lo vacío no se imprime</small></h3><div class="grilla">
+      ${campo('creditos.numero_edicion_texto', 'Edición', 'text', '', 'Primera edición')}${campo('creditos.fecha_edicion', 'Fecha de la edición', 'text', '', 'noviembre de 2026')}
+      ${campo('creditos.edicion_a_cargo', 'Edición a cargo de')}${campo('creditos.correccion', 'Corrección')}
+      ${campo('creditos.diseno_tapa', 'Diseño de tapa')}${campo('creditos.diseno_interior', 'Diseño interior y composición')}
+      ${campo('creditos.foto_tapa', 'Foto de tapa')}${campo('creditos.ilustraciones', 'Ilustraciones')}
+      ${campo('creditos.direccion', 'Dirección de la editorial', 'text', 'ancho')}${campo('creditos.web', 'Web o correo de la editorial')}
+      ${campo('creditos.impreso', 'Pie de imprenta', 'text', '', 'Impreso en Argentina')}
+      <div class="ancho fila-checks">${campo('creditos.ficha', 'Ficha catalográfica (se arma sola; la oficial la da la Cámara del Libro)', 'check')}</div>
+      ${campo('creditos.numero_edicion', 'Edición en la ficha', 'text', '', '1a ed.')}${campo('creditos.ciudad_ficha', 'Ciudad en la ficha', 'text', '', 'Ciudad Autónoma de Buenos Aires')}
+      ${campo('creditos.cdd', 'CDD (clasificación)', 'text', '', '304.8')}<label class="campo"><span>Materias (separadas por coma)</span><input class="entrada" id="cr-materias" value="${esc((S.cfg.creditos?.materias || []).join(', '))}"></label>
+    </div></div>
     <div class="grupo"><h3>Datos del libro</h3><div class="grilla">
       ${campo('libro.titulo', 'Título', 'text', 'ancho')}${campo('libro.subtitulo', 'Subtítulo', 'text', 'ancho')}
       ${campo('libro.autor', 'Autor')}${campo('libro.editorial', 'Editorial')}
@@ -739,14 +758,16 @@ function pintarEstilos() {
       ${opciones('estilo.cornisa_impar', 'Cornisa en página impar', [['capitulo', 'Capítulo'], ['titulo', 'Título del libro'], ['autor', 'Autor'], ['nada', 'Nada']])}
       ${opciones('estilo.folio', 'Número de página', [['abajo-afuera', 'Abajo, hacia afuera'], ['abajo-centro', 'Abajo, al centro'], ['arriba-afuera', 'Arriba, junto a la cornisa']])}
       ${opciones('estilo.norma_citas', 'Norma de citas', [['apa', 'APA 7'], ['chicago', 'Chicago (notas)'], ['iso', 'ISO 690']])}
-      ${opciones('estilo.indice_profundidad', 'El índice muestra', [['1', 'Solo capítulos'], ['2', 'Capítulos y secciones'], ['3', 'Hasta subsecciones']])}
+      <div class="ancho fila-checks">${campo('estilo.capitular', 'Letra capital al empezar cada capítulo', 'check', 'no')}${campo('estilo.capitular_color', 'En el color de acento', 'check', 'no')}</div>
+      ${opciones('estilo.capitular_lineas', 'Alto de la letra capital', [['2', '2 renglones'], ['3', '3 renglones'], ['4', '4 renglones']], '3')}
+      ${opciones('estilo.indice_profundidad', 'El índice muestra', [['1', 'Solo capítulos'], ['2', 'Capítulos y secciones'], ['3', 'Hasta subsecciones']], '2')}
       ${opciones('estilo.columnas', 'Columnas de texto', [['1', 'Una'], ['2', 'Dos'], ['3', 'Tres']])}
       ${campo('estilo.separacion_columnas', 'Separación entre columnas', 'text', '', '6mm')}
-      <div class="ancho fila-checks">${campo('estilo.filete_cornisa', 'Línea bajo la cornisa', 'check')}${campo('estilo.filete_pie', 'Línea sobre el pie', 'check')}</div>
+      <div class="ancho fila-checks">${campo('estilo.filete_cornisa', 'Línea bajo la cornisa', 'check', 'no')}${campo('estilo.filete_pie', 'Línea sobre el pie', 'check', 'no')}</div>
       ${opciones('estilo.apertura', 'Apertura de capítulo', APERTURAS)}
       ${campo('estilo.color_acento', 'Color de acento', 'color')}
       <div class="ancho">
-        ${campo('estilo.secciones_color', 'Números de sección en el color de acento', 'check')}
+        ${campo('estilo.secciones_color', 'Números de sección en el color de acento', 'check', 'no')}
         ${campo('estilo.capitulo_en_impar', 'Cada capítulo empieza en página impar', 'check')}
         ${campo('estilo.numerar_secciones', 'Numerar secciones (1.1, 1.2…)', 'check')}
         ${campo('estilo.notas_por_capitulo', 'Las notas vuelven a 1 en cada capítulo', 'check')}
@@ -781,9 +802,11 @@ function pintarEstilos() {
   };
   $('#b-guardar-estilos').onclick = () => { if (aplicar()) guardarTodo(); };
   marcarDisenoInterior();
+  const bia = $('#b-ia-todo', f); if (bia) bia.onclick = disenarConIa;
+  const mat = $('#cr-materias', f); if (mat) mat.onchange = () => { try { aplicarCambiosConfig({ creditos: { materias: mat.value.split(',').map((x) => x.trim()).filter(Boolean) } }); } catch (e) { toast(e.message); } };
   $$('.est-int', f).forEach((b) => (b.onclick = () => {
     const d = DISENOS_INTERIOR.find((x) => x.id === b.dataset.int);
-    const cambios = { tipografia: { fuente: d.fuente, fuente_titulos: d.fuente_titulos, fuente_apoyo: d.fuente_apoyo, cuerpo: d.cuerpo, interlineado: d.interlineado }, estilo: { apertura: d.apertura, color_acento: d.color_acento, secciones_color: d.secciones_color } };
+    const cambios = { tipografia: { fuente: d.fuente, fuente_titulos: d.fuente_titulos, fuente_apoyo: d.fuente_apoyo, cuerpo: d.cuerpo, interlineado: d.interlineado }, estilo: { apertura: d.apertura, color_acento: d.color_acento, secciones_color: d.secciones_color, capitular: !!d.capitular } };
     try { aplicarCambiosConfig(cambios); } catch (e) { return toast(e.message); }
     toast(`Diseño «${d.nombre}» aplicado. Guardá para que quede en GitHub.`);
     const scroll = f.scrollTop; pintarEstilos(); $('#f-estilos').scrollTop = scroll; $('#b-ver-estilos').click();
@@ -880,6 +903,70 @@ function pintarPlano(f, aplicar) {
     t.addEventListener('pointerup', () => { t.removeEventListener('pointermove', mover); if (nuevo !== base && aplicar()) pintarPlano(f, aplicar); }, { once: true });
   }));
 }
+// La IA propone el diseño completo (interior y tapa) eligiendo entre los modelos del taller.
+async function disenarConIa() {
+  const out = $('#ia-todo-res'); const b = $('#b-ia-todo'); b.disabled = true;
+  out.innerHTML = '<div class="nota"><span class="spin"></span> Leyendo el libro y pensando el diseño…</div>';
+  const L = S.cfg.libro || {};
+  const caps = (S.cfg.contenido || []).filter((c) => c.archivo && c.tipo !== 'preliminar');
+  const muestra = caps.slice(0, 3).map((c) => (S.textos.get(c.archivo) || '').replace(/^\[\^.*$/gm, '').slice(0, 1500)).join('\n\n---\n\n');
+  const ult = leer('taller.paginas.' + S.slug, null);
+  const contratapa = S.cfg.tapa?.contratapa ? (S.textos.get(S.cfg.tapa.contratapa) || '') : '';
+  const fuentes = [...new Set(familias())].join(', ');
+  const pedido = `Sos director de arte de una editorial. Elegí el diseño completo de este libro usando SOLO las opciones del catálogo.
+CATÁLOGO
+- Diseños de interior (id: descripción): ${DISENOS_INTERIOR.map((d) => `${d.id}: ${d.nota}`).join(' | ')}
+- Medidas: ${Object.keys(S.presets.formatos).join(', ')}
+- Diseños de tapa (id: descripción): ${ESTILOS_TAPA.filter(([k]) => k !== 'libre').map(([k, , d]) => `${k}: ${d}`).join(' | ')}
+- Paletas: ${PALETAS_TAPA.map(([n, f, t, a, s]) => `${n} (fondo ${f}, texto ${t}, acento ${a}, segundo ${s})`).join(' | ')}
+- Letras disponibles: ${fuentes}
+LIBRO: «${L.titulo || ''}» ${L.subtitulo ? '— ' + L.subtitulo : ''}, de ${L.autor || ''}. ${ult ? ult.paginas + ' páginas.' : ''}
+${contratapa ? 'Texto de contratapa actual: ' + contratapa.slice(0, 800) : 'No tiene texto de contratapa.'}
+Respondé SOLO con JSON:
+{"interior":"id","medida":"id o vacío para no cambiar","capitular":true|false,"color_acento":"#hex","tapa":"id","paleta":"nombre","fuente_titulo":"una de las letras","contratapa":"${contratapa ? 'vacío (ya tiene)' : 'texto de contratapa de 90 a 140 palabras, en castellano rioplatense, sin inventar datos que no estén en el texto'}","idea_imagen":"qué tendría que mostrar la imagen de tapa, en castellano, una oración","por_que":"explicación de 2 o 3 oraciones para el autor"}`;
+  try {
+    const r = await preguntar({ ...opcionesIA(), pedido, texto: muestra, accion: null });
+    const m = r.match(/\{[\s\S]*\}/); if (!m) throw new Error('La IA no devolvió una propuesta legible. Probá de nuevo.');
+    const x = JSON.parse(m[0]);
+    const di = DISENOS_INTERIOR.find((d) => d.id === x.interior) || DISENOS_INTERIOR[0];
+    const pal = PALETAS_TAPA.find(([n]) => n === x.paleta) || PALETAS_TAPA[0];
+    const est = ESTILOS_TAPA.find(([k]) => k === x.tapa) || ESTILOS_TAPA[0];
+    const fte = familias().includes(x.fuente_titulo) ? x.fuente_titulo : di.fuente_titulos;
+    const medida = S.presets.formatos[x.medida] ? x.medida : '';
+    const acento = /^#[0-9a-f]{6}$/i.test(x.color_acento || '') ? x.color_acento : di.color_acento;
+    out.innerHTML = `<div class="propuesta">
+      <p>${esc(x.por_que || '')}</p>
+      <ul>
+        <li><b>Interior:</b> ${esc(di.nombre)} — ${esc(di.nota)}${x.capitular ? ' Con letra capital.' : ''}</li>
+        ${medida ? `<li><b>Medida:</b> ${esc(medida)}</li>` : ''}
+        <li><b>Color de acento:</b> <span class="muestra-color" style="background:${acento}"></span> ${esc(acento)}</li>
+        <li><b>Tapa:</b> ${esc(est[1])} con la paleta ${esc(pal[0])} <span class="muestra-color" style="background:${pal[1]}"></span><span class="muestra-color" style="background:${pal[3]}"></span> y el título en ${esc(fte)}</li>
+        ${x.idea_imagen ? `<li><b>Imagen de tapa:</b> ${esc(x.idea_imagen)}</li>` : ''}
+        ${x.contratapa && !contratapa ? `<li><b>Contratapa:</b> <i>${esc(x.contratapa)}</i></li>` : ''}
+      </ul>
+      <div class="acciones"><button type="button" class="btn prim" id="ia-aplicar">Aplicar todo</button><button type="button" class="btn" id="ia-otra">Pedir otra propuesta</button></div></div>`;
+    $('#ia-otra').onclick = disenarConIa;
+    $('#ia-aplicar').onclick = () => {
+      const cambios = {
+        tipografia: { fuente: di.fuente, fuente_titulos: di.fuente_titulos, fuente_apoyo: di.fuente_apoyo, cuerpo: di.cuerpo, interlineado: di.interlineado },
+        estilo: { apertura: di.apertura, color_acento: acento, secciones_color: di.secciones_color, capitular: !!x.capitular },
+        tapa: { estilo: est[0], fondo: pal[1], color_texto: pal[2], color_acento: pal[3], color_secundario: pal[4], fuente_titulo: fte },
+      };
+      if (medida) cambios.formato = { preset: medida };
+      aplicarCambiosConfig(cambios);
+      if (x.contratapa && !contratapa && !/^vac/i.test(x.contratapa)) {
+        const ruta = S.cfg.tapa?.contratapa || 'tapa/contratapa.md';
+        if (!S.cfg.tapa?.contratapa) aplicarCambiosConfig({ tapa: { contratapa: ruta } });
+        S.textos.set(ruta, x.contratapa.trim() + '\n'); S.originales.has(ruta) || S.originales.set(ruta, null);
+      }
+      if (x.idea_imagen) S.iaTapa = { idea: x.idea_imagen, estilo: 'documental', encuadre: 'tapa', extra: '' };
+      marcarEstado();
+      toast('Diseño aplicado al interior y a la tapa. Miralo en Libro y en Tapa; guardá si te gusta.');
+      const sc = $('#f-estilos').scrollTop; pintarEstilos(); $('#f-estilos').scrollTop = sc;
+    };
+  } catch (e) { out.innerHTML = `<div class="error">${esc(e.message)}</div>`; }
+  finally { if (b.isConnected) b.disabled = false; }
+}
 function marcarDisenoInterior() {
   const t = S.cfg.tipografia || {}, e = S.cfg.estilo || {};
   $$('.est-int').forEach((b) => {
@@ -897,7 +984,7 @@ async function miniaturasInterior() {
     const caja = $(`[data-mini-int="${d.id}"]`); if (!caja || n !== seqInterior) return;
     if (fmt) caja.style.aspectRatio = `${parseFloat(fmt.ancho)} / ${parseFloat(fmt.alto)}`;
     try {
-      const r = await compilar(base() + '_muestra/main.typ', { libro: S.slug, vista: 'si', fuente: d.fuente, fuente_titulos: d.fuente_titulos, fuente_apoyo: d.fuente_apoyo, cuerpo: d.cuerpo, interlineado: d.interlineado, apertura: d.apertura, color_acento: d.color_acento, secciones_color: String(d.secciones_color) });
+      const r = await compilar(base() + '_muestra/main.typ', { libro: S.slug, vista: 'si', fuente: d.fuente, fuente_titulos: d.fuente_titulos, fuente_apoyo: d.fuente_apoyo, cuerpo: d.cuerpo, interlineado: d.interlineado, apertura: d.apertura, color_acento: d.color_acento, secciones_color: String(d.secciones_color), capitular: String(!!d.capitular) });
       if (n !== seqInterior) return;
       caja.innerHTML = r.ok ? await aSvg(r.bytes) : '<small>error</small>';
     } catch { caja.innerHTML = '<small>—</small>'; }
@@ -907,7 +994,7 @@ async function miniaturasInterior() {
 /* ═════════ tapa ═════════ */
 const DISENOS_INTERIOR = [
   { id: 'clasico', nombre: 'Clásico', nota: 'Garamond, número arriba y título a la izquierda.', fuente: 'EB Garamond', fuente_titulos: 'EB Garamond', fuente_apoyo: 'Inter', cuerpo: '12pt', interlineado: '16.5pt', apertura: 'clasica', color_acento: '#000000', secciones_color: false },
-  { id: 'literario', nombre: 'Literario', nota: 'Crimson y Cormorant, apertura centrada con versalitas.', fuente: 'Crimson Pro', fuente_titulos: 'Cormorant', fuente_apoyo: 'Inter', cuerpo: '12pt', interlineado: '16.5pt', apertura: 'centrada', color_acento: '#8A2B22', secciones_color: false },
+  { id: 'literario', capitular: true, nombre: 'Literario', nota: 'Crimson y Cormorant, apertura centrada y letra capital.', fuente: 'Crimson Pro', fuente_titulos: 'Cormorant', fuente_apoyo: 'Inter', cuerpo: '12pt', interlineado: '16.5pt', apertura: 'centrada', color_acento: '#8A2B22', secciones_color: false },
   { id: 'ensayo', nombre: 'Ensayo moderno', nota: 'Source Serif con filete de color y apoyo en Inter.', fuente: 'Source Serif 4', fuente_titulos: 'Inter', fuente_apoyo: 'Inter', cuerpo: '11pt', interlineado: '15pt', apertura: 'filete', color_acento: '#1F5F8B', secciones_color: true },
   { id: 'academico', nombre: 'Académico', nota: 'Libertinus compacto, ideal para muchas notas.', fuente: 'Libertinus Serif', fuente_titulos: 'Libertinus Serif', fuente_apoyo: 'Inter', cuerpo: '11pt', interlineado: '14.5pt', apertura: 'clasica', color_acento: '#000000', secciones_color: false },
   { id: 'periodistico', nombre: 'Periodístico', nota: 'Merriweather y Fraunces, número gigante de color.', fuente: 'Merriweather', fuente_titulos: 'Fraunces', fuente_apoyo: 'Inter', cuerpo: '10.5pt', interlineado: '15pt', apertura: 'numero', color_acento: '#C2410C', secciones_color: true },
@@ -916,7 +1003,7 @@ const DISENOS_INTERIOR = [
   { id: 'tecnico', nombre: 'Técnico', nota: 'Todo a la derecha con filete fino, al estilo O’Reilly (bookly).', fuente: 'Source Serif 4', fuente_titulos: 'Inter', fuente_apoyo: 'Inter', cuerpo: '10.5pt', interlineado: '14.5pt', apertura: 'manual', color_acento: '#B91C1C', secciones_color: false },
   { id: 'didactico', nombre: 'Didáctico', nota: 'Pestaña de color con el número, para libros de estudio (bookly).', fuente: 'Lora', fuente_titulos: 'Lora', fuente_apoyo: 'Inter', cuerpo: '11pt', interlineado: '15.5pt', apertura: 'pestana', color_acento: '#2563EB', secciones_color: true },
   { id: 'cronica', nombre: 'Crónica', nota: 'Recuadro redondeado y Merriweather: no ficción de lectura ágil (bookly).', fuente: 'Merriweather', fuente_titulos: 'Merriweather', fuente_apoyo: 'Inter', cuerpo: '10.5pt', interlineado: '15pt', apertura: 'recuadro', color_acento: '#7C2D12', secciones_color: true },
-  { id: 'novela', nombre: 'Novela', nota: 'Título en negrita sin número, al estilo Wonderous.', fuente: 'EB Garamond', fuente_titulos: 'EB Garamond', fuente_apoyo: 'EB Garamond', cuerpo: '12pt', interlineado: '16.5pt', apertura: 'novela', color_acento: '#000000', secciones_color: false },
+  { id: 'novela', capitular: true, nombre: 'Novela', nota: 'Título en negrita sin número y letra capital, al estilo Wonderous.', fuente: 'EB Garamond', fuente_titulos: 'EB Garamond', fuente_apoyo: 'EB Garamond', cuerpo: '12pt', interlineado: '16.5pt', apertura: 'novela', color_acento: '#000000', secciones_color: false },
 ];
 const APERTURAS = [['clasica', 'Clásica'], ['centrada', 'Centrada'], ['numero', 'Número grande'], ['filete', 'Filete de color'], ['banda', 'Banda a sangre'], ['novela', 'Novela (sin número)'], ['manual', 'Manual (a la derecha)'], ['pestana', 'Pestaña de color'], ['recuadro', 'Recuadro']];
 const MUESTRA_INTERIOR = `#import "/plantilla/estilos.typ": *
@@ -925,7 +1012,7 @@ const MUESTRA_INTERIOR = `#import "/plantilla/estilos.typ": *
 #modo.update("cuerpo")
 #apertura(impar: false)
 = Rutas del sur
-La frontera no es una línea: es un lugar donde se espera. Hay quien espera días, hay quien espera años, y hay quien ya no sabe qué espera. En el borde de cada país se acumulan historias que nadie escribe.
+#capitular[La frontera no es una línea: es un lugar donde se espera. Hay quien espera días, hay quien espera años, y hay quien ya no sabe qué espera. En el borde de cada país se acumulan historias que nadie escribe.]
 
 Durante la última década, los movimientos de población en América Latina cambiaron de escala y de dirección. Lo que antes era una migración de norte a sur se volvió una red de rutas cruzadas.
 
@@ -947,6 +1034,7 @@ const ESTILOS_TAPA = [
   ['foto', 'Foto', 'Imagen a sangre con el título abajo sobre una sombra (sin foto, un degradé).'],
   ['suiza', 'Suiza', 'Grilla, barra vertical de color y título en palo seco muy negro.'],
   ['generativa', 'Generativa', 'Arte geométrico creado a partir de las letras del título (10PRINT).'],
+  ['patron', 'Patrón', 'Tela estampada: un motivo repetido en toda la cubierta y el título en una etiqueta.'],
   ['libre', 'Libre', 'Solo el fondo: armá la tapa a mano con textos, fotos y formas.'],
 ];
 const PALETAS_TAPA = [
@@ -980,6 +1068,11 @@ function pintarTapa() {
         ${campo('tapa.color_acento', 'Acento', 'color')}${campo('tapa.color_secundario', 'Segundo color', 'color')}
       </div>
     </div>
+    ${estilo === 'patron' ? `<div class="grupo"><h3>Motivo del patrón</h3><div class="grilla">
+      ${opciones('tapa.motivo', 'Dibujo', [['rombo', 'Rombos'], ['hoja', 'Hojas'], ['estrella', 'Estrellas'], ['circulos', 'Círculos'], ['ondas', 'Ondas'], ['cuadro', 'Cuadrados']])}
+      ${campo('tapa.motivo_tam', 'Tamaño del motivo (mm)', 'number', '', '14')}
+      <div class="campo ancho"><span>O un motivo propio (PNG con fondo transparente)</span><div class="subida"><input class="entrada" data-c="tapa.motivo_imagen" value="${esc(t.motivo_imagen || '')}" placeholder="sin imagen: usa el dibujo elegido"><button type="button" class="btn chico" data-subir="motivo_imagen">${I.subir}Subir</button>${t.motivo_imagen ? '<button type="button" class="btn chico" data-sacar="motivo_imagen">Quitar</button>' : ''}</div></div>
+    </div></div>` : ''}
     <div class="grupo"><h3>Textos de la tapa</h3><div class="grilla">
         ${campo('tapa.titulo', 'Título en la tapa (usá | para cortar la línea)', 'text', 'ancho', S.cfg.libro?.titulo || '')}
         ${campo('tapa.subtitulo', 'Subtítulo en la tapa', 'text', 'ancho', S.cfg.libro?.subtitulo || '')}
@@ -1031,7 +1124,11 @@ function pintarTapa() {
   const aplicar = () => { try { aplicarCambiosConfig(leerForm(f)); return true; } catch (e) { toast('Hay un valor inválido: ' + e.message); return false; } };
   const todo = () => { verTapa().then(miniaturasTapa); };
   activarSelectoresLetra(f, () => { aplicar(); todo(); });
-  $$('.est-tapa', f).forEach((b) => (b.onclick = () => { $$('.est-tapa', f).forEach((x) => x.setAttribute('aria-checked', String(x === b))); $('[data-c="tapa.estilo"]', f).value = b.dataset.est; aplicar(); verTapa(); }));
+  $$('.est-tapa', f).forEach((b) => (b.onclick = () => {
+    const antes = $('[data-c="tapa.estilo"]', f).value;
+    $$('.est-tapa', f).forEach((x) => x.setAttribute('aria-checked', String(x === b))); $('[data-c="tapa.estilo"]', f).value = b.dataset.est; aplicar();
+    if ((antes === 'patron') !== (b.dataset.est === 'patron')) { const sc = f.scrollTop; pintarTapa(); $('#f-tapa').scrollTop = sc; } else verTapa();
+  }));
   $$('.paleta', f).forEach((b) => (b.onclick = () => {
     const [, fo, tx, ac, se] = PALETAS_TAPA[+b.dataset.pal];
     $('[data-c="tapa.fondo"]', f).value = fo; $('[data-c="tapa.color_texto"]', f).value = tx;
@@ -1793,7 +1890,7 @@ async function listarVersiones() {
     const lista = (await S.gh.versiones()).filter((r) => r.tag_name.startsWith(S.slug + '-'));
     const pend = $('#v-pend')?.outerHTML || '';
     const tam = (b) => b > 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.round(b / 1e3) + ' kB';
-    const nombreArch = (n) => n.endsWith('.epub') ? 'EPUB' : n.includes('-cmyk') ? (n.includes('tapa') ? 'Tapa CMYK' : 'Interior CMYK') : n.includes('tapa-guias') ? 'Tapa con guías' : n.includes('tapa') ? 'Tapa' : n.includes('interior') ? 'Interior' : n;
+    const nombreArch = (n) => n.endsWith('.epub') ? 'EPUB' : n.endsWith('.docx') ? 'Word' : n.includes('-cmyk') ? (n.includes('tapa') ? 'Tapa CMYK' : 'Interior CMYK') : n.includes('tapa-guias') ? 'Tapa con guías' : n.includes('tapa') ? 'Tapa' : n.includes('interior') ? 'Interior' : n;
     c.innerHTML = pend + (lista.length ? `<table class="tabla"><tr><th>Versión</th><th>Fecha</th><th>Archivos</th></tr>${lista.map((r) => `<tr>
       <td><b>${esc(r.name || r.tag_name)}</b>${r.body ? `<div style="font-size:12px;color:var(--tinta-suave);max-width:46ch">${esc(r.body.split('\n')[0])}</div>` : ''}</td>
       <td style="white-space:nowrap">${new Date(r.published_at || r.created_at).toLocaleDateString('es-AR', { dateStyle: 'medium' })}</td>

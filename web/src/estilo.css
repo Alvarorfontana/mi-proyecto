@@ -472,3 +472,7 @@ dialog h3 { font: 600 13px var(--marca); margin: 0 0 8px; color: var(--tinta); }
 .control li.mal::before { content: '✕'; background: #d7263d; }
 .control li span { grid-column: 2; font-size: 12px; color: var(--tinta-suave); }
 .tabla td.mal { color: #b0123a; font-weight: 600; } .tabla td.justa { color: #a86a00; font-weight: 600; } .tabla td.bien { color: #1f5b37; }
+.ia-todo { background: linear-gradient(135deg, rgba(0,163,224,.07), rgba(214,0,110,.05)); border-radius: var(--radio); padding: 16px !important; }
+.propuesta { background: var(--blanco); border-radius: var(--radio-chico); padding: 12px 14px; margin-top: 12px; font-size: 13.5px; }
+.propuesta ul { padding-left: 18px; margin: 8px 0 12px; display: grid; gap: 5px; }
+.muestra-color { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin: 0 1px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }

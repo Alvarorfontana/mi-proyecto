@@ -62,6 +62,10 @@
   separacion: _len(_in("separacion_columnas", _e.at("separacion_columnas", default: "6mm"))),
   filete_cornisa: _in("filete_cornisa", if _e.at("filete_cornisa", default: false) { "true" } else { "false" }) == "true",
   filete_pie: _in("filete_pie", if _e.at("filete_pie", default: false) { "true" } else { "false" }) == "true",
+  // letra capital al comienzo de cada capítulo
+  capitular: _in("capitular", if _e.at("capitular", default: false) { "true" } else { "false" }) == "true",
+  capitular_lineas: int(_in("capitular_lineas", str(_e.at("capitular_lineas", default: 3)))),
+  capitular_color: _in("capitular_color", if _e.at("capitular_color", default: false) { "true" } else { "false" }) == "true",
   secciones_color: _in("secciones_color", if _e.at("secciones_color", default: false) { "true" } else { "false" }) == "true",
 )
 #let LIB = _cfg.libro
@@ -116,6 +120,15 @@
   let partido = u.replace(regex("([/._?=&#-])"), m => m.text + "\u{200B}")
   link(u, text(hyphenate: false, partido))
 }
+
+// Letra capital (usa droplet, de Eric Biedert, licencia MIT, en plantilla/terceros/droplet).
+#import "terceros/droplet/lib.typ": dropcap
+#let capitular(body) = if ESTILO.capitular {
+  set par(first-line-indent: 0pt)
+  dropcap(height: ESTILO.capitular_lineas, gap: 0.18em, justify: TIPO.justificado,
+    font: TIPO.titulos, fill: if ESTILO.capitular_color { ESTILO.acento } else { black },
+    transform: l => upper(l), body)
+} else { body }
 
 #let separador() = align(center, block(above: 1.2em, below: 1.2em, text(tracking: 0.5em)[\*\*\*]))
 
@@ -240,23 +253,56 @@
   ]
 }
 
+// Página de créditos (página legal), según los usos de la Agencia ISBN y la Cámara Argentina del Libro.
+// Los datos salen de [libro] y [creditos] en libro.toml; lo que falta no se imprime.
+#let _CR = _cfg.at("creditos", default: (:))
+#let _cr(k, d: "") = _CR.at(k, default: d)
+#let _apellido-nombre(n) = { let p = n.split(" "); if p.len() > 1 { p.last() + ", " + p.slice(0, -1).join(" ") } else { n } }
+#let ficha-catalografica() = context {
+  let pags = counter(page).final().first()
+  let ciudad = _cr("ciudad_ficha", d: LIB.at("ciudad", default: ""))
+  let materias = _cr("materias", d: ())
+  let tit = LIB.titulo.clusters().first() + lower(LIB.titulo.clusters().slice(1).join())
+  block(width: 100%, stroke: 0.4pt + luma(120), inset: 7pt, {
+    set text(size: TIPO.notas * 0.92)
+    set par(first-line-indent: 0pt, hanging-indent: 1.2em, justify: false, spacing: 0.5em)
+    _apellido-nombre(LIB.autor)
+    parbreak()
+    [#tit#if LIB.at("subtitulo", default: "") != "" [ : #(lower(LIB.subtitulo.clusters().first()) + LIB.subtitulo.clusters().slice(1).join())] / #LIB.autor. - #_cr("numero_edicion", d: "1a ed.") - #ciudad : #LIB.at("editorial", default: ""), #LIB.at("anio", default: "").]
+    parbreak()
+    [#pags p. ; #calc.round(FORMATO.alto.cm(), digits: 0) x #calc.round(FORMATO.ancho.cm(), digits: 0) cm.]
+    if LIB.at("isbn", default: "") != "" { parbreak(); [ISBN #LIB.isbn] }
+    parbreak()
+    if materias.len() > 0 [#materias.enumerate().map(((i, m)) => [#(i + 1). #m.]).join(" ") I. Título.] else [1. (materia). I. Título.]
+    if _cr("cdd") != "" { parbreak(); [CDD #_cr("cdd")] }
+  })
+}
 #let creditos() = {
   pagebreak(weak: true)
   _marca("limpia")
   set text(size: TIPO.notas)
-  set par(first-line-indent: 0pt, justify: false, spacing: 0.9em)
+  set par(first-line-indent: 0pt, justify: false, spacing: 0.75em)
   v(1fr)
+  // equipo
+  let equipo = (
+    ("Edición", _cr("edicion_a_cargo")), ("Corrección", _cr("correccion")), ("Diseño de tapa", _cr("diseno_tapa")),
+    ("Diseño interior y composición", _cr("diseno_interior")), ("Foto de tapa", _cr("foto_tapa")), ("Ilustraciones", _cr("ilustraciones")),
+  ).filter(x => x.at(1) != "")
+  if equipo.len() > 0 {
+    for (r, n) in equipo [#r: #n \ ]
+    v(0.6em)
+  }
+  if LIB.at("creditos_extra", default: "") != "" { LIB.creditos_extra; parbreak() }
+  [#_cr("numero_edicion_texto", d: LIB.at("edicion", default: "Primera edición")): #_cr("fecha_edicion", d: str(LIB.at("anio", default: "")))]
+  parbreak()
   [© #LIB.at("anio", default: "") #LIB.autor]
+  if LIB.at("editorial", default: "") != "" [ \ © #LIB.at("anio", default: "") #LIB.editorial#if _cr("direccion") != "" [ \ #_cr("direccion")]#if _cr("web") != "" [ \ #_cr("web")]]
   parbreak()
-  emph(LIB.titulo.clusters().first() + lower(LIB.titulo.clusters().slice(1).join())); [. #LIB.at("subtitulo", default: "")]
+  if _cr("ficha", d: true) { ficha-catalografica(); v(0.4em) }
+  [#_cr("deposito", d: "Queda hecho el depósito que marca la Ley 11.723.")]
   parbreak()
-  [#LIB.at("editorial", default: "")#if LIB.at("ciudad", default: "") != "" [, #LIB.ciudad]]
-  parbreak()
-  [#LIB.at("edicion", default: "")]
-  if LIB.at("isbn", default: "") != "" { parbreak(); [ISBN #LIB.isbn] }
-  if LIB.at("creditos_extra", default: "") != "" { parbreak(); LIB.creditos_extra }
-  parbreak()
-  [Queda hecho el depósito que marca la Ley 11.723. No se permite la reproducción total o parcial de este libro sin el permiso previo y escrito del autor.]
+  [#_cr("reserva", d: "Libro de edición argentina. No se permite la reproducción total o parcial, el almacenamiento, el alquiler, la transmisión o la transformación de este libro, en cualquier forma o por cualquier medio, sea electrónico o mecánico, mediante fotocopias, digitalización u otros métodos, sin el permiso previo y escrito del editor. Su infracción está penada por las leyes 11.723 y 25.446.")]
+  if _cr("impreso", d: "") != "" { parbreak(); _cr("impreso") }
   _marca("fin")
 }
 

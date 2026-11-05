@@ -41,7 +41,7 @@ jobs:
       - name: Armar interior, tapa y EPUB
         run: |
           pip install pypdf
-          python herramientas/construir.py "$LIBRO" --epub | tee armado.log
+          python herramientas/construir.py "$LIBRO" --epub --docx | tee armado.log
       - name: Versiones CMYK para imprenta
         # Typst exporta en RGB; muchas imprentas piden CMYK. Ghostscript hace la conversión.
         run: |
@@ -69,8 +69,9 @@ jobs:
           cp "$S/tapa.pdf" "$S/$LIBRO-tapa.pdf"
           cp "$S/tapa-guias.pdf" "$S/$LIBRO-tapa-guias.pdf"
           cp "$S/libro.epub" "$S/$LIBRO.epub"
+          cp "$S/libro.docx" "$S/$LIBRO.docx"
           EXTRA=""
           for f in interior tapa; do [ -f "$S/$f-cmyk.pdf" ] && cp "$S/$f-cmyk.pdf" "$S/$LIBRO-$f-cmyk.pdf" && EXTRA="$EXTRA $S/$LIBRO-$f-cmyk.pdf"; done
           printf '%s\n\n%s · %s · commit %s\n' "$NOTA" "$FECHA" "$PAGS" "${GITHUB_SHA::7}" > notas.md
           gh release create "$TAG" --target "$GITHUB_SHA" --title "$VERSION" --notes-file notas.md \
-            "$S/$LIBRO-interior.pdf" "$S/$LIBRO-tapa.pdf" "$S/$LIBRO-tapa-guias.pdf" "$S/$LIBRO.epub" $EXTRA
+            "$S/$LIBRO-interior.pdf" "$S/$LIBRO-tapa.pdf" "$S/$LIBRO-tapa-guias.pdf" "$S/$LIBRO.epub" "$S/$LIBRO.docx" $EXTRA

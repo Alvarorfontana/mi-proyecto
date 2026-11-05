@@ -126,6 +126,7 @@ export function convertir(fuente, { sinNumero = false, base = '/' } = {}) {
 
   function bloques(toks, enNota = false) {
     let o = '';
+    let capitular = false, prof = 0; // la primera párrafo del capítulo lleva letra capital
     for (let i = 0; i < toks.length; i++) {
       const t = toks[i];
       switch (t.type) {
@@ -134,6 +135,7 @@ export function convertir(fuente, { sinNumero = false, base = '/' } = {}) {
           const sinNum = sinNumero || clases(t).some((c) => c === 'unnumbered' || c === 'sin-numero');
           const cont = inline(toks[i + 1].children);
           o += `#heading(level: ${nivel}${sinNum ? ', numbering: none' : ''})[${cont}]\n\n`;
+          if (nivel === 1 && !enNota && prof === 0) capitular = true;
           i += 2;
           break;
         }
@@ -142,6 +144,7 @@ export function convertir(fuente, { sinNumero = false, base = '/' } = {}) {
           const kids = inl.children || [];
           const solo = kids.filter((k) => !(k.type === 'text' && !k.content.trim()) && k.type !== 'softbreak');
           if (solo.length === 1 && solo[0].type === 'image') o += figuraArgs(solo[0]) + '\n\n';
+          else if (capitular && prof === 0) { o += `#capitular[${inline(kids)}]\n\n`; capitular = false; }
           else o += escInicio(inline(kids)) + (enNota ? '\n\n' : '\n\n');
           i += 2;
           break;
@@ -149,11 +152,12 @@ export function convertir(fuente, { sinNumero = false, base = '/' } = {}) {
         case 'container_div_open': {
           const nombre = t.info.trim().replace(/^\{?\.?/, '').replace(/\}$/, '').split(/\s+/)[0];
           o += (nombre && /^[a-z][a-z0-9-]*$/.test(nombre)) ? `#${nombre}[\n` : '#block[\n';
+          prof++;
           break;
         }
-        case 'container_div_close': o += ']\n\n'; break;
-        case 'blockquote_open': o += '#quote(block: true)[\n'; break;
-        case 'blockquote_close': o += ']\n\n'; break;
+        case 'container_div_close': o += ']\n\n'; prof--; break;
+        case 'blockquote_open': o += '#quote(block: true)[\n'; prof++; break;
+        case 'blockquote_close': o += ']\n\n'; prof--; break;
         case 'hr': o += '#separador()\n\n'; break;
         case 'bullet_list_open': case 'ordered_list_open': break;
         case 'list_item_open': o += (toks[i].markup.match(/[.)]/) ? '+ ' : '- '); break;

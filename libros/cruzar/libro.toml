@@ -15,6 +15,27 @@ isbn       = ""          # ej. "978-987-00-0000-0" → genera el código de barr
 edicion    = "Primera edición de muestra"
 creditos_extra = "Editorial Umbral, sello editorial de fantasía. Texto: Álvaro Fontana. Cartografía: elaboración propia de Álvaro Fontana sobre cartografía de referencia de Natural Earth, de dominio público, y las fuentes indicadas en cada mapa. Diseño editorial, composición, diseño e imagen de cubierta: créditos por completar. Edición, impresión y distribución: datos por completar. ISBN: por asignar. Ficha catalográfica y depósito legal: por gestionar."
 
+# ── Página de créditos (página legal) ───────────────────────
+# Lo que quede vacío no se imprime. La ficha catalográfica se arma sola;
+# la oficial la da la Cámara Argentina del Libro al tramitar el ISBN.
+[creditos]
+numero_edicion       = "1a ed."              # para la ficha: «1a ed.», «2a ed.»…
+numero_edicion_texto = "Primera edición"
+fecha_edicion        = "noviembre de 2026"
+edicion_a_cargo      = ""
+correccion           = ""
+diseno_tapa          = ""
+diseno_interior      = ""
+foto_tapa            = ""
+ilustraciones        = ""
+direccion            = ""
+web                  = ""
+ciudad_ficha         = "Ciudad Autónoma de Buenos Aires"
+materias             = ["Migraciones", "Derechos humanos", "Geopolítica"]
+cdd                  = "304.8"
+ficha                = true
+impreso              = ""                    # ej. «Impreso en Argentina - Printed in Argentina»
+
 # ── Formato de página ────────────────────────────────────────
 # Usá un preset (ver plantilla/presets.toml) o poné ancho/alto a mano.
 [formato]

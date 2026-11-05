@@ -24,7 +24,7 @@
 #let numero-col = str(_ti("numero", ""))
 #let seguro = 6mm   // zona segura: nada importante más cerca del corte
 #let estilo-tapa = sys.inputs.at("estilo_tapa", default: T.at("estilo", default: "clasica"))
-// clasica | editorial | tipografica | minimalista | coleccion | dos-tintas | marco | cruce | centrada | foto | suiza | generativa | libre
+// clasica | editorial | tipografica | minimalista | coleccion | dos-tintas | marco | cruce | centrada | foto | suiza | generativa | patron | libre
 #let fuente-tapa = _ti("fuente_titulo", TIPO.titulos)
 
 // posiciones horizontales (desde el borde izquierdo del papel, con sangrado)
@@ -110,7 +110,43 @@
   en-tapa(0pt, y0, rect(width: W + ext-der, height: h, fill: color, stroke: none))
 }
 
-#if estilo-tapa == "libre" {
+// motivo repetido (diseño «Patrón»): dibujos propios, o una imagen subida (tapa/motivo.png)
+#let motivo(nombre, l, color) = {
+  let m = l * 0.5
+  if nombre == "rombo" { polygon(fill: color, stroke: none, (m, 0pt), (l, m), (m, l), (0pt, m)) }
+  else if nombre == "circulos" { circle(radius: m * 0.62, fill: none, stroke: l * 0.07 + color) }
+  else if nombre == "hoja" { rotate(45deg, ellipse(width: l * 0.36, height: l * 0.9, fill: color)) }
+  else if nombre == "estrella" { polygon(fill: color, stroke: none, ..range(10).map(i => { let r = if calc.even(i) { m * 0.95 } else { m * 0.4 }; let a = i * 36deg - 90deg; (m + r * calc.cos(a), m + r * calc.sin(a)) })) }
+  else if nombre == "ondas" { curve(stroke: l * 0.08 + color, curve.move((0pt, m)), curve.quad((l * 0.25, m * 0.4), (l * 0.5, m)), curve.quad((l * 0.75, m * 1.6), (l, m))) }
+  else { rect(width: l * 0.5, height: l * 0.5, fill: color, stroke: none) }
+}
+#let patron(ancho, alto, l: 14mm) = {
+  let img = _ti("motivo_imagen", "")
+  let nombre = _ti("motivo", "rombo")
+  let col = calc.ceil(ancho / l) + 1
+  let fil = calc.ceil(alto / l) + 1
+  box(width: ancho, height: alto, clip: true, {
+    for j in range(fil) {
+      for i in range(col) {
+        let dx = i * l + (if calc.odd(j) { l / 2 } else { 0pt }) - l / 2
+        place(dx: dx, dy: j * l - l / 2, box(width: l, height: l, if img != "" { image(RAIZ + img, width: l * 0.8, height: l * 0.8, fit: "contain") } else { motivo(nombre, l * 0.8, acento.transparentize(15%)) }))
+      }
+    }
+  })
+}
+
+#if estilo-tapa == "patron" {
+  // tela estampada: el motivo cubre contratapa, lomo y tapa; título en una etiqueta
+  let l = float(_ti("motivo_tam", 14)) * 1mm
+  if solo-tapa { en-tapa(0pt, 0pt, patron(W, H, l: l)) }
+  else { place(top + left, dx: x-contra - (if solapa > 0mm { pliegue } else { sangre }), dy: 0pt, patron(2 * W + lomo + (if solapa > 0mm { pliegue } else { sangre }) + ext-der, alto-total, l: l)) }
+  en-tapa(W * 0.12, H * 0.2, block(width: W * 0.76, fill: fondo, stroke: 1.2pt + acento, inset: (x: 8mm, y: 9mm), radius: 1mm, align(center, {
+    titulo(tam-titulo(W * 0.76 - 16mm, 44pt), peso: "regular", alin: center, tracking: 0.04em)
+    if sub != "" { v(4mm); line(length: 18mm, stroke: 0.6pt + acento); v(4mm); bajada(11pt, alin: center) }
+    v(6mm)
+    versal(autor-t, 8.5pt, fill: acento)
+  })))
+} else if estilo-tapa == "libre" {
   // editor libre: la tapa es solo el fondo; títulos, fotos y formas son capas en tapa/elementos.json
 } else if estilo-tapa == "editorial" {
   panel(x-tapa, W, pad(x: 16mm, top: 18mm, bottom: 16mm, grid(rows: (auto, 1fr, auto), {
