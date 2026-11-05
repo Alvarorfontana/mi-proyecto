@@ -1,3 +1,5 @@
+![Título del mapa](mapas/archivo.svg){.mapa fuente="Elaboración propia"}
+
 # Haití, Chile y el Darién — Cuando el destino vuelve a convertirse en salida
 
 ::: epigrafe
