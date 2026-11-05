@@ -179,7 +179,9 @@ function armarApp() {
     <header class="barra">
       <div class="fila">
         <div class="logo">${I.registro}Taller</div>
+        <button class="btn chico btn-libros" id="b-libros" title="Ver todos tus libros, abrir uno o empezar uno nuevo">${I.libro || ''}Mis libros</button>
         <select class="selector-libro" id="sel-libro" aria-label="Libro"></select>
+        <button class="btn chico prim btn-nuevo-libro" id="b-nuevo-libro" title="Empezar un libro nuevo">${I.mas}Nuevo libro</button>
         <nav class="pestanas" role="tablist">
           <button role="tab" data-v="texto" aria-selected="true">Texto</button>
           <button role="tab" data-v="estilos" aria-selected="false">Estilos</button>
@@ -264,8 +266,10 @@ function armarApp() {
     </main>
   </div>`;
 
-  $('#sel-libro').innerHTML = S.libros.map((l) => `<option value="${esc(l)}">${esc(l)}</option>`).join('');
-  $('#sel-libro').onchange = (e) => abrirLibro(e.target.value);
+  pintarSelectorLibros();
+  $('#b-libros').onclick = misLibros;
+  $('#b-nuevo-libro').onclick = nuevoLibro;
+  $('#sel-libro').onchange = (e) => { if (e.target.value === '__nuevo') { e.target.value = S.slug; nuevoLibro(); } else abrirLibro(e.target.value); };
   $$('.pestanas button').forEach((b) => (b.onclick = () => verPestana(b.dataset.v)));
   $('#b-guardar').onclick = guardarTodo;
   $('#b-ajustes').onclick = dialogoAjustes;
@@ -311,6 +315,152 @@ function verLado(l) {
 }
 
 /* ═════════ libro ═════════ */
+function pintarSelectorLibros() {
+  const nombre = (l) => (l === S.slug && S.cfg?.libro?.titulo) || l;
+  $('#sel-libro').innerHTML = S.libros.map((l) => `<option value="${esc(l)}">${esc(nombre(l))}</option>`).join('') + '<option value="__nuevo">＋ Nuevo libro…</option>';
+  if (S.slug) $('#sel-libro').value = S.slug;
+}
+
+// ── Mis libros: todos los libros del repositorio, para abrir uno o empezar uno nuevo ──
+async function misLibros() {
+  const d = dialogo(`<h2>Mis libros</h2>
+    <p class="sutil" style="margin-top:4px">Cada libro se guarda solo en GitHub, en su propia carpeta. Elegí uno para seguir trabajando donde lo dejaste, o empezá uno nuevo.</p>
+    <div class="lista-libros" id="ml-lista"><p class="sutil">Cargando…</p></div>`, [['Cerrar'], ['＋ Nuevo libro', 'prim']]);
+  d.addEventListener('close', () => { if (d.returnValue === '1') nuevoLibro(); });
+  const datos = await Promise.all(S.libros.map(async (l) => {
+    try { const c = tomlParse(await S.gh.texto(`libros/${l}/libro.toml`)); return { l, t: c.libro?.titulo || l, a: c.libro?.autor || '', n: (c.contenido || []).filter((x) => x.archivo).length }; }
+    catch { return { l, t: l, a: '', n: 0 }; }
+  }));
+  $('#ml-lista', d).innerHTML = datos.map((x) => `<button type="button" class="tarjeta-libro ${x.l === S.slug ? 'actual' : ''}" data-l="${esc(x.l)}">
+      <b>${esc(x.t)}</b><span>${esc(x.a)}${x.a ? ' · ' : ''}${x.n} ${x.n === 1 ? 'capítulo' : 'capítulos'}</span>${x.l === S.slug ? '<em>abierto ahora</em>' : '<em>Abrir →</em>'}</button>`).join('');
+  $$('[data-l]', d).forEach((b) => (b.onclick = () => { d.close(); if (b.dataset.l !== S.slug) abrirLibro(b.dataset.l); }));
+}
+
+// ── Libro nuevo: crea la carpeta libros/<nombre>/ con su configuración, un capítulo y los textos de tapa ──
+function bloqueToml(texto, seccion) {
+  const lineas = texto.split('\n'); const out = []; let dentro = false;
+  for (const l of lineas) {
+    if (/^\[\[?[a-z_]+\]\]?\s*$/.test(l.trim())) dentro = l.trim() === `[${seccion}]`;
+    if (dentro) out.push(l);
+  }
+  return out.join('\n').trim();
+}
+const comillas = (t) => '"' + String(t).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+
+async function nuevoLibro() {
+  if (hayCambios() && !confirm('Hay cambios sin guardar en este libro. ¿Seguir igual?')) return;
+  const formatos = Object.entries(S.presets?.formatos || { '15x21': { ancho: '150mm', alto: '210mm' } });
+  const d = dialogo(`<h2>Nuevo libro</h2>
+    <p class="sutil" style="margin-top:4px">Se crea su carpeta en el repositorio con un primer capítulo. Después escribís, pegás o importás el texto.</p>
+    <label class="campo"><span>Título</span><input class="entrada" id="nl-titulo" placeholder="Ej.: La patria grande"></label>
+    <label class="campo"><span>Subtítulo (opcional)</span><input class="entrada" id="nl-sub"></label>
+    <label class="campo"><span>Autor o autora</span><input class="entrada" id="nl-autor" value="${esc(S.cfg?.libro?.autor || '')}"></label>
+    <label class="campo"><span>Editorial (opcional)</span><input class="entrada" id="nl-editorial" value="${esc(S.cfg?.libro?.editorial || '')}"></label>
+    <label class="campo"><span>Medida</span><select class="entrada" id="nl-formato">${formatos.map(([k, f]) => `<option value="${k}" ${k === (S.cfg?.formato?.preset || '15x21') ? 'selected' : ''}>${k.replace('x', ' × ')} cm (${parseFloat(f.ancho)} × ${parseFloat(f.alto)} mm)</option>`).join('')}</select></label>
+    <label class="campo"><span>Diseño de partida</span><select class="entrada" id="nl-base">
+      <option value="copiar">El mismo diseño que «${esc(S.cfg?.libro?.titulo || S.slug)}» (letras, márgenes, tapa)</option>
+      <option value="limpio">Diseño clásico, desde cero</option></select></label>`,
+    [['Cancelar'], ['Crear el libro', 'prim']]);
+  $('#nl-titulo', d).focus();
+  d.addEventListener('close', async () => {
+    if (d.returnValue !== '1') return;
+    const titulo = $('#nl-titulo', d).value.trim();
+    if (!titulo) return toast('Escribí el título del libro.');
+    let slug = titulo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'libro';
+    while (S.libros.includes(slug)) slug += '-2';
+    const v = (id) => $(id, d).value.trim();
+    const copiar = v('#nl-base') === 'copiar' && S.cfgTexto;
+    const limpiarTapa = (b) => b.replace(/^(imagen|imagen_contratapa|foto_autor|elementos)\s*=.*$/gm, (m, k) => `${k.padEnd(14)} = ""`);
+    const seccion = (nombre, porDefecto) => (copiar && bloqueToml(S.cfgTexto, nombre)) || porDefecto;
+    const toml = `# ${titulo} — configuración del libro (creado desde el taller)
+
+[libro]
+titulo     = ${comillas(titulo)}
+subtitulo  = ${comillas(v('#nl-sub'))}
+autor      = ${comillas(v('#nl-autor'))}
+editorial  = ${comillas(v('#nl-editorial'))}
+ciudad     = ${comillas(S.cfg?.libro?.ciudad || 'Buenos Aires')}
+anio       = ${new Date().getFullYear()}
+isbn       = ""
+edicion    = "Primera edición"
+
+[creditos]
+numero_edicion       = "1a ed."
+numero_edicion_texto = "Primera edición"
+fecha_edicion        = ""
+ficha                = true
+
+${seccion('formato', '[formato]').replace(/^preset\s*=.*$/m, '').replace('[formato]', `[formato]\npreset = "${v('#nl-formato')}"`)}
+
+${seccion('tipografia', `[tipografia]
+fuente          = "EB Garamond"
+fuente_titulos  = "EB Garamond"
+fuente_apoyo    = "Inter"
+cuerpo          = "11pt"
+interlineado    = "15pt"
+notas           = "9pt"
+sangria         = "1.2em"
+justificado     = true
+guiones         = true
+idioma          = "es"`)}
+
+${seccion('estilo', `[estilo]
+columnas          = 1
+capitulo_en_impar = true
+cornisa_par       = "autor"
+cornisa_impar     = "capitulo"
+folio             = "abajo-afuera"
+apertura          = "clasica"
+colofon           = true`)}
+
+[preliminares]
+portadilla = true
+indice     = "inicio"
+
+${limpiarTapa(seccion('tapa', `[tapa]
+estilo           = "clasica"
+fuente_titulo    = "EB Garamond"
+papel            = "obra-80"
+cartulina_mm     = 0.6
+solapa           = "0mm"
+sangrado         = "3mm"
+fondo            = "#1d2a33"
+color_texto      = "#f4efe6"
+color_acento     = "#d9a441"
+elementos        = ""
+imagen           = ""
+contratapa       = "tapa/contratapa.md"
+solapa_delantera = "tapa/solapa-delantera.md"
+solapa_trasera   = "tapa/solapa-trasera.md"`))}
+
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/01-capitulo-1.md"
+`;
+    const base = `libros/${slug}/`;
+    const archivos = {
+      [base + 'libro.toml']: toml,
+      [base + 'texto/01-capitulo-1.md']: '# Capítulo 1\n\nEscribí, pegá o importá acá el texto del libro.\n',
+      [base + 'tapa/contratapa.md']: 'Texto de la contratapa.\n',
+      [base + 'tapa/solapa-delantera.md']: 'Sobre el autor o la autora.\n',
+      [base + 'tapa/solapa-trasera.md']: '\n',
+    };
+    cargando('Creando el libro…');
+    try {
+      await S.gh.commitVarios(archivos, `Libro nuevo: ${titulo}`);
+      S.arbol = await S.gh.arbol();
+      S.libros = S.arbol.map((e) => e.path.match(/^libros\/([^/]+)\/libro\.toml$/)?.[1]).filter(Boolean);
+      S.originales.clear(); S.textos.clear();
+      await abrirLibro(slug);
+      pintarSelectorLibros();
+      toast(`Listo: «${titulo}» creado. Ya podés escribir o importar el texto.`);
+    } catch (e) {
+      cargando();
+      toast('No se pudo crear el libro: ' + e.message);
+    }
+  });
+}
+
 async function abrirLibro(slug) {
   if (S.slug && hayCambios() && !confirm('Hay cambios sin guardar. ¿Cambiar de libro igual?')) { $('#sel-libro').value = S.slug; return; }
   cargando('Abriendo el libro…');
@@ -320,6 +470,7 @@ async function abrirLibro(slug) {
     S.cfgTexto = await S.gh.texto(rutaLibro('libro.toml'));
     S.originales.set('libro.toml', S.cfgTexto);
     S.cfg = tomlParse(S.cfgTexto);
+    pintarSelectorLibros();
     const tieneIndice = S.arbol.some((e) => e.path === rutaLibro('indice.toml'));
     S.indiceToml = tieneIndice ? await S.gh.texto(rutaLibro('indice.toml')) : '# sin términos\n';
     S.originales.set('indice.toml', tieneIndice ? S.indiceToml : null);

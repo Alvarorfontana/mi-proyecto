@@ -487,3 +487,13 @@ dialog h3 { font: 600 13px var(--marca); margin: 0 0 8px; color: var(--tinta); }
 .cmb-texto ins { background: #dcf5e3; color: #0f5130; text-decoration: none; }
 .cmb-texto del { background: #fde2e4; color: #9b1c2c; }
 .cmb-texto .corte { color: var(--tinta-suave); font-style: italic; }
+
+/* Mis libros / Nuevo libro */
+.btn-libros,.btn-nuevo-libro{white-space:nowrap}
+.lista-libros{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-top:14px;max-height:55vh;overflow:auto}
+.tarjeta-libro{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:14px 14px 12px;border:1px solid var(--linea,#ddd);border-radius:8px;background:var(--papel,#fff);cursor:pointer;min-height:96px}
+.tarjeta-libro b{font-size:15px;line-height:1.25}
+.tarjeta-libro span{font-size:12px;opacity:.7}
+.tarjeta-libro em{margin-top:auto;font-style:normal;font-size:12px;color:var(--acento,#0a7ea4)}
+.tarjeta-libro.actual{border-color:var(--acento,#0a7ea4);box-shadow:0 0 0 2px color-mix(in srgb,var(--acento,#0a7ea4) 25%,transparent)}
+.tarjeta-libro:hover{border-color:var(--acento,#0a7ea4)}

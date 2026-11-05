@@ -92,6 +92,18 @@ export class GitHub {
   textoEn(p, ref) {
     return this.req(`${this.base}/contents/${ruta(p)}?ref=${encodeURIComponent(ref)}`, { accept: 'application/vnd.github.raw', tipo: 'texto' });
   }
+  // varios archivos nuevos en un solo guardado (un único commit)
+  async commitVarios(archivos, mensaje) {
+    const ref = await this.req(`${this.base}/git/ref/heads/${encodeURIComponent(this.rama)}`);
+    const padre = await this.req(`${this.base}/git/commits/${ref.object.sha}`);
+    const arbol = await this.req(`${this.base}/git/trees`, { method: 'POST', body: {
+      base_tree: padre.tree.sha,
+      tree: Object.entries(archivos).map(([path, content]) => ({ path, mode: '100644', type: 'blob', content })),
+    } });
+    const c = await this.req(`${this.base}/git/commits`, { method: 'POST', body: { message: mensaje, tree: arbol.sha, parents: [ref.object.sha] } });
+    await this.req(`${this.base}/git/refs/heads/${encodeURIComponent(this.rama)}`, { method: 'PATCH', body: { sha: c.sha } });
+    return c.sha;
+  }
   versiones() { return this.req(`${this.base}/releases?per_page=12`); }
   corridas() { return this.req(`${this.base}/actions/workflows/construir.yml/runs?per_page=6`); }
   artefactos(id) { return this.req(`${this.base}/actions/runs/${id}/artifacts`); }
