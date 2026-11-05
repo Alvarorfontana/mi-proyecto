@@ -476,3 +476,14 @@ dialog h3 { font: 600 13px var(--marca); margin: 0 0 8px; color: var(--tinta); }
 .propuesta { background: var(--blanco); border-radius: var(--radio-chico); padding: 12px 14px; margin-top: 12px; font-size: 13.5px; }
 .propuesta ul { padding-left: 18px; margin: 8px 0 12px; display: grid; gap: 5px; }
 .muestra-color { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin: 0 1px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+/* pruebas de autor */
+.lista-pruebas { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 6px; }
+.lista-pruebas li { display: flex; align-items: center; gap: 10px; background: var(--hoja); border-radius: var(--radio-chico); padding: 7px 10px; }
+.lista-pruebas li span { flex: 1; font-size: 12.5px; color: var(--tinta-suave); }
+.lista-cambios { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.lista-cambios small { margin-left: 6px; color: var(--tinta-suave); }
+.cmb-cifras { font-weight: 600; margin: 10px 0 6px; } .cmb-cifras .mas { color: #1f7a45; } .cmb-cifras .menos { color: #b0123a; margin-left: 10px; }
+.cmb-texto { font: 15px/1.6 "Source Serif 4", Georgia, serif; background: var(--blanco); border: 1px solid var(--filete); border-radius: var(--radio-chico); padding: 14px 18px; max-height: 55vh; overflow: auto; }
+.cmb-texto ins { background: #dcf5e3; color: #0f5130; text-decoration: none; }
+.cmb-texto del { background: #fde2e4; color: #9b1c2c; }
+.cmb-texto .corte { color: var(--tinta-suave); font-style: italic; }

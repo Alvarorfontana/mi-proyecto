@@ -38,3 +38,14 @@ export async function dibujarPagina(doc, n, canvas, ancho) {
   let tinta = 0; for (let i = 0; i < d.length; i += 64) if (d[i] < 200) tinta++;
   return tinta < 3;
 }
+
+// Dibuja una página en un lienzo de tamaño exacto (en píxeles) y lo devuelve.
+export async function lienzoPagina(doc, n, altoPx) {
+  const p = await doc.getPage(n);
+  const v0 = p.getViewport({ scale: 1 });
+  const v = p.getViewport({ scale: altoPx / v0.height });
+  const c = document.createElement('canvas');
+  c.width = Math.round(v.width); c.height = Math.round(v.height);
+  await p.render({ canvasContext: c.getContext('2d'), viewport: v }).promise;
+  return c;
+}

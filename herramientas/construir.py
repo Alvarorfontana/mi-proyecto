@@ -94,6 +94,7 @@ def armar_principal(cfg: dict, libro: str, build: Path) -> Path:
         L.append("#indice-analitico()")
     if pos_indice == "final":
         L.append("#indice-general()")
+    L.append(f"#completar-pliego(con-colofon: {'true' if est.get('colofon', True) else 'false'})")
     if est.get("colofon", True):
         L.append("#colofon()")
     principal = build / "libro.typ"

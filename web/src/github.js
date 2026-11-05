@@ -81,6 +81,17 @@ export class GitHub {
     if (version) Object.assign(inputs, { version, nota });
     return this.req(`${this.base}/actions/workflows/construir.yml/dispatches`, { method: 'POST', body: { ref: this.rama, inputs }, tipo: 'nada' });
   }
+  // pruebas de autor: etiquetas de git «prueba-<libro>-<n>» sobre el último guardado
+  async shaRama() { return (await this.req(`${this.base}/git/ref/heads/${encodeURIComponent(this.rama)}`)).object.sha; }
+  crearEtiqueta(nombre, sha) { return this.req(`${this.base}/git/refs`, { method: 'POST', body: { ref: `refs/tags/${nombre}`, sha } }); }
+  async etiquetas(prefijo) {
+    try { return await this.req(`${this.base}/git/matching-refs/tags/${encodeURIComponent(prefijo)}`); } catch (e) { if (e.status === 404) return []; throw e; }
+  }
+  commit(sha) { return this.req(`${this.base}/git/commits/${sha}`); }
+  comparar(desde, hasta) { return this.req(`${this.base}/compare/${encodeURIComponent(desde)}...${encodeURIComponent(hasta)}`); }
+  textoEn(p, ref) {
+    return this.req(`${this.base}/contents/${ruta(p)}?ref=${encodeURIComponent(ref)}`, { accept: 'application/vnd.github.raw', tipo: 'texto' });
+  }
   versiones() { return this.req(`${this.base}/releases?per_page=12`); }
   corridas() { return this.req(`${this.base}/actions/workflows/construir.yml/runs?per_page=6`); }
   artefactos(id) { return this.req(`${this.base}/actions/runs/${id}/artifacts`); }

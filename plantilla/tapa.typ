@@ -8,13 +8,21 @@
 #let T = _cfg.at("tapa", default: (:))
 #let guias = sys.inputs.at("guias", default: "no") == "si"
 #let paginas = int(sys.inputs.at("paginas", default: "200"))
-#let lomo = _len(sys.inputs.at("lomo", default: "12mm"))
-#let sangre = _len(T.at("sangrado", default: "3mm"))
-#let solapa = _len(T.at("solapa", default: "0mm"))
-#let pliegue = if solapa > 0mm { _len(T.at("pliegue_solapa", default: "3mm")) } else { 0mm }
-#let W = FORMATO.ancho
-#let H = FORMATO.alto
 #let _ti(k, d) = sys.inputs.at(k, default: T.at(k, default: d))
+// Encuadernación: rústica (cartulina, con o sin solapas) o tapa dura (cartoné).
+// En tapa dura el papel forra cartones más grandes que el libro (ceja), con canales
+// junto al lomo para que abra, y una vuelta que se pega del lado de adentro.
+#let dura = _ti("encuadernacion", "rustica") == "dura"
+#let carton = _len(_ti("carton", "2.5mm"))
+#let ceja = _len(_ti("ceja", "3mm"))
+#let canal = if dura { _len(_ti("canal", "8mm")) } else { 0mm }
+#let lomo-libro = _len(sys.inputs.at("lomo", default: "12mm"))
+#let lomo = if dura { lomo-libro + 2 * carton + 2 * canal } else { lomo-libro }
+#let sangre = if dura { _len(_ti("vuelta", "17mm")) } else { _len(T.at("sangrado", default: "3mm")) }
+#let solapa = if dura { 0mm } else { _len(T.at("solapa", default: "0mm")) }
+#let pliegue = if solapa > 0mm { _len(T.at("pliegue_solapa", default: "3mm")) } else { 0mm }
+#let W = if dura { FORMATO.ancho + ceja } else { FORMATO.ancho }
+#let H = if dura { FORMATO.alto + 2 * ceja } else { FORMATO.alto }
 #let fondo = rgb(_ti("fondo", "#1d2a33"))
 #let tinta = rgb(_ti("color_texto", "#f4efe6"))
 #let acento = rgb(_ti("color_acento", "#d9a441"))
@@ -554,12 +562,16 @@
   let mm(l) = str(calc.round(l.mm(), digits: 1)) + " mm"
   rotulo(x-contra, W, "CONTRATAPA · " + mm(W))
   rotulo(x-tapa, W, "TAPA · " + mm(W))
-  rotulo(x-lomo - 10mm, lomo + 20mm, "LOMO " + mm(lomo))
+  if dura {
+    // canales (bisagras) a los lados del lomo, y cartones
+    for x in (x-lomo + canal, x-tapa - canal) { place(top + left, dx: x, dy: 0pt, line(start: (0pt, 0pt), end: (0pt, alto-total), stroke: doblez)) }
+    rotulo(x-lomo - 10mm, lomo + 20mm, "LOMO " + mm(lomo-libro + 2 * carton) + " + CANALES " + mm(canal))
+  } else { rotulo(x-lomo - 10mm, lomo + 20mm, "LOMO " + mm(lomo)) }
   if solapa > 0mm {
     rotulo(x-solapa-tras, solapa, "SOLAPA · " + mm(solapa))
     rotulo(x-solapa-del, solapa, "SOLAPA · " + mm(solapa))
   }
   place(top + left, dx: sangre + 2mm, dy: 1mm, text(font: TIPO.apoyo, size: 6pt, fill: rgb("#ff2d55"))[
-    Papel total #mm(ancho-total) × #mm(alto-total) · sangrado #mm(sangre) · #paginas páginas · lomo #mm(lomo) — rojo: corte · celeste: pliegues · verde: zona segura
+    #if dura [TAPA DURA · papel total #mm(ancho-total) × #mm(alto-total) · vuelta #mm(sangre) · cartones #mm(W) × #mm(H) de #mm(carton) · canal #mm(canal) · #paginas páginas — rojo: borde del cartón · celeste: lomo y canales · verde: zona segura] else [Papel total #mm(ancho-total) × #mm(alto-total) · sangrado #mm(sangre) · #paginas páginas · lomo #mm(lomo) — rojo: corte · celeste: pliegues · verde: zona segura]
   ])
 }

@@ -30,6 +30,7 @@ export function principal(cfg, { conIndice = true } = {}) {
   L.push('#indexar.update(false)');
   if ((est.indice_analitico ?? true) && conIndice) L.push('#indice-analitico()');
   if (posIndice === 'final') L.push('#indice-general()');
+  L.push(`#completar-pliego(con-colofon: ${(est.colofon ?? true) ? 'true' : 'false'})`);
   if (est.colofon ?? true) L.push('#colofon()');
   return L.join('\n') + '\n';
 }

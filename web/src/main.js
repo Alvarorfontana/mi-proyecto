@@ -13,8 +13,9 @@ import { convertir, primerTitulo } from './md2typ.js';
 import { principal, nombreTyp, lomoMm, contarPaginasPdf } from './armado.js';
 import { tomlSet, tomlContenido } from './toml.js';
 import { importarTexto } from './importar.js';
+import { diffWords } from 'diff';
 import { revisarOrtotipografia, REGLAS } from './ortotipo.js';
-import { abrirPdf, marcadores, dibujarPagina } from './compaginar.js';
+import { abrirPdf, marcadores, dibujarPagina, lienzoPagina } from './compaginar.js';
 import { ESTILOS_IMAGEN, ENCUADRES, armarPrompt, generarPollinations, generarGemini } from './imagenia.js';
 import { buscarOpenAlex, buscarCrossref, buscarWikipedia, buscarGemini, formatear, ESTILOS_CITA, notasSinEnlace, parecido, NORMAS, revisarNorma, pedidoNorma } from './citas.js';
 import { puntuar, hayDictadoNavegador, dictarNavegador, dictarWhisper } from './dictado.js';
@@ -1112,11 +1113,15 @@ function pintarTapa() {
       ${estilo !== 'libre' ? `<div class="aviso" style="margin-top:12px">¿Querés mover también el título, el subtítulo y el autor? <button type="button" class="btn chico" id="b-desarmar">Pasar la tapa a capas</button><br><small>Convierte el diseño en capas sueltas que se editan con el mouse (el fondo y los colores se mantienen).</small></div>` : ''}
     </div>
     <div class="grupo"><h3>Papel y medidas</h3><div class="grilla">
+      ${opciones('tapa.encuadernacion', 'Encuadernación', [['rustica', 'Rústica (cartulina)'], ['dura', 'Tapa dura (cartoné)']], 'rustica')}
+      ${t.encuadernacion === 'dura' ? `${campo('tapa.carton', 'Grosor del cartón', 'text', '', '2.5mm')}${campo('tapa.canal', 'Canal (bisagra) a cada lado del lomo', 'text', '', '8mm')}${campo('tapa.vuelta', 'Vuelta (papel que se pega adentro)', 'text', '', '17mm')}${campo('tapa.ceja', 'Ceja (cuánto sobresale el cartón)', 'text', '', '3mm')}<p class="sutil ancho" style="margin:0">En tapa dura no hay solapas; la sobrecubierta se arma aparte. Confirmá cartón, canal y vuelta con la imprenta.</p>` : ''}
       ${opciones('tapa.papel', 'Papel', Object.keys(S.presets.papeles).map((p) => [p, p]))}
       ${campo('tapa.cartulina_mm', 'Cartulina (mm al lomo)', 'number')}
       ${campo('tapa.solapa', 'Solapas (0mm = sin solapas)')}${campo('tapa.sangrado', 'Sangrado')}
     </div></div>
     <input type="hidden" data-c="tapa.estilo" value="${esc(estilo)}">
+    <div class="grupo"><h3>Tapa para tiendas digitales</h3><p class="sutil" style="margin:0 0 8px">Amazon, Google Libros y las tiendas de ebooks piden solo el frente, como imagen de 2.560 px de alto.</p>
+      <div class="acciones"><button type="button" class="btn chico" id="b-ebook">${I.bajar}Frente en JPG (2.560 px)</button><button type="button" class="btn chico" id="b-ebook-png">${I.bajar}Frente en PNG</button></div></div>
     <div class="guardar"><button class="btn prim" id="b-ver-tapa">Ver la tapa</button><button class="btn" id="b-guardar-tapa">${I.subir}Guardar en GitHub</button></div>
   </div>
   <section class="lado-der"><div class="cab"><span class="info" id="pt-info"></span><div class="der"><label class="check" style="font-size:12.5px"><input type="checkbox" id="c-guias" checked>Guías de corte y pliegue</label></div></div><div class="mesa" id="mesa-tapa"></div></section>`;
@@ -1157,6 +1162,8 @@ function pintarTapa() {
   const verIsbn = () => { const r = revisarIsbn(isbnInp.value); $('#isbn-estado').innerHTML = r ? `<div class="aviso ${r.ok ? 'bien' : 'mal'}">${esc(r.texto)}</div>` : ''; };
   isbnInp.addEventListener('input', verIsbn); verIsbn();
   $('#b-ver-tapa').onclick = () => { if (aplicar()) verTapa(); };
+  $('#b-ebook').onclick = () => tapaEbook('jpg');
+  $('#b-ebook-png').onclick = () => tapaEbook('png');
   $('#b-guardar-tapa').onclick = () => { if (aplicar()) guardarTodo(); };
   $('#c-guias').onchange = verTapa;
   todo();
@@ -1190,6 +1197,24 @@ function revisarIsbn(v) {
   const c = ctl13(d);
   return +d[12] === c ? { ok: true, texto: 'ISBN válido. El código de barras se genera solo.' } : { ok: false, texto: `El último dígito debería ser ${c}, no ${d[12]}. Revisalo con la constancia de la Agencia ISBN.` };
 }
+// Solo el frente, a 2.560 px de alto, para tiendas de ebooks.
+async function tapaEbook(formato) {
+  try {
+    toast('Preparando la tapa…');
+    const ult = leer('taller.paginas.' + S.slug, null);
+    const paginas = String(ult?.paginas || estimarPaginas());
+    await prepararTapa(+paginas);
+    const r = await compilar('/plantilla/tapa.typ', { libro: S.slug, paginas, lomo: '20mm', solo_tapa: 'si' }, 'pdf');
+    if (!r.ok) throw new Error(r.errores.join('\n'));
+    const doc = await abrirPdf(r.bytes);
+    const c = await lienzoPagina(doc, 1, 2560);
+    const blob = await new Promise((ok) => c.toBlob(ok, formato === 'png' ? 'image/png' : 'image/jpeg', 0.92));
+    const u = URL.createObjectURL(blob);
+    const a = h(`<a href="${u}" download="${S.slug}-tapa-ebook.${formato}"></a>`); document.body.append(a); a.click(); a.remove();
+    toast(`Tapa para ebook: ${c.width} × ${c.height} px.`);
+  } catch (e) { toast('No pude armar la tapa: ' + e.message); }
+}
+
 /* ── imagen de tapa con IA ── */
 let iaTapaRes = [];
 function medidasTapa(encuadre) {
@@ -1252,7 +1277,18 @@ function pintarIaTapa() {
 function mostrarIaTapa() {
   const res = $('#it-res'); if (!res) return;
   res.innerHTML = iaTapaRes.slice(0, 8).map((x, i) => `<div class="ia-img"><img src="${x.url}" alt=""><small>${esc(x.origen)}</small>
-    <div class="respuesta-acc"><button type="button" class="btn chico prim-suave" data-usar="${i}">Usar ${x.encuadre === 'envolvente' ? 'envolvente' : x.encuadre === 'contratapa' ? 'en contratapa' : 'en la tapa'}</button><a class="btn chico" href="${x.url}" download="tapa-ia-${i + 1}.png">${I.bajar}</a></div></div>`).join('');
+    <div class="respuesta-acc"><button type="button" class="btn chico prim-suave" data-usar="${i}">Usar ${x.encuadre === 'envolvente' ? 'envolvente' : x.encuadre === 'contratapa' ? 'en contratapa' : 'en la tapa'}</button><button type="button" class="btn chico" data-ampliar="${i}" title="Agrandar con IA a resolución de imprenta (tarda uno o dos minutos)">Ampliar</button><a class="btn chico" href="${x.url}" download="tapa-ia-${i + 1}.jpg">${I.bajar}</a></div></div>`).join('');
+  $$('[data-ampliar]', res).forEach((b) => (b.onclick = async () => {
+    const x = iaTapaRes[+b.dataset.ampliar];
+    b.disabled = true;
+    try {
+      const { ampliarImagen } = await import('./ampliar.js');
+      const bm = await createImageBitmap(x.blob);
+      const r = await ampliarImagen(x.blob, { escala: bm.width >= 1100 ? 2 : 4, alProgreso: (p) => { b.textContent = Math.round(p * 100) + ' %'; } });
+      iaTapaRes[+b.dataset.ampliar] = { ...x, blob: r.blob, url: URL.createObjectURL(r.blob), origen: `${x.origen} · ampliada a ${r.ancho}×${r.alto}` };
+      toast(`Ampliada a ${r.ancho} × ${r.alto} px.`); mostrarIaTapa();
+    } catch (e) { toast('No pude ampliarla: ' + e.message); b.disabled = false; b.textContent = 'Ampliar'; }
+  }));
   $$('[data-usar]', res).forEach((b) => (b.onclick = async () => {
     const x = iaTapaRes[+b.dataset.usar];
     const archivo = new File([x.blob], `tapa-ia.${/png/.test(x.blob.type) ? 'png' : 'jpg'}`, { type: x.blob.type || 'image/jpeg' });
@@ -1449,8 +1485,11 @@ function aMm(v, d = 0) {
 function geometriaTapa() {
   const fo = S.cfg.formato || {}, t = S.cfg.tapa || {};
   const pre = S.presets.formatos[fo.preset] || S.presets.formatos['15x23'];
-  const W = aMm(fo.ancho || pre.ancho), H = aMm(fo.alto || pre.alto);
-  const sg = aMm(t.sangrado, 3), sol = aMm(t.solapa, 0), pl = sol > 0 ? aMm(t.pliegue_solapa, 3) : 0, lomo = S.lomoTapa || 15;
+  const dura = t.encuadernacion === 'dura';
+  const ceja = dura ? aMm(t.ceja, 3) : 0;
+  const W = aMm(fo.ancho || pre.ancho) + ceja, H = aMm(fo.alto || pre.alto) + 2 * ceja;
+  const sg = dura ? aMm(t.vuelta, 17) : aMm(t.sangrado, 3), sol = dura ? 0 : aMm(t.solapa, 0), pl = sol > 0 ? aMm(t.pliegue_solapa, 3) : 0;
+  const lomo = (S.lomoTapa || 15) + (dura ? 2 * aMm(t.carton, 2.5) + 2 * aMm(t.canal, 8) : 0);
   const xc = sg + sol + pl, xl = xc + W, xt = xl + lomo, xd = xt + W + pl;
   return { W, H, sg, total: xd + sol + sg, alto: H + 2 * sg, caras: { 'solapa-tras': [sg, sol], contratapa: [xc, W], lomo: [xl, lomo], tapa: [xt, W], 'solapa-del': [xd, sol] } };
 }
@@ -1684,7 +1723,7 @@ function controlImprenta(ult) {
   if (!ult) out.push(['aviso', 'Todavía no se armó el libro', 'Armalo para saber páginas, pliegos y lomo reales.']);
   else {
     const resto = ult.paginas % 16;
-    out.push(resto ? ['aviso', `${ult.paginas} páginas: el último pliego queda incompleto`, `Faltan ${16 - resto} para completar 16 (o sobran ${resto}). La imprenta agrega blancas o se ajusta el texto.`] : ['ok', `${ult.paginas} páginas, ${ult.paginas / 16} pliegos completos`, '']);
+    out.push(resto && !S.cfg.estilo?.completar_pliego ? ['aviso', `${ult.paginas} páginas: el último pliego queda incompleto`, `Faltan ${16 - resto} para completar 16 (o sobran ${resto}). La imprenta agrega blancas o se ajusta el texto.`] : ['ok', `${ult.paginas} páginas, ${ult.paginas / 16} pliegos completos`, '']);
     out.push(ult.lomo < 6 ? ['aviso', `Lomo de ${ult.lomo.toFixed(1)} mm`, 'Con menos de 6 mm no entra texto en el lomo.'] : ['ok', `Lomo de ${ult.lomo.toFixed(1)} mm`, `papel ${t.papel || 'obra-80'}: confirmalo con la imprenta`]);
   }
   out.push(aMm(t.sangrado, 3) >= 3 ? ['ok', 'Sangrado de tapa', `${aMm(t.sangrado, 3)} mm por lado`] : ['mal', 'Sangrado de tapa insuficiente', 'Las imprentas piden al menos 3 mm.']);
@@ -1742,7 +1781,28 @@ async function revisarResolucion() {
   filas.sort((a, b) => (a.ppp ?? 0) - (b.ppp ?? 0));
   const malas = filas.filter((f) => f.ppp != null && f.ppp < 200).length, justas = filas.filter((f) => f.ppp >= 200 && f.ppp < 300).length;
   caja.innerHTML = `<div class="aviso ${malas ? 'mal' : 'bien'}" style="margin-top:10px">${filas.length} imágenes · ${malas} con poca resolución (menos de 200 ppp) · ${justas} justas (200 a 300)</div>
-    <table class="tabla"><tr><th>Imagen</th><th>Dónde</th><th>Tamaño impreso</th><th>Resolución</th></tr>${filas.map((f) => `<tr><td>${esc(f.ruta.split('/').pop())}<br><small class="sutil">${f.px || ''}</small></td><td>${esc(f.donde)}</td><td>${Math.round(f.mm)} mm</td><td class="${f.ppp == null ? '' : f.ppp < 200 ? 'mal' : f.ppp < 300 ? 'justa' : 'bien'}">${f.ppp == null ? 'no la pude leer' : f.ppp + ' ppp'}</td></tr>`).join('')}</table>`;
+    <table class="tabla"><tr><th>Imagen</th><th>Dónde</th><th>Tamaño impreso</th><th>Resolución</th></tr>${filas.map((f) => `<tr><td>${esc(f.ruta.split('/').pop())}<br><small class="sutil">${f.px || ''}</small></td><td>${esc(f.donde)}</td><td>${Math.round(f.mm)} mm</td><td class="${f.ppp == null ? '' : f.ppp < 200 ? 'mal' : f.ppp < 300 ? 'justa' : 'bien'}">${f.ppp == null ? 'no la pude leer' : f.ppp + ' ppp'}${f.ppp != null && f.ppp < 300 ? `<br><button class="btn chico" data-amp="${esc(f.ruta)}">Ampliar ×${f.ppp < 150 ? 4 : 2}</button>` : ''}</td></tr>`).join('')}</table>`;
+  $$('[data-amp]', caja).forEach((b) => (b.onclick = async () => {
+    const ruta = b.dataset.amp; b.disabled = true;
+    try {
+      const fila = filas.find((x) => x.ruta === ruta);
+      const { ampliarImagen } = await import('./ampliar.js');
+      const bytes = await S.gh.bytes(rutaLibro(ruta));
+      const r = await ampliarImagen(new Blob([bytes]), { escala: fila.ppp < 150 ? 4 : 2, alProgreso: (p) => { b.textContent = Math.round(p * 100) + ' %'; } });
+      const nueva = ruta.replace(/\.[^.]+$/, '') + '-hd.jpg';
+      const datos = new Uint8Array(await r.blob.arrayBuffer());
+      await S.gh.guardar(rutaLibro(nueva), datos, `Taller: imagen ampliada ${nueva}`);
+      S.arbol.push({ path: rutaLibro(nueva) });
+      await cargarBinarios({ [base() + nueva]: datos });
+      // reemplazar las referencias en textos y tapa
+      for (const [k, v] of S.textos) if (v.includes(ruta)) { const n2 = v.split('](' + ruta + ')').join('](' + nueva + ')'); if (k === S.actual) S.editor.dispatch({ changes: { from: 0, to: S.editor.state.doc.length, insert: n2 } }); else S.textos.set(k, n2); }
+      const t = S.cfg.tapa || {}; const camb = {};
+      for (const k of ['imagen', 'imagen_envolvente', 'imagen_contratapa', 'foto_autor']) if (t[k] === ruta) camb[k] = nueva;
+      if (Object.keys(camb).length) aplicarCambiosConfig({ tapa: camb });
+      const els = elementosTapa(); if (els.some((e) => e.archivo === ruta)) guardarElementos(els.map((e) => (e.archivo === ruta ? { ...e, archivo: nueva } : e)));
+      marcarEstado(); b.textContent = `Lista: ${r.ancho}×${r.alto}`; toast('Imagen ampliada y reemplazada. Guardá para conservar los cambios.');
+    } catch (e) { toast('No pude ampliarla: ' + e.message); b.disabled = false; b.textContent = 'Reintentar'; }
+  }));
 }
 async function fichaTecnica() {
   const b = $('#b-ficha'); b.disabled = true;
@@ -1797,6 +1857,18 @@ function pintarProduccion() {
       <div id="versiones"><div class="nota" style="font-size:12.5px;color:var(--tinta-suave)"><span class="spin"></span> Buscando versiones…</div></div>
     </div>
     <div class="bloque">
+      <h2>Pruebas de autor</h2>
+      <p>Cuando mandás el libro al autor para revisar, marcá una prueba. Después podés ver qué cambió desde esa prueba, capítulo por capítulo, con lo agregado y lo borrado.</p>
+      <div class="acciones"><button class="btn" id="b-prueba">Marcar nueva prueba</button></div>
+      <div id="pruebas"><div class="nota" style="font-size:12.5px;color:var(--tinta-suave)"><span class="spin"></span> Buscando pruebas…</div></div>
+    </div>
+    <div class="bloque">
+      <h2>Cerrar pliegos</h2>
+      <p>Las imprentas trabajan en pliegos de 16 páginas. El taller prueba cambios mínimos de interlineado (décimas de punto, invisibles a la lectura) hasta que el libro cierre justo. Si no se puede, te dice cuántas páginas en blanco agrega la imprenta al final.</p>
+      <div class="acciones"><button class="btn" id="b-pliegos">Buscar el cierre</button><select class="entrada" id="pl-de" style="width:auto;height:32px"><option value="16">Pliegos de 16</option><option value="32">Pliegos de 32</option><option value="8">Pliegos de 8</option></select></div>
+      <div id="pliegos"></div>
+    </div>
+    <div class="bloque">
       <h2>Simulador de páginas</h2>
       <p>Prueba medidas y cuerpos de letra y cuenta las páginas de cada combinación. Cada prueba tarda unos segundos.</p>
       <div class="grilla">
@@ -1813,6 +1885,9 @@ function pintarProduccion() {
   $('#b-ficha').onclick = fichaTecnica;
   $('#b-actions').onclick = armarGitHub;
   $('#b-simular').onclick = simular;
+  $('#b-pliegos').onclick = cerrarPliegos;
+  $('#b-prueba').onclick = marcarPrueba;
+  listarPruebas();
   $('#b-publicar').onclick = publicarVersion;
   listarVersiones();
   if (urls.length) $('#descargas').innerHTML = botonesPdf(urls);
@@ -1912,6 +1987,118 @@ async function listarCorridas() {
     clearTimeout(tCorridas);
     if (filas.some((x) => x.status !== 'completed') && $('#v-produccion').classList.contains('activa')) tCorridas = setTimeout(listarCorridas, 8000);
   } catch (e) { c.innerHTML = `<div class="nota" style="font-size:12.5px;color:var(--tinta-suave)">${esc(e.message)}</div>`; }
+}
+/* ── pruebas de autor y control de cambios ── */
+async function listarPruebas() {
+  const caja = $('#pruebas'); if (!caja) return;
+  try {
+    const refs = await S.gh.etiquetas(`prueba-${S.slug}-`);
+    const lista = await Promise.all(refs.map(async (r) => {
+      const n = +r.ref.split('-').pop();
+      let fecha = '';
+      try { const c = await S.gh.commit(r.object.sha); fecha = new Date(c.committer.date).toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch {}
+      return { n, tag: r.ref.replace('refs/tags/', ''), fecha };
+    }));
+    lista.sort((a, b) => b.n - a.n);
+    S.pruebas = lista;
+    caja.innerHTML = lista.length ? `<ul class="lista-pruebas">${lista.map((p) => `<li><b>Prueba ${p.n}</b><span>${esc(p.fecha)}</span><button class="btn chico" data-cambios="${esc(p.tag)}">Ver cambios desde acá</button></li>`).join('')}</ul>` : '<p class="sutil">Todavía no marcaste ninguna prueba.</p>';
+    $$('[data-cambios]', caja).forEach((b) => (b.onclick = () => verCambios(b.dataset.cambios)));
+  } catch (e) { caja.innerHTML = `<div class="error">${esc(e.message)}</div>`; }
+}
+async function marcarPrueba() {
+  if (hayCambios()) return toast('Primero guardá en GitHub: la prueba se marca sobre lo guardado.');
+  const n = (S.pruebas?.[0]?.n || 0) + 1;
+  try {
+    const sha = await S.gh.shaRama();
+    await S.gh.crearEtiqueta(`prueba-${S.slug}-${n}`, sha);
+    toast(`Prueba ${n} marcada. Si querés mandarle el PDF al autor, usá «Publicar versión».`);
+    listarPruebas();
+  } catch (e) { toast('No pude marcar la prueba: ' + e.message); }
+}
+async function verCambios(tag) {
+  const d = h(`<dialog class="grande"><div class="cuerpo"><h2>Cambios desde la ${esc(tag.replace(`prueba-${S.slug}-`, 'prueba '))}</h2><div id="cmb"><div class="nota"><span class="spin"></span> Comparando…</div></div></div><div class="pie"><button class="btn prim" data-x>Cerrar</button></div></dialog>`);
+  document.body.append(d); d.addEventListener('close', () => d.remove()); d.showModal();
+  $('[data-x]', d).onclick = () => d.close();
+  const caja = $('#cmb', d);
+  try {
+    const cmp = await S.gh.comparar(tag, S.gh.rama);
+    const pre = rutaLibro('');
+    const archivos = (cmp.files || []).filter((f) => f.filename.startsWith(pre) && /\.md$/.test(f.filename));
+    // también lo que todavía no se guardó
+    const sinGuardar = [...S.textos.keys()].filter((k) => k.endsWith('.md') && S.textos.get(k) !== S.originales.get(k)).map((k) => pre + k);
+    const todos = [...new Set([...archivos.map((f) => f.filename), ...sinGuardar])];
+    if (!todos.length) { caja.innerHTML = '<p>No hubo cambios en los textos desde esa prueba.</p>'; return; }
+    caja.innerHTML = `<p class="sutil">${todos.length} ${todos.length === 1 ? 'texto cambió' : 'textos cambiaron'}. Tocá uno para ver el detalle: en verde lo agregado, tachado en rojo lo borrado.</p><div class="lista-cambios">${todos.map((f) => { const k = f.slice(pre.length); const st = archivos.find((x) => x.filename === f); return `<button class="btn" data-f="${esc(k)}">${esc(primerTitulo(S.textos.get(k) || '') || k)}<small>${st ? (st.status === 'added' ? 'nuevo' : st.status === 'removed' ? 'borrado' : '') : ''}${sinGuardar.includes(f) ? ' · sin guardar' : ''}</small></button>`; }).join('')}</div><div id="cmb-det"></div>`;
+    $$('[data-f]', caja).forEach((b) => (b.onclick = async () => {
+      const k = b.dataset.f; const det = $('#cmb-det', caja);
+      det.innerHTML = '<div class="nota"><span class="spin"></span> Cargando…</div>';
+      let antes = ''; try { antes = await S.gh.textoEn(rutaLibro(k), tag); } catch {}
+      const ahora = S.textos.get(k) ?? '';
+      const partes = diffWords(antes, ahora);
+      const mas = partes.filter((p) => p.added).reduce((a, p) => a + p.value.split(/\s+/).filter(Boolean).length, 0);
+      const menos = partes.filter((p) => p.removed).reduce((a, p) => a + p.value.split(/\s+/).filter(Boolean).length, 0);
+      // mostrar solo los párrafos con cambios, con un poco de contexto
+      let html = '';
+      for (const p of partes) {
+        if (p.added) html += `<ins>${esc(p.value)}</ins>`;
+        else if (p.removed) html += `<del>${esc(p.value)}</del>`;
+        else { const v = p.value; html += v.length > 360 ? esc(v.slice(0, 160)) + '<span class="corte"> […] </span>' + esc(v.slice(-160)) : esc(v); }
+      }
+      det.innerHTML = `<div class="cmb-cifras"><span class="mas">+${mas} palabras</span> <span class="menos">−${menos} palabras</span></div><div class="cmb-texto">${html.replace(/\n/g, '<br>')}</div>`;
+    }));
+  } catch (e) { caja.innerHTML = `<div class="error">${esc(e.message)}</div>`; }
+}
+
+// Prueba ajustes mínimos de interlineado para que el libro termine justo en un pliego.
+async function cerrarPliegos() {
+  const b = $('#b-pliegos'); b.disabled = true;
+  const caja = $('#pliegos'); const de = +$('#pl-de').value;
+  const ti = S.cfg.tipografia || {};
+  const base0 = aMm(ti.interlineado || '14.5pt') / 0.3528; // en puntos
+  const cuerpo = ti.cuerpo || '11pt';
+  const probar = async (il) => {
+    const r = await compilar(base() + '_build/libro.typ', { libro: S.slug, interlineado: il.toFixed(2) + 'pt' }, 'pdf');
+    return r.ok ? contarPaginasPdf(r.bytes) : null;
+  };
+  try {
+    caja.innerHTML = '<div class="nota"><span class="spin"></span> Armando el libro como está…</div>';
+    await prepararLibroCompleto();
+    const n0 = await probar(base0);
+    if (n0 == null) throw new Error('No pude armar el libro.');
+    const resto = n0 % de;
+    if (!resto) { caja.innerHTML = `<div class="aviso bien">${n0} páginas: ya cierra justo en pliegos de ${de}.</div>`; return; }
+    const abajo = n0 - resto, arriba = n0 + (de - resto);
+    const objetivos = [];
+    // primero el más cercano; ganar páginas (achicar) suele ser más fácil si sobran pocas
+    if (resto <= de / 2) objetivos.push(['achicar', abajo], ['agrandar', arriba]); else objetivos.push(['agrandar', arriba], ['achicar', abajo]);
+    const res = [];
+    let mejor = null; // el ajuste que deja menos páginas en blanco
+    for (const [modo, meta] of objetivos) {
+      for (const d of [0.05, 0.1, 0.15, 0.2, 0.3, 0.4]) {
+        const il = modo === 'achicar' ? base0 - d : base0 + d;
+        caja.innerHTML = `<div class="nota"><span class="spin"></span> ${n0} páginas. Probando interlineado ${il.toFixed(2)} pt para llegar a ${meta}…</div>`;
+        const n = await probar(il);
+        if (n == null) continue;
+        const sobra = (de - (n % de)) % de;
+        if (!mejor || sobra < mejor.blancas) mejor = { il, d, n, blancas: sobra, modo };
+        if (n === meta) { res.push({ modo, meta, il, d }); break; }
+        if ((modo === 'achicar' && n < meta) || (modo === 'agrandar' && n > meta)) break;
+      }
+      if (res.length) break;
+    }
+    const blancas = de - resto;
+    const pasoBlancas = mejor && mejor.blancas < blancas ? `<div class="propuesta">O casi: con interlineado ${mejor.il.toFixed(2)} pt quedan ${mejor.n} páginas y solo ${mejor.blancas} en blanco antes del colofón.<div class="acciones" style="margin-top:8px"><button class="btn chico" id="pl-casi">Aplicar este ajuste y completar con blancas</button></div></div>` : '';
+    caja.innerHTML = `<div class="aviso">El libro tiene <b>${n0}</b> páginas: ${Math.floor(n0 / de)} pliegos de ${de} y sobran ${resto}.</div>` +
+      (res.length ? `<div class="propuesta"><b>Se cierra justo en ${res[0].meta} páginas</b> con interlineado ${res[0].il.toFixed(2)} pt en vez de ${base0.toFixed(2)} pt (${res[0].modo === 'achicar' ? '−' : '+'}${res[0].d.toFixed(2)} pt, no se nota a la lectura).<div class="acciones" style="margin-top:8px"><button class="btn prim chico" id="pl-aplicar">Aplicar</button></div></div>`
+        : `<div class="nota">Con cambios invisibles no cierra justo: los capítulos empiezan en página impar y el total salta de a dos o más páginas.</div>${pasoBlancas}`) +
+      `<div class="propuesta">También podés dejar el texto como está y completar con ${blancas} ${blancas === 1 ? 'página en blanco' : 'páginas en blanco'} antes del colofón, que es lo habitual en imprenta.<div class="acciones" style="margin-top:8px"><button class="btn chico" id="pl-blancas">Completar con páginas en blanco</button></div></div>`;
+    const ap = $('#pl-aplicar');
+    if (ap) ap.onclick = () => { aplicarCambiosConfig({ tipografia: { interlineado: res[0].il.toFixed(2) + 'pt' }, estilo: { completar_pliego: 0 } }); toast(`Interlineado ${res[0].il.toFixed(2)} pt aplicado. Armá el libro para confirmar y guardá.`); };
+    const casi = $('#pl-casi');
+    if (casi) casi.onclick = () => { aplicarCambiosConfig({ tipografia: { interlineado: mejor.il.toFixed(2) + 'pt' }, estilo: { completar_pliego: de } }); toast('Ajuste aplicado y el último pliego se completa con blancas. Armá el libro para confirmar.'); };
+    $('#pl-blancas').onclick = () => { aplicarCambiosConfig({ estilo: { completar_pliego: de } }); toast(`El libro va a cerrar en ${n0 + blancas} páginas con ${blancas} en blanco antes del colofón. Guardá para conservarlo.`); };
+  } catch (e) { caja.innerHTML = `<div class="error">${esc(e.message)}</div>`; }
+  finally { b.disabled = false; }
 }
 async function simular() {
   const b = $('#b-simular'); b.disabled = true;

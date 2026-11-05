@@ -28,7 +28,7 @@
   fila[Impresión][1/1 (negro) · confirmar si hay páginas a color],
   fila[Márgenes][interior #mm(FORMATO.interior) · exterior #mm(FORMATO.exterior) · superior #mm(FORMATO.superior) · inferior #mm(FORMATO.inferior)],
   fila[Tipografía][#TIPO.fuente #str(calc.round(TIPO.cuerpo.pt(), digits: 1)) / #str(calc.round(TIPO.interlineado.pt(), digits: 1)) pt (fuentes incrustadas en el PDF)],
-  fila[Encuadernación][rústica · a definir: fresada o cosida (cosida recomendada desde 300 páginas)],
+  fila[Encuadernación][#if T.at("encuadernacion", default: "rustica") == "dura" [tapa dura (cartoné) · cartón #T.at("carton", default: "2.5mm") · interior cosido] else [rústica · a definir: fresada o cosida (cosida recomendada desde 300 páginas)]],
 )
 == Tapa
 #tabla(

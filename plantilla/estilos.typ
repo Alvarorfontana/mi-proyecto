@@ -403,6 +403,20 @@
   cierre()
 }
 
+// Agrega páginas en blanco antes del colofón para que el libro cierre justo en pliegos (0 = no).
+#let completar-pliego(con-colofon: true) = {
+  let de = int(_in("completar_pliego", str(_e.at("completar_pliego", default: 0))))
+  if de > 0 {
+    pagebreak(weak: true)
+    context {
+      let actual = here().page()
+      // páginas que ya hay, contando esta y el colofón que viene después
+      let total = actual - 1 + (if con-colofon { 1 } else { 0 })
+      let falta = calc.rem(de - calc.rem(total, de), de)
+      for i in range(falta) { _marca("limpia"); box(); pagebreak() }
+    }
+  }
+}
 #let colofon() = {
   pagebreak(weak: true)
   _marca("inicio"); _marca("limpia")

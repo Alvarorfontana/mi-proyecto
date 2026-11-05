@@ -18,13 +18,17 @@
     "@myriaddreamin/typst-ts-renderer": "^0.7.0",
     "@myriaddreamin/typst-ts-web-compiler": "^0.7.0",
     "@myriaddreamin/typst.ts": "^0.7.0",
+    "@tensorflow/tfjs": "^4.11.0",
+    "@upscalerjs/esrgan-slim": "^1.0.0",
     "codemirror": "^6.0.2",
+    "diff": "^5.2.0",
     "markdown-it": "^14.3.3",
     "markdown-it-attrs": "^4.5.0",
     "markdown-it-container": "^4.0.0",
     "markdown-it-footnote": "^4.0.0",
     "pdfjs-dist": "^4.10.38",
-    "smol-toml": "^1.9.1"
+    "smol-toml": "^1.9.1",
+    "upscaler": "^1.0.0"
   },
   "devDependencies": {
     "vite": "^6.4.5"
