@@ -1,0 +1,94 @@
+# aaaa — configuración del libro (creado desde el taller)
+
+[libro]
+titulo     = "aaaa"
+subtitulo  = "aaa"
+autor      = "Álvaro Fontaaaana"
+editorial  = "Editorial Uaambral"
+ciudad     = "Buenos Aires"
+anio       = 2026
+isbn       = ""
+edicion    = "Primera edición"
+
+[creditos]
+numero_edicion       = "1a ed."
+numero_edicion_texto = "Primera edición"
+fecha_edicion        = ""
+ficha                = true
+
+[formato]
+preset = "17x24"
+
+# ancho = "170mm"
+# alto  = "240mm"
+margen_interior = "22mm"   # lomo
+margen_exterior = "18mm"
+margen_superior = "20mm"
+margen_inferior = "24mm"
+
+# ── Tipografía ───────────────────────────────────────────────
+
+[tipografia]
+fuente          = "EB Garamond"   # texto
+fuente_titulos  = "EB Garamond"   # capítulos y secciones
+fuente_apoyo    = "Inter"         # cornisas, epígrafes de figuras, tablas (opcional)
+cuerpo          = "12pt"
+interlineado    = "17pt"          # distancia entre líneas de base (como en InDesign)
+notas           = "10pt"
+sangria         = "1.2em"         # primera línea de cada párrafo
+justificado     = true
+guiones         = true            # partición silábica en castellano
+idioma          = "es"
+
+# ── Estilo ───────────────────────────────────────────────────
+
+[estilo]
+norma_citas              = "chicago" # notas al pie al estilo Chicago (habitual en no ficción y periodismo)
+columnas                 = 1         # CRUZAR va a una sola columna, a todo el ancho
+capitulo_en_impar        = true    # cada capítulo arranca en página derecha
+parte_en_impar           = true
+numerar_secciones        = true    # 1.1, 1.2… (se renumera solo si movés o fusionás capítulos)
+notas_por_capitulo       = false   # true = las notas vuelven a 1 en cada capítulo
+cornisa_par              = "autor"     # autor | titulo | capitulo | nada
+cornisa_impar            = "capitulo"
+folio                    = "abajo-afuera"  # abajo-afuera | abajo-centro | arriba-afuera
+color_acento             = "#000000"
+apertura                 = "clasica"   # clasica | centrada | numero | filete | banda | novela
+secciones_color          = false     # números de sección en el color de acento
+indice_analitico         = true
+colofon                  = true
+
+# ── Estructura: el orden en que entra cada archivo ──────────
+# tipo: preliminar | parte | capitulo | interludio | final
+#   interludio = capítulo sin número dentro del cuerpo (ej. Francisco)
+# Para fusionar capítulos: uní los .md y borrá la entrada que sobra.
+
+[preliminares]
+portadilla = true
+indice     = "inicio"
+
+[tapa]
+estilo         = "clasica"   # clasica | editorial | tipografica | minimalista | coleccion | dos-tintas | marco | cruce | centrada | foto | suiza | generativa
+color_secundario = "#8a6420" # segundo color (Cruce, Foto, Generativa)
+coleccion      = ""          # nombre de la colección (diseño Colección)
+numero         = ""
+fuente_titulo  = "EB Garamond"
+papel          = "obra-80"   # ver plantilla/presets.toml → [papeles]
+cartulina_mm   = 0.6         # suma de las dos tapas al lomo
+solapa         = "80mm"      # "0mm" = sin solapas
+sangrado       = "3mm"
+pliegue_solapa = "3mm"       # margen extra que piden algunas imprentas en el doblez
+fondo          = "#1d2a33"
+color_texto    = "#f4efe6"
+color_acento   = "#d9a441"
+elementos      = ""
+imagen         = ""
+imagen_contratapa = ""
+contratapa     = "tapa/contratapa.md"
+solapa_delantera = "tapa/solapa-delantera.md"
+solapa_trasera   = "tapa/solapa-trasera.md"
+foto_autor     = ""
+
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/01-capitulo-1.md"
