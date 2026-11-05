@@ -44,11 +44,14 @@ jobs:
           python herramientas/construir.py "$LIBRO" --epub --docx | tee armado.log
       - name: Versiones CMYK para imprenta
         # Typst exporta en RGB; muchas imprentas piden CMYK. Ghostscript hace la conversión.
+        # Con tope de tiempo: si se traba, el PDF normal igual queda listo.
+        timeout-minutes: 6
+        continue-on-error: true
         run: |
-          sudo apt-get install -y -qq ghostscript >/dev/null
+          timeout 120 sudo apt-get install -y -qq ghostscript >/dev/null || true
           S=libros/$LIBRO/salida
           for f in interior tapa; do
-            gs -q -dBATCH -dNOPAUSE -dSAFER -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress \
+            timeout 150 gs -q -dBATCH -dNOPAUSE -dSAFER -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress \
                -sColorConversionStrategy=CMYK -sProcessColorModel=DeviceCMYK -dAutoRotatePages=/None \
                -sOutputFile="$S/$f-cmyk.pdf" "$S/$f.pdf" || echo "No pude convertir $f a CMYK"
           done
