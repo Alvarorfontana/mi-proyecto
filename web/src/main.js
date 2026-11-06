@@ -266,7 +266,7 @@ function armarApp() {
         </nav>
         <div class="der">
           <span class="estado" id="estado"><span class="punto"></span><span>Guardado</span></span>
-          <button class="btn prim chico" id="b-guardar" title="Guardar en GitHub (Ctrl+S)">${I.subir}Guardar</button>
+          <button class="btn prim chico" id="b-guardar" title="Guardar ahora (Ctrl+S). También se guarda solo.">${I.subir}Guardar</button>
           <button class="btn fant chico" id="b-ajustes" title="Ajustes" aria-label="Ajustes">${I.ajustes}</button>
           <div class="avatar" title="${esc(S.usuario.login)}" style="background-image:url('${esc(S.usuario.avatar_url)}')"></div>
         </div>
@@ -405,7 +405,7 @@ function pintarSelectorLibros() {
 // ── Mis libros: todos los libros del repositorio, para abrir uno o empezar uno nuevo ──
 async function misLibros() {
   const d = dialogo(`<h2>Mis libros</h2>
-    <p class="sutil" style="margin-top:4px">Cada libro se guarda solo en GitHub, en su propia carpeta. Elegí uno para seguir trabajando donde lo dejaste, o empezá uno nuevo.</p>
+    <p class="sutil" style="margin-top:4px">Cada libro se guarda solo, en su propia carpeta. Elegí uno para seguir trabajando donde lo dejaste, o empezá uno nuevo.</p>
     <div class="lista-libros" id="ml-lista"><p class="sutil">Cargando…</p></div>`, [['Cerrar'], ['＋ Nuevo libro', 'prim']]);
   d.addEventListener('close', () => { if (d.returnValue === '1') nuevoLibro(); });
   const datos = await Promise.all(S.libros.map(async (l) => {
@@ -576,8 +576,10 @@ async function abrirLibro(slug) {
       S.textos.set(a, txt); S.originales.set(a, txt);
       cargando(`Abriendo el libro… ${++hechos} de ${lista.length} textos`);
     });
+    const recuperados = recuperarBorrador();
     await enviarConfig();
     pintarLista();
+    if (recuperados) setTimeout(() => toast(`Recuperé ${recuperados} ${recuperados === 1 ? 'cambio' : 'cambios'} que no se habían guardado (quedaron en este navegador). Se guardan solos en un momento.`), 600);
     const primero = (S.cfg.contenido || []).find((c) => c.tipo === 'capitulo') || (S.cfg.contenido || []).find((c) => c.archivo);
     if (primero) abrirTexto(primero.archivo);
     verPestana($('.pestanas [aria-selected=true]').dataset.v);
@@ -600,7 +602,8 @@ function marcarEstado() {
   const e = $('#estado'); if (!e) return;
   const sucio = hayCambios();
   e.classList.toggle('sucio', sucio);
-  $('span:last-child', e).textContent = sucio ? 'Cambios sin guardar' : 'Guardado en GitHub';
+  $('span:last-child', e).textContent = guardando ? 'Guardando…' : sucio ? (S.conf.autoguardar === false ? 'Cambios sin guardar' : 'Cambios sin guardar · se guardan solos') : 'Todo guardado';
+  if (sucio && !guardando) programarAutoguardado();
   $$('#lista .it').forEach((it) => it.classList.toggle('cambiado', S.textos.get(it.dataset.a) !== S.originales.get(it.dataset.a)));
 }
 
@@ -689,7 +692,7 @@ async function nuevoCapitulo() {
   const l = [...S.cfg.contenido];
   let pos = l.length; for (let k = l.length - 1; k >= 0; k--) if (['capitulo', 'interludio'].includes(l[k].tipo)) { pos = k + 1; break; }
   l.splice(pos, 0, { tipo: 'capitulo', archivo });
-  cambiarContenido(l); abrirTexto(archivo); toast('Capítulo creado. Se sube a GitHub al guardar.');
+  cambiarContenido(l); abrirTexto(archivo); toast('Capítulo creado.');
 }
 async function nuevaParte() {
   const t = await pedirTexto('Parte nueva', 'Título de la parte (va antes del capítulo abierto)', '');
@@ -953,26 +956,67 @@ function aplicarZoom(destino = $('#mesa')) {
 }
 
 /* ═════════ guardar ═════════ */
-async function guardarTodo() {
+let guardando = false, tAuto = null, tBorrador = null;
+const claveBorrador = () => `taller.borrador.${S.gh?.esSupabase ? 'base' : (S.conf.owner || '') + '/' + (S.conf.repo || '')}/${S.slug}`;
+function cambiosPendientes() {
   const cambios = [];
   for (const [k, v] of S.textos) if (S.originales.get(k) !== v) cambios.push([k, v]);
   if (S.cfgTexto !== S.originales.get('libro.toml')) cambios.push(['libro.toml', S.cfgTexto]);
   if (S.indiceToml && S.originales.has('indice.toml') && S.indiceToml !== S.originales.get('indice.toml')) cambios.push(['indice.toml', S.indiceToml]);
-  if (!cambios.length) return toast('No hay cambios para guardar.');
+  return cambios;
+}
+// Copia de seguridad en este navegador, por si se corta la luz o se cierra la pestaña antes de guardar.
+function guardarBorrador() {
+  clearTimeout(tBorrador);
+  tBorrador = setTimeout(() => {
+    try {
+      const c = cambiosPendientes();
+      if (!c.length) localStorage.removeItem(claveBorrador());
+      else localStorage.setItem(claveBorrador(), JSON.stringify({ fecha: Date.now(), archivos: Object.fromEntries(c) }));
+    } catch {}
+  }, 1500);
+}
+function recuperarBorrador() {
+  let b = null; try { b = JSON.parse(localStorage.getItem(claveBorrador()) || 'null'); } catch {}
+  if (!b?.archivos) return 0;
+  let n = 0;
+  for (const [k, v] of Object.entries(b.archivos)) {
+    if (k === 'libro.toml') { if (v !== S.cfgTexto) { S.cfgTexto = v; try { S.cfg = tomlParse(v); } catch {} n++; } }
+    else if (k === 'indice.toml') { if (v !== S.indiceToml) { S.indiceToml = v; n++; } }
+    else if (S.textos.get(k) !== v) { if (!S.originales.has(k)) S.originales.set(k, null); S.textos.set(k, v); n++; }
+  }
+  return n;
+}
+// Guardado automático: al rato de dejar de escribir, sin tocar ningún botón.
+function programarAutoguardado() {
+  guardarBorrador();
+  clearTimeout(tAuto);
+  if (S.conf.autoguardar === false) return;
+  tAuto = setTimeout(() => { if (hayCambios() && !guardando) guardarTodo({ auto: true }); }, 40000);
+}
+async function guardarTodo({ auto = false } = {}) {
+  if (guardando) return;
+  const cambios = cambiosPendientes();
+  if (!cambios.length) { if (!auto) toast('Ya está todo guardado.'); return; }
+  guardando = true; clearTimeout(tAuto);
   const b = $('#b-guardar'); b.disabled = true; b.innerHTML = '<span class="spin"></span> Guardando…';
+  const est = $('#estado span:last-child'); if (est) est.textContent = 'Guardando…';
   try {
+    const nombre = (k, v) => (k === 'libro.toml' ? 'configuración' : k === 'indice.toml' ? 'índice analítico' : (primerTitulo(v) || k));
+    if (cambios.length === 1) await S.gh.guardar(rutaLibro(cambios[0][0]), cambios[0][1], `Taller: ${nombre(...cambios[0])}`);
+    else await S.gh.commitVarios(Object.fromEntries(cambios.map(([k, v]) => [rutaLibro(k), v])), `Taller: ${S.cfg.libro?.titulo || S.slug} — ${cambios.length} archivos`);
     for (const [k, v] of cambios) {
-      const nombre = k === 'libro.toml' ? 'configuración del libro' : k === 'indice.toml' ? 'índice analítico' : (primerTitulo(v) || k);
-      await S.gh.guardar(rutaLibro(k), v, `Taller: ${nombre}`);
       S.originales.set(k, v);
       if (!S.arbol.some((e) => e.path === rutaLibro(k))) S.arbol.push({ path: rutaLibro(k) });
     }
-    marcarEstado();
-    toast(cambios.length === 1 ? 'Guardado en GitHub.' : `Guardados ${cambios.length} archivos en GitHub.`);
-  } catch (e) { toast(e.message); }
-  finally { b.disabled = false; b.innerHTML = I.subir + 'Guardar'; }
+    marcarEstado(); guardarBorrador();
+    if (!auto) toast(cambios.length === 1 ? 'Guardado.' : `Guardados ${cambios.length} capítulos y ajustes de una vez.`);
+  } catch (e) {
+    toast((auto ? 'No se pudo guardar solo: ' : '') + e.message + (auto ? ' Tus cambios siguen acá; tocá Guardar.' : ''));
+  } finally { guardando = false; b.disabled = false; b.innerHTML = I.subir + 'Guardar'; marcarEstado(); }
 }
 
+window.addEventListener('beforeunload', (e) => { if (hayCambios()) { guardarBorrador(); e.preventDefault(); e.returnValue = ''; } });
 /* ═════════ estilos ═════════ */
 const val = (ruta) => { const [s, k] = ruta.split('.'); return S.cfg?.[s]?.[k]; };
 function selectorLetra(ruta, muestra) {
@@ -1042,7 +1086,7 @@ function pintarEstilos() {
   v.innerHTML = `
   <div class="form" id="f-estilos">
     <h2>Estilos del libro</h2>
-    <p>Los cambios se ven en las páginas de la derecha y se guardan en GitHub con el botón Guardar.</p>
+    <p>Los cambios se ven en las páginas de la derecha y se guardan solos.</p>
     <div class="grupo ia-todo"><h3>Diseño completo con IA</h3>
       <p class="sutil" style="margin:0 0 10px">La IA lee el comienzo del libro y propone todo junto: diseño interior, letra capital, medida, color, diseño de tapa, paleta, letra del título, texto de contratapa e idea para la imagen. Te muestra la propuesta y la aplicás si te gusta. Usa Gemini o Groq gratis (se activan en Texto → Asistente).</p>
       <button type="button" class="btn prim" id="b-ia-todo" ${claveIA() ? '' : 'disabled title="Activá Gemini o Groq en Texto → Asistente"'}>Diseñar el libro con IA</button>
@@ -1106,7 +1150,7 @@ function pintarEstilos() {
         ${campo('estilo.colofon', 'Colofón', 'check')}
       </div>
     </div></div>
-    <div class="guardar"><button class="btn prim" id="b-ver-estilos">Ver cómo queda</button><button class="btn" id="b-guardar-estilos">${I.subir}Guardar en GitHub</button></div>
+    <div class="guardar"><button class="btn prim" id="b-ver-estilos">Ver cómo queda</button><button class="btn" id="b-guardar-estilos">${I.subir}Guardar</button></div>
   </div>
   <section class="lado-der"><div class="cab"><div class="segmento" role="group"><button data-ve="plano" aria-pressed="true">Plano de página</button><button data-ve="paginas" aria-pressed="false">Páginas</button></div><span class="info" id="pe-info">Arrastrá los bordes del texto para cambiar los márgenes</span></div><div class="mesa" id="plano-estilos"></div><div class="mesa" id="mesa-estilos" hidden><div class="vacio"><h3>Probá un cambio</h3>Tocá «Ver cómo queda» para componer el capítulo abierto con estos estilos.</div></div></section>`;
   const f = $('#f-estilos');
@@ -1138,7 +1182,7 @@ function pintarEstilos() {
     const d = DISENOS_INTERIOR.find((x) => x.id === b.dataset.int);
     const cambios = { tipografia: { fuente: d.fuente, fuente_titulos: d.fuente_titulos, fuente_apoyo: d.fuente_apoyo, cuerpo: d.cuerpo, interlineado: d.interlineado }, estilo: { apertura: d.apertura, color_acento: d.color_acento, secciones_color: d.secciones_color, capitular: !!d.capitular } };
     try { aplicarCambiosConfig(cambios); } catch (e) { return toast(e.message); }
-    toast(`Diseño «${d.nombre}» aplicado. Guardá para que quede en GitHub.`);
+    toast(`Diseño «${d.nombre}» aplicado. Se guarda solo en un momento.`);
     const scroll = f.scrollTop; pintarEstilos(); $('#f-estilos').scrollTop = scroll; $('#b-ver-estilos').click();
   }));
   miniaturasInterior();
@@ -1451,7 +1495,7 @@ function pintarTapa() {
     <input type="hidden" data-c="tapa.estilo" value="${esc(estilo)}">
     <div class="grupo"><h3>Tapa para tiendas digitales</h3><p class="sutil" style="margin:0 0 8px">Amazon, Google Libros y las tiendas de ebooks piden solo el frente, como imagen de 2.560 px de alto.</p>
       <div class="acciones"><button type="button" class="btn chico" id="b-ebook">${I.bajar}Frente en JPG (2.560 px)</button><button type="button" class="btn chico" id="b-ebook-png">${I.bajar}Frente en PNG</button></div></div>
-    <div class="guardar"><button class="btn prim" id="b-ver-tapa">Ver la tapa</button><button class="btn" id="b-guardar-tapa">${I.subir}Guardar en GitHub</button></div>
+    <div class="guardar"><button class="btn prim" id="b-ver-tapa">Ver la tapa</button><button class="btn" id="b-guardar-tapa">${I.subir}Guardar</button></div>
   </div>
   <section class="lado-der"><div class="cab"><span class="info" id="pt-info"></span><div class="der"><label class="check" style="font-size:12.5px"><input type="checkbox" id="c-guias" checked>Guías de corte y pliegue</label></div></div><div class="mesa" id="mesa-tapa"></div></section>`;
   const f = $('#f-tapa');
@@ -1629,7 +1673,7 @@ function usarImagenIa(ruta, encuadre) {
   const cambios = { tapa: { [clave]: ruta } };
   if (clave === 'imagen' && !['foto', 'libre'].includes(S.cfg.tapa?.estilo)) cambios.tapa.estilo = 'foto';
   aplicarCambiosConfig(cambios);
-  toast('Imagen puesta. Guardá para que quede en GitHub.');
+  toast('Imagen puesta. Se guarda solo en un momento.');
   const f = $('#f-tapa'); const sc = f?.scrollTop; pintarTapa(); if (sc != null) $('#f-tapa').scrollTop = sc;
 }
 
@@ -2608,7 +2652,13 @@ function pintarRevision() {
     pintarListaRevision();
   };
   $('#rev-ia').onclick = () => revisar('ia');
-  $('#rev-limpiar').onclick = () => { S.editor.dispatch({ effects: fijarMarcas.of([]) }); pintarListaRevision(); };
+  $('#rev-limpiar').onclick = () => {
+    S.editor.dispatch({ effects: fijarMarcas.of([]) }); pintarListaRevision();
+    const o = $('#rev-orto');
+    if (o?.checked) { o.checked = false; o.onchange({ target: o }); toast('Marcas borradas. También apagué el subrayado rojo del navegador (se vuelve a prender con la casilla).'); }
+    else toast('Marcas borradas.');
+    const est = $('#rev-estado'); if (est) est.innerHTML = '';
+  };
   $('#rev-orto').onchange = (e) => {
     S.conf.ortografia = e.target.checked; escribir('taller.conf', S.conf);
     const marcas = listarMarcas(S.editor.state), sel = S.editor.state.selection;
@@ -2787,11 +2837,45 @@ function pintarNorma() {
   const norma = S.cfg.estilo?.norma_citas || 'apa';
   const probs = revisarNorma(S.editor.state.doc.toString(), norma);
   const total = [...S.editor.state.doc.toString().matchAll(/^\[\^[^\]]+\]:/gm)].length;
+  let libroMal = 0, capsMal = 0;
+  for (const c of S.cfg.contenido || []) { if (!c.archivo) continue; const n = revisarNorma(c.archivo === S.actual ? S.editor.state.doc.toString() : (S.textos.get(c.archivo) || ''), norma).length; if (n) { libroMal += n; capsMal++; } }
   caja.innerHTML = `<p class="sutil" style="margin:0 0 8px">Norma: <b>${NORMAS[norma].nombre}</b> (se cambia en el selector de arriba o en Estilos). Ejemplo: <i>${esc(NORMAS[norma].ejemplo).replace(/\*([^*]+)\*/g, '<i>$1</i>')}</i></p>
     <div class="aviso ${probs.length ? 'mal' : 'bien'}">${total} notas en este capítulo · ${probs.length ? `${probs.length} no siguen la norma` : 'todas parecen seguir la norma'}</div>
     ${probs.length ? `<details class="lista-norma"><summary>Ver cuáles</summary>${probs.slice(0, 40).map((p) => `<div class="rev-item"><div class="rev-msg">Nota ${esc(p.id)} <small>${esc(p.problemas.join(' · '))}</small></div><div class="rev-ctx">${esc(p.texto.slice(0, 200))}</div></div>`).join('')}</details>
-      <div class="acciones" style="margin-top:8px"><button class="btn prim chico" id="ci-aplicar-norma" ${claveIA() ? '' : 'disabled title="Activá Gemini o Groq en el Asistente"'}>Pasar las notas a ${NORMAS[norma].nombre} con IA</button></div><div id="ci-norma-res"></div>` : ''}`;
+      <div class="acciones" style="margin-top:8px"><button class="btn prim chico" id="ci-aplicar-norma" ${claveIA() ? '' : 'disabled title="Activá Gemini o Groq en el Asistente"'}>Corregir las de este capítulo</button></div><div id="ci-norma-res"></div>` : ''}
+    ${libroMal ? `<div class="aviso mal" style="margin-top:10px">En todo el libro: ${libroMal} notas no siguen la norma, en ${capsMal} ${capsMal === 1 ? 'capítulo' : 'capítulos'}.</div>
+      <div class="acciones" style="margin-top:8px"><button class="btn prim chico" id="ci-norma-libro" ${claveIA() ? '' : 'disabled title="Activá Gemini o Groq en el Asistente"'}>Corregir todas las notas del libro</button></div><div id="ci-norma-libro-res"></div>` : ''}`;
+  const bl = $('#ci-norma-libro', caja); if (bl) bl.onclick = () => normaLibro(norma);
   const b = $('#ci-aplicar-norma', caja); if (b) b.onclick = () => aplicarNorma(probs, norma);
+}
+// Corrige con IA todas las notas del libro que no siguen la norma, capítulo por capítulo.
+async function normaLibro(norma) {
+  const out = $('#ci-norma-libro-res'); const b = $('#ci-norma-libro');
+  const caps = (S.cfg.contenido || []).filter((c) => c.archivo).map((c) => ({ archivo: c.archivo, probs: revisarNorma(c.archivo === S.actual ? S.editor.state.doc.toString() : (S.textos.get(c.archivo) || ''), norma) })).filter((c) => c.probs.length);
+  const total = caps.reduce((a, c) => a + c.probs.length, 0);
+  if (!confirm(`La IA va a reescribir ${total} notas en ${caps.length} capítulos para que sigan la norma ${NORMAS[norma].nombre}. Solo cambia la forma, no los datos. Después podés revisar cada capítulo. ¿Seguir?`)) return;
+  b.disabled = true; let hechas = 0, cambiadas = 0;
+  try {
+    for (const c of caps) {
+      for (let i = 0; i < c.probs.length; i += 15) {
+        const lote = c.probs.slice(i, i + 15);
+        out.innerHTML = `<div class="nota"><span class="spin"></span> ${esc(primerTitulo(S.textos.get(c.archivo) || '') || c.archivo)}: ${hechas} de ${total} notas…</div>`;
+        const r = await preguntar({ ...opcionesIA(), pedido: pedidoNorma(norma), texto: JSON.stringify(lote.map((p) => ({ id: p.id, nota: p.texto }))), accion: null });
+        const m = r.match(/\[[\s\S]*\]/); hechas += lote.length; if (!m) continue;
+        let md = c.archivo === S.actual ? S.editor.state.doc.toString() : (S.textos.get(c.archivo) || '');
+        for (const x of JSON.parse(m[0])) {
+          const p = lote.find((q) => q.id === String(x.id)); if (!p || !x.nota || x.nota.trim() === p.texto) continue;
+          const re = new RegExp(`^\\[\\^${p.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]:.*$`, 'm');
+          if (re.test(md)) { md = md.replace(re, () => `[^${p.id}]: ${x.nota.trim()}`); cambiadas++; }
+        }
+        if (c.archivo === S.actual) S.editor.dispatch({ changes: { from: 0, to: S.editor.state.doc.length, insert: md } });
+        else S.textos.set(c.archivo, md);
+      }
+    }
+    out.innerHTML = `<div class="aviso bien">Listo: ${cambiadas} notas corregidas. Se guardan solas en un momento.</div>`;
+    pintarLista(); marcarEstado(); setTimeout(pintarNorma, 1200);
+  } catch (e) { out.innerHTML = `<div class="error">${esc(e.message)} (se corrigieron ${cambiadas} antes del error; podés volver a tocar el botón para seguir).</div>`; marcarEstado(); }
+  finally { b.disabled = false; }
 }
 async function aplicarNorma(probs, norma) {
   const out = $('#ci-norma-res');
@@ -3002,7 +3086,7 @@ function asistenteImportar(archivoInicial = null) {
     cambiarContenido(l);
     d.close();
     if (primero) { abrirTexto(primero); verLado('paginas'); }
-    toast(`Listo: ${caps.length} ${caps.length === 1 ? 'capítulo creado' : 'capítulos creados'}. Revisalos y tocá Guardar para subirlos a GitHub.`);
+    toast(`Listo: ${caps.length} ${caps.length === 1 ? 'capítulo creado' : 'capítulos creados'}. Se guardan solos en un momento.`);
   };
   ta.focus();
 }

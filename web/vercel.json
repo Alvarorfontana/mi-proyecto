@@ -31,5 +31,6 @@
       "source": "/api/ia/:prov/:ruta*",
       "destination": "/api/ia?prov=:prov&ruta=:ruta*"
     }
-  ]
+  ],
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ../plantilla ../fuentes"
 }
