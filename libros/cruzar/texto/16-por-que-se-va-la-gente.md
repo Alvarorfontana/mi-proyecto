@@ -137,9 +137,9 @@ Propongo que las políticas sobre causas distingan plazos: protección inmediata
 [^329]: Stephen Castles y Mark J. Miller, The Age of Migration: International Population Movements in the Modern World, 4.ª ed. (Basingstoke: Palgrave Macmillan, 2009). Marco general sobre trayectorias migratorias y transformaciones de las sociedades de origen y destino.
 [^330]: De Haas, Hein, A theory of migration: the aspirations-capabilities framework (2021). Comparative Migration Studies, 9, artículo 8. DOI: 10.1186/s40878-020-00210-4.
 [^331]: De Haas, Hein, A theory of migration: the aspirations-capabilities framework (2021). Comparative Migration Studies, 9, artículo 8. DOI: 10.1186/s40878-020-00210-4.
-[^332]: Sassen, Saskia (1998). Globalization and Its Discontents: Essays on the New Mobility of People and Money. Nueva York: The New Press. Examina movilidad, trabajo y desigualdades de la globalización.
+[^332]: Saskia Sassen, *Globalization and Its Discontents: Essays on the New Mobility of People and Money* (Nueva York: The New Press, 1998). Examina movilidad, trabajo y desigualdades de la globalización.
 [^333]: ACNUR (Alto Comisionado de las Naciones Unidas para los Refugiados), Guidance Note on Refugee Claims Relating to Victims of Organized Gangs (2010). 31 de marzo de 2010.
-[^334]: Banco Mundial, Groundswell (2021). La proyección de hasta 216 millones para 2050 corresponde a migración interna y depende del escenario considerado.
+[^334]: Banco Mundial, *Groundswell* (2021). La proyección de hasta 216 millones para 2050 corresponde a migración interna y depende del escenario considerado.
 [^335]: ACNUR (Alto Comisionado de las Naciones Unidas para los Refugiados), Legal considerations regarding claims for international protection made in the context of the adverse effects of climate change and disasters (2020). 1 de octubre de 2020.
 [^336]: Quijano, Aníbal, Colonialidad del poder, eurocentrismo y América Latina (2000). En Edgardo Lander (comp.), La colonialidad del saber. Buenos Aires: CLACSO, pp. 201–246.
 [^337]: Delgado Wise, Raúl, On the Theory and Practice of Migration and Development: A Southern Perspective (2018). Journal of Intercultural Studies, 39(2), pp. 163–181. DOI: 10.1080/07256868.2018.1446669.
@@ -152,4 +152,4 @@ Propongo que las políticas sobre causas distingan plazos: protección inmediata
 [^344]: GRAIN, The global farmland grab in 2016: how big, how bad? (2016). 14 de junio de 2016. Registro de 491 acuerdos, más de 30 millones de hectáreas, 78 países; agricultura alimentaria.
 [^345]: Delgado Wise, Raúl, On the Theory and Practice of Migration and Development: A Southern Perspective (2018). Journal of Intercultural Studies, 39(2), pp. 163–181. DOI: 10.1080/07256868.2018.1446669.
 [^346]: De Sousa Santos, Boaventura, Descolonizar el saber, reinventar el poder (2010). Montevideo: Ediciones Trilce / Extensión Universitaria, Universidad de la República.
-[^347]: Marx, K. (1859). Prólogo a la Contribución a la crítica de la economía política. Marxists Internet Archive. https://www.marxists.org/espanol/m-e/1850s/criteconpol.htm Consulta de las fuentes digitales: 10 de octubre de 2026.
+[^347]: K. Marx, *Prólogo a la Contribución a la crítica de la economía política*, Marxists Internet Archive, https://www.marxists.org/espanol/m-e/1850s/criteconpol.htm (consulta: 10 de octubre de 2026).
