@@ -341,7 +341,7 @@ Defiendo procedimientos revisables, protección familiar y condiciones de detenc
 [^59]: Departamento de Justicia de Estados Unidos, Office of the Inspector General, informe 21-028.
 [^60]: John Bowlby, *Attachment and Loss*, vol. 2, *Separation: Anxiety and Anger* (Londres: Hogarth Press, 1973). La teoría del apego orienta el examen de los efectos de la separación. La intensidad, duración y reversibilidad del daño requieren evaluación específica; no se deducen automáticamente de la teoría.
 [^61]: Hannah Arendt, *The Origins of Totalitarianism* (Nueva York: Harcourt, Brace, 1951). Segunda parte: imperialismo, apatridia y crisis de los derechos humanos.
-[^62]: American Immigration Council, *An American Immigration Council Analysis of the President’s 212(f) Proclamation and Interim Final Rule Restricting Asylum*, 2024, https://www.americanimmigrationcouncil.org/fact-sheet/american-immigration-council-analysis-presidents-212f-proclamation-and-interim-final-rule/
+[^62]: American Immigration Council, *An American Immigration Council Analysis of the President’s 212(f) Proclamation and Interim Final Rule Restricting Asylum* (2024), https://www.americanimmigrationcouncil.org/fact-sheet/american-immigration-council-analysis-presidents-212f-proclamation-and-interim-final-rule/
 [^63]: Presidencia de Estados Unidos, *Securing Our Borders*, 20 de enero de 2025, https://www.whitehouse.gov/presidential-actions/2025/01/securing-our-borders/
 [^64]: Presidencia de Estados Unidos, «Protecting the American People Against Invasion», 20 de enero de 2025.
 [^65]: Reuters, *Rubio may have revoked thousands of visas as crackdown continues*, 20 de mayo de 2025, https://www.reuters.com/world/us/rubio-may-have-revoked-thousands-visas-crackdown-continues-2025-05-20/

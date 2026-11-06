@@ -381,7 +381,7 @@ Europa muestra que una frontera continúa en el alquiler, el trabajo y el acceso
 
 Propongo articular protección internacional, oferta residencial asequible y participación municipal, con financiamiento y evaluación pública. La cooperación externa debe responder por sus efectos y la inclusión interna debe permitir estabilidad familiar. El criterio que sostengo reúne ambos extremos: qué ocurre con quienes no consiguen llegar y qué posibilidades reales tienen quienes ya llegaron. Una política europea coherente debería poder responder a las dos preguntas.
 
-[^137]: Francisco, Homilía en Lampedusa, 8 de julio de 2013. Fragmentos con omisiones señaladas. Texto oficial de la Santa Sede. https://www.vatican.va/content/francesco/es/homilies/2013/documents/papa-francesco\_20130708\_omelia-lampedusa.html
+[^137]: Francisco, *Homilía en Lampedusa*, 8 de julio de 2013. Fragmentos con omisiones señaladas. Texto oficial de la Santa Sede. https://www.vatican.va/content/francesco/es/homilies/2013/documents/papa-francesco\_20130708\_omelia-lampedusa.html
 [^138]: OIM (Organización Internacional para las Migraciones) y ACNUR (Alto Comisionado de las Naciones Unidas para los Refugiados), informe anual de movimientos migratorios por el Mediterráneo (2023).
 [^139]: Heller, Charles y Lorenzo Pezzani / Forensic Oceanography, Mare Clausum: Italy and the EU’s undeclared operation to stem migration across the Mediterranean (2018). Investigación forense sobre la criminalización del rescate y el apoyo a las interceptaciones libias.
 [^140]: ACNUR (Alto Comisionado de las Naciones Unidas para los Refugiados), «Over one million sea arrivals reach Europe in 2015», 2015.

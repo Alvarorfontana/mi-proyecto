@@ -121,7 +121,7 @@ La decisión de partir no pertenece exclusivamente al instante del viaje. Se pre
 
 Propongo ampliar información, asesoramiento y acceso a protección antes de que una familia dependa de intermediarios abusivos. Las respuestas deben contemplar a quienes desean quedarse y a quienes necesitan salir. El criterio de evaluación sería la calidad de las alternativas disponibles, no la aceptación de un proyecto decidido desde fuera. Escuchar cómo una persona entiende su propia situación es parte del diagnóstico y de la solución.
 
-[^348]: Frederick Douglass, *Discurso sobre la emancipación en las Indias Occidentales*, Canandaigua, 1857. Dos fragmentos con omisión señalada. Traducción propia del inglés. https://www.nps.gov/frdo/learn/historyculture/thoughts-for-all-time.htm
+[^348]: Frederick Douglass, *Discurso sobre la emancipación en las Indias Occidentales* (Canandaigua, 1857). Dos fragmentos con omisión señalada. Traducción propia del inglés. https://www.nps.gov/frdo/learn/historyculture/thoughts-for-all-time.htm
 [^349]: ACNUR (Alto Comisionado de las Naciones Unidas para los Refugiados) en Ecuador, Testimonio de Sandra Patricia en un albergue de Ecuador (2023). 26 de enero de 2023. Nombre cambiado por motivos de protección.
 [^350]: Michel Agier, *Managing the Undesirables: Refugee Camps and Humanitarian Government* (Cambridge: Polity, 2011). Traducción de David Fernbach. El análisis del gobierno humanitario permite examinar la espera, el control y la condición prolongada de los campamentos.
 [^351]: ACNUR (Alto Comisionado de las Naciones Unidas para los Refugiados), Legal considerations regarding claims for international protection made in the context of the adverse effects of climate change and disasters (2020). 1 de octubre de 2020.
