@@ -12,7 +12,7 @@ import { GitHub } from './github.js';
 import { convertir, primerTitulo } from './md2typ.js';
 import { principal, nombreTyp, lomoMm, contarPaginasPdf } from './armado.js';
 import { tomlSet, tomlContenido } from './toml.js';
-import { importarTexto, capituloEsIndice } from './importar.js';
+import { importarTexto, capituloEsIndice, tipoSugerido } from './importar.js';
 import { diffWords } from 'diff';
 import { revisarOrtotipografia, REGLAS } from './ortotipo.js';
 import { abrirPdf, marcadores, dibujarPagina, lienzoPagina } from './compaginar.js';
@@ -324,7 +324,11 @@ function armarApp() {
             <div class="der" id="p-der">
               <button class="btn chico" id="b-pdf-cap" title="Descargar o imprimir este capítulo en PDF">${I.bajar}PDF</button>
               <label class="check" style="font-size:12.5px"><input type="checkbox" id="c-auto" checked>Al escribir</label>
-              <input type="range" id="zoom" min="40" max="160" value="${leer('taller.zoom', 100)}" aria-label="Tamaño de las páginas">
+              <button class="btn chico" id="b-lupa" title="Lupa: pasá el mouse sobre la página para ver de cerca" aria-pressed="false">${I.buscar}Lupa</button>
+              <button class="btn chico zoom-btn" data-zoom="-20" title="Achicar" aria-label="Achicar">−</button>
+              <input type="range" id="zoom" min="40" max="300" value="${leer('taller.zoom', 100)}" aria-label="Tamaño de las páginas">
+              <button class="btn chico zoom-btn" data-zoom="20" title="Agrandar" aria-label="Agrandar">+</button>
+              <span class="sutil" id="zoom-num" style="font-size:12px;min-width:36px">${leer('taller.zoom', 100)}%</span>
             </div>
           </div>
           <div class="mesa" id="mesa"><div class="vacio"><h3>Las páginas aparecen acá</h3>Elegí un capítulo del índice.</div></div>
@@ -358,6 +362,8 @@ function armarApp() {
   $('#b-pdf-cap').onclick = pdfCapitulo;
   window.addEventListener('resize', () => { clearTimeout(S.tCapa); S.tCapa = setTimeout(capaArrastre, 200); });
   $('#zoom').oninput = () => { escribir('taller.zoom', +$('#zoom').value); aplicarZoom(); };
+  $$('[data-zoom]').forEach((b) => (b.onclick = () => { const z = $('#zoom'); z.value = Math.max(40, Math.min(300, +z.value + +b.dataset.zoom)); z.oninput(); }));
+  $('#b-lupa').onclick = () => { const on = $('#b-lupa').getAttribute('aria-pressed') !== 'true'; $('#b-lupa').setAttribute('aria-pressed', String(on)); $('#b-lupa').classList.toggle('prim', on); lupa(on); };
   crearEditor();
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); guardarTodo(); }
@@ -611,7 +617,7 @@ function datosCapitulos() {
 function pintarLista() {
   const d = datosCapitulos();
   let parte = 0;
-  const acc = (i) => `<span class="acc"><button data-mov="${i}:-1" title="Subir" aria-label="Subir">${I.arriba}</button><button data-mov="${i}:1" title="Bajar" aria-label="Bajar">${I.abajo}</button><button data-quitar="${i}" title="Quitar del libro" aria-label="Quitar del libro">${I.quitar}</button></span>`;
+  const acc = (i) => `<span class="acc"><button data-mov="${i}:-1" title="Subir" aria-label="Subir">${I.arriba}</button><button data-mov="${i}:1" title="Bajar" aria-label="Bajar">${I.abajo}</button><button data-tipo="${i}" title="Con o sin número de capítulo" aria-label="Con o sin número" class="num-tog">#</button><button data-quitar="${i}" title="Quitar del libro" aria-label="Quitar del libro">${I.quitar}</button></span>`;
   $('#lista').innerHTML = d.map((c) => {
     if (c.tipo === 'parte') { parte++; return `<div class="parte"><span>Parte ${parte}</span><b>${esc(c.titulo)}</b>${acc(c.i)}</div>`; }
     const marca = c.num ?? (c.tipo === 'interludio' ? '◆' : '');
@@ -620,6 +626,7 @@ function pintarLista() {
       <span class="n">${marca}</span><span class="t">${esc(tit)}</span><span class="p">${c.palabras < 1000 ? c.palabras : (c.palabras / 1000).toFixed(1) + ' mil'}</span>${acc(c.i)}</div>`;
   }).join('');
   const deIndice = d.filter((c) => c.archivo && capituloEsIndice(S.textos.get(c.archivo) || ''));
+  const sinNum = d.filter((c, k) => c.tipo === 'capitulo' && !deIndice.includes(c) && tipoSugerido(c.titulo, d.slice(0, k).some((x) => x.tipo === 'capitulo' && tipoSugerido(x.titulo, true) === 'capitulo')) !== 'capitulo');
   if (deIndice.length) {
     $('#lista').insertAdjacentHTML('afterbegin', `<div class="aviso-indice"><b>${deIndice.length === 1 ? '1 capítulo parece' : deIndice.length + ' capítulos parecen'} el índice del Word</b> (títulos con número de página). <button class="btn chico prim" id="b-sin-indice">Quitarlos</button></div>`);
     $('#b-sin-indice').onclick = () => {
@@ -630,6 +637,18 @@ function pintarLista() {
       toast('Listo. Tocá Guardar para que quede así.');
     };
   }
+  if (sinNum.length) {
+    $('#lista').insertAdjacentHTML('afterbegin', `<div class="aviso-indice"><b>${sinNum.map((c) => esc(c.titulo.split(' — ')[0])).join(', ')}</b> ${sinNum.length === 1 ? 'suele ir' : 'suelen ir'} sin número de capítulo. <button class="btn chico prim" id="b-sin-num">Sacarles el número</button><span class="sutil">También podés hacerlo uno por uno con el botón # de cada capítulo.</span></div>`);
+    $('#b-sin-num').onclick = () => {
+      const fuera = new Set(sinNum.map((c) => c.archivo));
+      let hubo = false;
+      const l = (S.cfg.contenido || []).map((c) => {
+        if (c.tipo === 'capitulo' && !fuera.has(c.archivo) && tipoSugerido(primerTitulo(S.textos.get(c.archivo) || ''), true) === 'capitulo') hubo = true;
+        return fuera.has(c.archivo) ? { ...c, tipo: hubo ? 'final' : 'preliminar' } : c;
+      });
+      cambiarContenido(l); toast('Listo. Tocá Guardar para que quede así.');
+    };
+  }
   const tot = d.reduce((a, c) => a + (c.palabras || 0), 0);
   const caps = d.filter((c) => c.tipo === 'capitulo').length;
   const ult = leer('taller.paginas.' + S.slug, null);
@@ -638,6 +657,13 @@ function pintarLista() {
   $$('#lista .it').forEach((e) => (e.onclick = (ev) => { if (!ev.target.closest('.acc')) { abrirTexto(e.dataset.a); if (S.vista !== 'paginas') verLado('paginas'); } }));
   $$('[data-mov]').forEach((b) => (b.onclick = () => { const [i, dd] = b.dataset.mov.split(':').map(Number); mover(i, dd); }));
   $$('[data-quitar]').forEach((b) => (b.onclick = () => quitar(+b.dataset.quitar)));
+  $$('[data-tipo]').forEach((b) => (b.onclick = () => {
+    const i = +b.dataset.tipo; const l = [...S.cfg.contenido]; const c = { ...l[i] };
+    if (!c.archivo) return;
+    if (c.tipo === 'capitulo') c.tipo = l.slice(0, i).some((x) => x.tipo === 'capitulo') ? 'final' : 'preliminar'; else c.tipo = 'capitulo';
+    l[i] = c; cambiarContenido(l);
+    toast(c.tipo === 'capitulo' ? 'Ahora lleva número de capítulo.' : 'Ahora va sin número de capítulo (' + (c.tipo === 'final' ? 'al final del libro' : 'antes del primer capítulo') + ').');
+  }));
   marcarEstado();
 }
 function cambiarContenido(lista) {
@@ -888,7 +914,40 @@ function montarPliegos(svgTexto, destino, { pliego = true } = {}) {
   aplicarZoom(destino);
   return paginas.length;
 }
+// Lupa: un círculo que muestra de cerca la parte de la página que está bajo el mouse.
+let lupaActiva = false;
+function lupa(on) {
+  lupaActiva = on;
+  const mesa = $('#mesa');
+  let lente = $('#lente');
+  if (!on) { lente?.remove(); mesa.style.cursor = ''; return; }
+  if (!lente) { lente = h('<div id="lente" class="lente" hidden></div>'); document.body.append(lente); }
+  mesa.style.cursor = 'zoom-in';
+  const AUM = 2.6, R = 130;
+  let copia = null, origen = null;
+  const preparar = () => {
+    origen = $('svg.pliego-svg', mesa);
+    if (!origen) return false;
+    copia = origen.cloneNode(true); copia.removeAttribute('id');
+    lente.replaceChildren(copia); return true;
+  };
+  mesa.onmousemove = (e) => {
+    if (!lupaActiva) return;
+    const s = $('svg.pliego-svg', mesa);
+    if (!s) { lente.hidden = true; return; }
+    if (s !== origen && !preparar()) return;
+    const r = s.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) { lente.hidden = true; return; }
+    lente.hidden = false;
+    lente.style.left = e.clientX - R + 'px'; lente.style.top = e.clientY - R + 'px';
+    copia.style.width = r.width * AUM + 'px'; copia.style.height = r.height * AUM + 'px';
+    copia.style.transform = `translate(${-(e.clientX - r.left) * AUM + R}px, ${-(e.clientY - r.top) * AUM + R}px)`;
+  };
+  mesa.onmouseleave = () => { lente.hidden = true; };
+  mesa.onscroll = () => { lente.hidden = true; };
+}
 function aplicarZoom(destino = $('#mesa')) {
+  if ($('#zoom-num')) $('#zoom-num').textContent = ($('#zoom')?.value || 100) + '%';
   const z = (+($('#zoom')?.value) || 100) / 100;
   $$('svg.pliego-svg', destino).forEach((s) => { s.style.width = Math.round(z * 100) + '%'; s.style.maxWidth = 'none'; });
 }
@@ -2937,7 +2996,7 @@ function asistenteImportar(archivoInicial = null) {
       while (usados.has(archivo)) archivo = archivo.replace(/\.md$/, '-b.md');
       usados.add(archivo);
       S.textos.set(archivo, x.md); S.originales.set(archivo, null);
-      l.push({ tipo: 'capitulo', archivo });
+      l.push({ tipo: tipoSugerido(x.titulo, l.some((c) => c.tipo === 'capitulo')), archivo });
       primero ||= archivo;
     }
     cambiarContenido(l);

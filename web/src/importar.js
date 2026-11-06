@@ -88,6 +88,7 @@ function tipoParrafo(p, i, ps) {
 
 const capitalizar = (s) => (s === s.toUpperCase() && /[A-ZÁÉÍÓÚÑ]{3}/.test(s) ? s.toLowerCase().replace(/^(\p{L})/u, (c) => c.toUpperCase()) : s);
 function tituloCapitulo(t) {
+  t = t.replace(/\*\*|__/g, '').replace(/^\*|\*$/g, '').trim();
   const m = t.match(RE_CAP);
   if (m && m[3]) return capitalizar(m[3].trim());
   return capitalizar(t.trim());
@@ -245,7 +246,7 @@ export function importarTexto(texto, opciones = {}) {
 }
 
 // ── Tabla de contenido del Word/PDF (títulos con el número de página al final) ──
-const RE_TIT_INDICE = /^(í|i)ndice( general)?$|^contenidos?$|^tabla de contenidos?$|^sumario$/i;
+const RE_TIT_INDICE = /^(í|i)ndice( general| de (tablas|figuras|gr[aá]ficos|cuadros|ilustraciones|mapas|abreviaturas|siglas))?$|^contenidos?$|^tabla de contenidos?$|^sumario$|^lista de (tablas|figuras|gr[aá]ficos|cuadros|abreviaturas)$/i;
 const sinMarcas = (p) => p.replace(/^#{1,6}\s+/, '').replace(/\*\*|__|\*/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').trim();
 export function esLineaIndice(p) {
   const s = sinMarcas(p);
@@ -281,4 +282,14 @@ export function capituloEsIndice(md) {
   const hits = cuerpo.filter(esLineaIndice).length;
   if (RE_TIT_INDICE.test(titulo)) return !cuerpo.length || hits / cuerpo.length >= 0.5;
   return esLineaIndice(ps[0]) && (cuerpo.length === 0 || hits / cuerpo.length >= 0.6);
+}
+
+// Partes sin número de capítulo: van antes (preliminares) o después (finales) del cuerpo del libro.
+const RE_PRELIM = /^(resumen|abstract|resumo|r[ée]sum[ée]|agradecimientos?|dedicatoria|ep[ií]grafe|pr[oó]logo|prefacio|presentaci[oó]n|introducci[oó]n|palabras preliminares|nota del autor|nota preliminar|siglas|abreviaturas|lista de (siglas|abreviaturas))\b/i;
+const RE_FINAL = /^(glosario|referencias( bibliogr[aá]ficas)?|bibliograf[ií]a|fuentes|obras citadas|anexos?|ap[eé]ndices?|ep[ií]logo|palabras finales|índice (onom[aá]stico|anal[ií]tico|tem[aá]tico)|sobre (el|la) autor(a)?|colof[oó]n)\b/i;
+export function tipoSugerido(titulo, yaHayCapitulos) {
+  const t = String(titulo || '').replace(/^#+\s*/, '').replace(/\*\*|__/g, '').trim();
+  if (RE_FINAL.test(t)) return 'final';
+  if (RE_PRELIM.test(t)) return yaHayCapitulos ? 'final' : 'preliminar';
+  return 'capitulo';
 }
