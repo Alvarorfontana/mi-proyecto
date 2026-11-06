@@ -194,7 +194,7 @@ function armarCapitulo(c, op) {
 // Punto de entrada: devuelve [{tipo:'parte'|'capitulo', titulo, md?, palabras, informe}]
 export function importarTexto(texto, opciones = {}) {
   const op = { ...OPCIONES_IMPORTAR, ...opciones };
-  const ps = parrafos(limpiar(texto), op.unir);
+  const ps = parrafos(limpiar(op.sinIndice === false ? texto : quitarIndice(texto).texto), op.unir);
   const items = [];
   let actual = null;
   let zona = 'cuerpo'; // cuerpo | notas | biblio
@@ -242,4 +242,43 @@ export function importarTexto(texto, opciones = {}) {
     delete r.cuerpo; delete r.notas; delete r.biblio;
     return r;
   });
+}
+
+// ── Tabla de contenido del Word/PDF (títulos con el número de página al final) ──
+const RE_TIT_INDICE = /^(í|i)ndice( general)?$|^contenidos?$|^tabla de contenidos?$|^sumario$/i;
+const sinMarcas = (p) => p.replace(/^#{1,6}\s+/, '').replace(/\*\*|__|\*/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').trim();
+export function esLineaIndice(p) {
+  const s = sinMarcas(p);
+  if (/^\d{1,3}$/.test(s)) return true; // número de página suelto
+  return s.length < 260 && /\S[\s.…·_\t-]*\s\.{0,}\s*\d{1,3}$/.test(s) && !/\s(de|en|del|año|años|ley|n\.?º|nº|art\.?)\s+\d{1,3}$/i.test(s);
+}
+// Saca del texto pegado o subido los tramos que son el índice del documento original.
+export function quitarIndice(texto) {
+  const ps = texto.split(/\n\s*\n/);
+  const fuera = new Set();
+  for (let i = 0; i < ps.length; i++) {
+    if (!esLineaIndice(ps[i])) continue;
+    let j = i, hits = 0, huecos = 0;
+    while (j < ps.length && (esLineaIndice(ps[j]) || (huecos < 1 && ps[j + 1] && esLineaIndice(ps[j + 1])))) {
+      if (esLineaIndice(ps[j])) { hits++; huecos = 0; } else huecos++;
+      j++;
+    }
+    if (hits >= 5) {
+      for (let k = i; k < j; k++) fuera.add(k);
+      // el título «Índice» o «Contenido» que lo encabeza
+      for (let k = i - 1; k >= Math.max(0, i - 2); k--) if (RE_TIT_INDICE.test(sinMarcas(ps[k]))) fuera.add(k);
+    }
+    i = j;
+  }
+  return { texto: ps.filter((_, k) => !fuera.has(k)).join('\n\n'), quitados: fuera.size };
+}
+// ¿Este capítulo ya creado es en realidad parte del índice del documento original?
+export function capituloEsIndice(md) {
+  const ps = md.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  if (!ps.length) return false;
+  const titulo = sinMarcas(ps[0]);
+  const cuerpo = ps.slice(1);
+  const hits = cuerpo.filter(esLineaIndice).length;
+  if (RE_TIT_INDICE.test(titulo)) return !cuerpo.length || hits / cuerpo.length >= 0.5;
+  return esLineaIndice(ps[0]) && (cuerpo.length === 0 || hits / cuerpo.length >= 0.6);
 }

@@ -510,3 +510,4 @@ dialog h3 { font: 600 13px var(--marca); margin: 0 0 8px; color: var(--tinta); }
   .imp-pie { flex-wrap: wrap; gap: 8px; }
   .imp-pie label.btn { width: 100%; justify-content: center; }
 }
+.aviso-indice { margin: 0 6px 8px; padding: 10px 12px; border-radius: 8px; background: #fff4e5; border: 1px solid #f0c27b; font-size: 12.5px; line-height: 1.4; display: grid; gap: 8px; justify-items: start; }

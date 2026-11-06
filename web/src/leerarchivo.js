@@ -43,7 +43,7 @@ function htmlAMarkdown(html) {
 async function leerWord(archivo) {
   const mammoth = (await import('mammoth/mammoth.browser.js')).default;
   const r = await mammoth.convertToHtml({ arrayBuffer: await archivo.arrayBuffer() }, {
-    styleMap: ["p[style-name='Title'] => h1:fresh", "p[style-name='Título'] => h1:fresh", "p[style-name='Subtitle'] => h2:fresh", "p[style-name='Subtítulo'] => h2:fresh"],
+    styleMap: [...[1, 2, 3, 4, 5, 6].flatMap((n) => [`p[style-name='toc ${n}'] => !`, `p[style-name='TOC ${n}'] => !`, `p[style-name='TDC ${n}'] => !`, `p[style-name='Tdc ${n}'] => !`]), "p[style-name='TOC Heading'] => !", "p[style-name='Título de TDC'] => !","p[style-name='Title'] => h1:fresh", "p[style-name='Título'] => h1:fresh", "p[style-name='Subtitle'] => h2:fresh", "p[style-name='Subtítulo'] => h2:fresh"],
   });
   return htmlAMarkdown(r.value);
 }

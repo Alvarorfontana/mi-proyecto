@@ -12,7 +12,7 @@ import { GitHub } from './github.js';
 import { convertir, primerTitulo } from './md2typ.js';
 import { principal, nombreTyp, lomoMm, contarPaginasPdf } from './armado.js';
 import { tomlSet, tomlContenido } from './toml.js';
-import { importarTexto } from './importar.js';
+import { importarTexto, capituloEsIndice } from './importar.js';
 import { diffWords } from 'diff';
 import { revisarOrtotipografia, REGLAS } from './ortotipo.js';
 import { abrirPdf, marcadores, dibujarPagina, lienzoPagina } from './compaginar.js';
@@ -619,6 +619,17 @@ function pintarLista() {
     return `<div class="it ${c.archivo === S.actual ? 'sel' : ''}" data-a="${esc(c.archivo)}" title="${esc(c.titulo)}">
       <span class="n">${marca}</span><span class="t">${esc(tit)}</span><span class="p">${c.palabras < 1000 ? c.palabras : (c.palabras / 1000).toFixed(1) + ' mil'}</span>${acc(c.i)}</div>`;
   }).join('');
+  const deIndice = d.filter((c) => c.archivo && capituloEsIndice(S.textos.get(c.archivo) || ''));
+  if (deIndice.length) {
+    $('#lista').insertAdjacentHTML('afterbegin', `<div class="aviso-indice"><b>${deIndice.length === 1 ? '1 capítulo parece' : deIndice.length + ' capítulos parecen'} el índice del Word</b> (títulos con número de página). <button class="btn chico prim" id="b-sin-indice">Quitarlos</button></div>`);
+    $('#b-sin-indice').onclick = () => {
+      if (!confirm(`Se quitan del libro:\n\n${deIndice.map((c) => '· ' + c.titulo).join('\n')}\n\nEl taller arma su propio índice solo. ¿Seguir?`)) return;
+      const fuera = new Set(deIndice.map((c) => c.archivo));
+      cambiarContenido((S.cfg.contenido || []).filter((c) => !fuera.has(c.archivo)));
+      if (fuera.has(S.actual)) { const pr = (S.cfg.contenido || []).find((c) => c.archivo); if (pr) abrirTexto(pr.archivo); }
+      toast('Listo. Tocá Guardar para que quede así.');
+    };
+  }
   const tot = d.reduce((a, c) => a + (c.palabras || 0), 0);
   const caps = d.filter((c) => c.tipo === 'capitulo').length;
   const ult = leer('taller.paginas.' + S.slug, null);
