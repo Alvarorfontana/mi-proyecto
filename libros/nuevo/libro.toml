@@ -1,0 +1,65 @@
+# nuevo — configuración del libro (creado desde el taller)
+
+[libro]
+titulo     = "nuevo"
+subtitulo  = ""
+autor      = "Álvaro Fontana"
+editorial  = "Editorial Umbral"
+ciudad     = "Buenos Aires"
+anio       = 2026
+isbn       = ""
+edicion    = "Primera edición"
+
+[creditos]
+numero_edicion       = "1a ed."
+numero_edicion_texto = "Primera edición"
+fecha_edicion        = ""
+ficha                = true
+
+[formato]
+preset = "17x24"
+
+[tipografia]
+fuente          = "EB Garamond"
+fuente_titulos  = "EB Garamond"
+fuente_apoyo    = "Inter"
+cuerpo          = "11pt"
+interlineado    = "15pt"
+notas           = "9pt"
+sangria         = "1.2em"
+justificado     = true
+guiones         = true
+idioma          = "es"
+
+[estilo]
+columnas          = 1
+capitulo_en_impar = true
+cornisa_par       = "autor"
+cornisa_impar     = "capitulo"
+folio             = "abajo-afuera"
+apertura          = "clasica"
+colofon           = true
+
+[preliminares]
+portadilla = true
+indice     = "inicio"
+
+[tapa]
+estilo           = "clasica"
+fuente_titulo    = "EB Garamond"
+papel            = "obra-80"
+cartulina_mm     = 0.6
+solapa           = "0mm"
+sangrado         = "3mm"
+fondo            = "#1d2a33"
+color_texto      = "#f4efe6"
+color_acento     = "#d9a441"
+elementos      = ""
+imagen         = ""
+contratapa       = "tapa/contratapa.md"
+solapa_delantera = "tapa/solapa-delantera.md"
+solapa_trasera   = "tapa/solapa-trasera.md"
+
+[[contenido]]
+tipo = "capitulo"
+archivo = "texto/01-capitulo-1.md"
