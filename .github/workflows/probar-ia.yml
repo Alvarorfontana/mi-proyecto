@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl -s -w " HTTP %{http_code}\n" "https://taller-editorial.vercel.app/api/ia?prov=estado" -H "X-GitHub-Token: ${{ github.token }}"
-          curl -s -w " HTTP %{http_code}\n" "https://taller-editorial.vercel.app/api/ia?prov=estado" -H "X-GitHub-Token: falso"
-          curl -s -o /dev/null -w "js HTTP %{http_code}\n" "https://taller-editorial.vercel.app/"
-          curl -s "https://taller-editorial.vercel.app/" | grep -o 'assets/[^"]*\.js' | head -3
+          curl -s -w " HTTP %{http_code}\n" "https://mi-proyecto-awga.vercel.app/api/ia?prov=estado" -H "X-GitHub-Token: ${{ github.token }}"
+          curl -s -w " HTTP %{http_code}\n" "https://mi-proyecto-awga.vercel.app/api/ia?prov=estado" -H "X-GitHub-Token: falso"
+          curl -s -o /dev/null -w "js HTTP %{http_code}\n" "https://mi-proyecto-awga.vercel.app/"
+          curl -s "https://mi-proyecto-awga.vercel.app/" | grep -o 'assets/[^"]*\.js' | head -3
