@@ -43,3 +43,15 @@ export async function usuarioSupabase(request) {
     return u?.email || u?.id || null;
   } catch { return null; }
 }
+
+// Quien entra con su propia clave de GitHub: vale si esa clave puede escribir en el repositorio del taller.
+export async function usuarioGitHub(request) {
+  const token = (request.headers.get('x-github-token') || '').trim();
+  if (!token) return null;
+  try {
+    const r = await fetch(`https://api.github.com/repos/${REPO}`, { headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'taller-editorial' } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j.permissions?.push ? 'github' : null;
+  } catch { return null; }
+}

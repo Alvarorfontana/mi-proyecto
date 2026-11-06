@@ -78,8 +78,19 @@ if (S.conf.modo === 'clave' && S.conf.clave) instalarPasamanos(() => ({ 'X-Talle
     return pantallaIngreso();
   }
   // 2) contraseña del taller o clave de GitHub
-  if (S.conf.token) conectar().catch((e) => pantallaIngreso(e.message)); else pantallaIngreso();
+  if (S.conf.token) { if (S.conf.modo !== 'clave') await iaConGitHub(); conectar().catch((e) => pantallaIngreso(e.message)); } else pantallaIngreso();
 })();
+
+// Con clave de GitHub propia: la IA gratuita (Gemini) del taller también, sin claves en el navegador.
+async function iaConGitHub() {
+  const ia = await iaDelServidor({ 'X-GitHub-Token': S.conf.token });
+  if (!ia.gemini && !ia.groq) return;
+  instalarPasamanos(() => ({ 'X-GitHub-Token': S.conf.token }), { soloIA: true });
+  if (ia.gemini) S.conf.gemini = 'servidor';
+  if (ia.groq) S.conf.groq = 'servidor';
+  S.conf.proveedor = ia.gemini ? 'gemini' : 'groq';
+  escribir('taller.conf', S.conf);
+}
 
 async function entrarSupabase(ses) {
   S.sesion = ses;
@@ -178,7 +189,7 @@ function pantallaIngreso(error) {
     S.conf.token = $('#i-token').value.trim(); S.conf.owner = $('#i-owner').value.trim(); S.conf.repo = $('#i-repo').value.trim();
     if (!S.conf.token) return toast('Pegá la clave de GitHub para seguir.');
     const b = $('#b-entrar'); b.disabled = true; b.innerHTML = '<span class="spin"></span> Conectando…';
-    try { await conectar(); escribir('taller.conf', S.conf); } catch (e) { pantallaIngreso(e.message); }
+    try { await iaConGitHub(); await conectar(); escribir('taller.conf', S.conf); } catch (e) { pantallaIngreso(e.message); }
   };
 }
 
