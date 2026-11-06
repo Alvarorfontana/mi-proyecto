@@ -624,7 +624,7 @@ function pintarLista() {
   const ult = leer('taller.paginas.' + S.slug, null);
   $('#cuenta').textContent = `${caps} capítulos`;
   $('#resumen').innerHTML = `<b>${numero(tot)}</b> palabras${ult ? ` · <b>${ult.paginas}</b> páginas en el último armado` : ''}`;
-  $$('#lista .it').forEach((e) => (e.onclick = (ev) => { if (!ev.target.closest('.acc')) abrirTexto(e.dataset.a); }));
+  $$('#lista .it').forEach((e) => (e.onclick = (ev) => { if (!ev.target.closest('.acc')) { abrirTexto(e.dataset.a); if (S.vista !== 'paginas') verLado('paginas'); } }));
   $$('[data-mov]').forEach((b) => (b.onclick = () => { const [i, dd] = b.dataset.mov.split(':').map(Number); mover(i, dd); }));
   $$('[data-quitar]').forEach((b) => (b.onclick = () => quitar(+b.dataset.quitar)));
   marcarEstado();
@@ -2931,7 +2931,7 @@ function asistenteImportar(archivoInicial = null) {
     }
     cambiarContenido(l);
     d.close();
-    if (primero) abrirTexto(primero);
+    if (primero) { abrirTexto(primero); verLado('paginas'); }
     toast(`Listo: ${caps.length} ${caps.length === 1 ? 'capítulo creado' : 'capítulos creados'}. Revisalos y tocá Guardar para subirlos a GitHub.`);
   };
   ta.focus();
