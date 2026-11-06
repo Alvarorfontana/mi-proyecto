@@ -52,6 +52,9 @@ export async function usuarioGitHub(request) {
     const r = await fetch(`https://api.github.com/repos/${REPO}`, { headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'taller-editorial' } });
     if (!r.ok) return null;
     const j = await r.json();
-    return j.permissions?.push ? 'github' : null;
+    if (j.permissions?.push) return 'github';
+    const u = await fetch('https://api.github.com/user', { headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'taller-editorial' } });
+    const login = u.ok ? (await u.json()).login : '';
+    return login && login.toLowerCase() === REPO.split('/')[0].toLowerCase() ? 'github' : null;
   } catch { return null; }
 }

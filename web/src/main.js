@@ -2397,7 +2397,11 @@ async function simular() {
 /* ═════════ asistente (Groq o Gemini) ═════════ */
 let ultimaRespuesta = null;
 let listaGemini = null;
-const provActual = () => S.conf.proveedor || (S.conf.groq || !S.conf.gemini ? 'groq' : 'gemini');
+const provActual = () => {
+  const p = S.conf.proveedor || (S.conf.groq || !S.conf.gemini ? 'groq' : 'gemini');
+  if (!S.conf[p]) { const otro = p === 'groq' ? 'gemini' : 'groq'; if (S.conf[otro]) return otro; }
+  return p;
+};
 const claveIA = (p = provActual()) => S.conf[p] || '';
 function modelosDe(p) { return p === 'gemini' ? (listaGemini || MODELOS_GEMINI) : MODELOS; }
 function pintarAsistente() {
@@ -3125,7 +3129,7 @@ function dialogoAjustes() {
     <label class="campo"><span>Repositorio</span><input class="entrada" id="a-repo" value="${esc(S.conf.repo)}"></label></div>
     <label class="campo"><span>Clave de GitHub</span><input class="entrada" id="a-token" type="password" value="${esc(S.conf.token)}"></label>
     <label class="campo"><span>Clave de Groq (asistente)</span><input class="entrada" id="a-groq" type="password" value="${esc(S.conf.groq || '')}" placeholder="gsk_…"><small>Se crea gratis en console.groq.com/keys.</small></label>
-    <label class="campo"><span>Clave de Gemini (asistente y revisión)</span><input class="entrada" id="a-gemini" type="password" value="${esc(S.conf.gemini || '')}" placeholder="AIza…"><small>Se crea gratis en aistudio.google.com/apikey.</small></label>
+    <label class="campo"><span>Clave de Gemini (asistente y revisión)</span><input class="entrada" id="a-gemini" type="password" value="${esc(S.conf.gemini || '')}" placeholder="AIza… o AQ.…"><small>${S.conf.gemini === 'servidor' ? 'Usa la clave del taller (no hace falta poner nada).' : 'Se crea gratis en aistudio.google.com/apikey. Si la pegás acá, el taller usa Gemini.'}</small></label>
     <p style="margin:0;font-size:12.5px;color:var(--tinta-suave)">Las claves quedan guardadas solo en este navegador.</p>`,
   [['Cerrar sesión'], ['Cancelar'], ['Guardar', 'prim']]);
   d.addEventListener('close', async () => {
@@ -3133,6 +3137,7 @@ function dialogoAjustes() {
     if (d.returnValue !== '2') return;
     const cambioRepo = $('#a-owner', d).value.trim() !== S.conf.owner || $('#a-repo', d).value.trim() !== S.conf.repo || $('#a-token', d).value.trim() !== S.conf.token;
     Object.assign(S.conf, { owner: $('#a-owner', d).value.trim(), repo: $('#a-repo', d).value.trim(), token: $('#a-token', d).value.trim(), groq: $('#a-groq', d).value.trim(), gemini: $('#a-gemini', d).value.trim() });
+    if (S.conf.gemini) S.conf.proveedor = 'gemini'; else if (S.conf.groq) S.conf.proveedor = 'groq';
     escribir('taller.conf', S.conf);
     if (cambioRepo) location.reload(); else { toast('Ajustes guardados.'); if (S.vista === 'asistente') pintarAsistente(); }
   });
