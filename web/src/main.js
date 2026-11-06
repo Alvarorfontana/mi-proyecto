@@ -78,16 +78,18 @@ if (S.conf.modo === 'clave' && S.conf.clave) instalarPasamanos(() => ({ 'X-Talle
     return pantallaIngreso();
   }
   // 2) contraseña del taller o clave de GitHub
-  if (S.conf.token) { if (S.conf.modo !== 'clave') await iaConGitHub(); conectar().catch((e) => pantallaIngreso(e.message)); } else pantallaIngreso();
+  if (S.conf.token) { await iaConGitHub(); conectar().catch((e) => pantallaIngreso(e.message)); } else pantallaIngreso();
 })();
 
 // Con clave de GitHub propia: la IA gratuita (Gemini) del taller también, sin claves en el navegador.
 async function iaConGitHub() {
-  const ia = await iaDelServidor({ 'X-GitHub-Token': S.conf.token });
+  const cab = S.conf.modo === 'clave' ? { 'X-Taller-Clave': S.conf.clave } : { 'X-GitHub-Token': S.conf.token };
+  const ia = await iaDelServidor(cab);
   if (!ia.gemini && !ia.groq) return;
-  instalarPasamanos(() => ({ 'X-GitHub-Token': S.conf.token }), { soloIA: true });
-  if (ia.gemini) S.conf.gemini = 'servidor';
-  if (ia.groq) S.conf.groq = 'servidor';
+  instalarPasamanos(() => (S.conf.modo === 'clave' ? { 'X-Taller-Clave': S.conf.clave } : { 'X-GitHub-Token': S.conf.token }), { soloIA: S.conf.modo !== 'clave' });
+  // las claves guardadas en este navegador ya no se usan: va todo por el servidor
+  S.conf.gemini = ia.gemini ? 'servidor' : '';
+  S.conf.groq = ia.groq ? 'servidor' : '';
   S.conf.proveedor = ia.gemini ? 'gemini' : 'groq';
   escribir('taller.conf', S.conf);
 }
@@ -176,7 +178,7 @@ function pantallaIngreso(error) {
     try {
       const d = await entrarConClave(clave);
       Object.assign(S.conf, { modo: 'clave', clave, token: 'servidor', owner: d.owner, repo: d.repo, nombre: d.nombre,
-        gemini: d.ia.gemini ? 'servidor' : S.conf.gemini || '', groq: d.ia.groq ? 'servidor' : S.conf.groq || '',
+        gemini: d.ia.gemini ? 'servidor' : S.conf.gemini || '', groq: d.ia.groq ? 'servidor' : d.ia.gemini ? '' : S.conf.groq || '',
         proveedor: d.ia.gemini ? 'gemini' : d.ia.groq ? 'groq' : S.conf.proveedor });
       instalarPasamanos(() => ({ 'X-Taller-Clave': clave }));
       await conectar(); escribir('taller.conf', S.conf);
